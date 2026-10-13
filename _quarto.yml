@@ -58,7 +58,7 @@ book:
     - A1PackagesUsed.qmd
     - A2DataSources.qmd
     - A3Acknowledgements.qmd
-  repo-url: https://github.com/OpenDendro/dplR-workshop
+  repo-url: https://github.com/OpenDendro/learningToLoveDplR
   repo-actions: [edit, issue]
 
 language:
