@@ -1,227 +1,450 @@
 # Chronology Building
 
+:::{.callout-note title="Draft"}
+First full draft of the rewrite, 2026-10-13. The stripping section was written earlier and is adjusted here only for the detrending. Every number in the text is computed when the book builds. Open questions are in the backlog.
+:::
 
-## Introduction
+## Big Idea
 
-The creation of a mean-value chronology is one of the central tasks for a dendrochronologist. It's most commonly done by calculating the mean of each year across all the series in the data. However, there are several more ways to approach the problem and this document explains a few different ways of going about it.
+Making a chronology takes one line. You average the indices across series, year by year, and you are done. So why does it get a chapter?
 
-The use of the signal-free method of chronology building with `ssf` is complex enough to warrant its own chapter.
+Because that one line hides four decisions. Which mean? Which years, given that the early ones rest on two or three trees? How far do you trust the result? And what do you do about a chronology that gets noisier wherever the trees thin out? `dplR` has a function for each, and none of them can make the decision for you.
 
-## Data Sets
-Throughout this document we will use the onboard data set `wa082` which gives the raw ring widths for Pacific silver fir *Abies amabilis* at Hurricane Ridge in Washington, USA. There are 23 series covering 286 years.
+The last chapter supplies the tools. rbar, EPS and SSS all come back here and get put to work, so read [Chronology Statistics](06ChronologyStats.qmd) first if you skipped it.
+
+## Packages
 
 ```{r}
-#| label: crn-load-wa082
+#| label: crn-setup
 library(dplR)
+library(ggplot2)
+data(co021)
 data(wa082)
-plot(wa082, plot.type="spag")
-
-```
-
-By the way, if this is all new to you -- go back and look at earlier chapters and  proceed immediately to a good primer on dendrochronology like Fritts [-@Fritts2001]. 
-
-
-## Traditional Chronology
-Let us make a few chronologies from the `wa082` data after detrending each series with an age-dependent spline (using `ads`). Detrending is an enormously complicated
-area unto itself and more deserving of a chapter than chronology building is. We cover some of the issues around detrending in the Detrending chapter. There is a reason, 
-after all, that dendrochronologists have been arguing about detrending for decades.
-
-```{r}
-#| label: crn-deet
-wa082RWI <- detrend(wa082, method="AgeDepSpline")
-```
-
-The simplest way to make a chronology in `dplR` is chronology is with the `chron`
-function which also has a `plot` method. This defaults to building a mean-value
-chronology by averaging the rows of the `rwi` data using Tukey's biweight robust
-mean (function `tbrm`). Here it is with a a 30-year smoothing spline for visualization.
-
-```{r}
-#| label: crn-crn1
-wa082Crn <- chron(wa082RWI)
-str(wa082Crn)
-plot(wa082Crn, add.spline=TRUE, nyrs=30)
-```
-
-Note the structure (`str`) of the output object states that it is `class` `crn`. This means that there are some generic functions that `dplR` has ready to work with this kind of object (e.g., `time` to extract the years, and `plot` which then calls `crn.plot`).
-
-The `chron` function will also compute a residual chronology by prewhitening the series before averaging. If the `prewhiten` flag is set to `TRUE`, each series is whitened using `ar` prior to averaging. The residual chronology is thus white noise. Note that the `crn` object below has two columns with chronologies as well as the sample depth in a third column. 
-
-```{r}
-#| label: crn-crnres
-wa082CrnResid <- chron(wa082RWI, prewhiten = TRUE)
-str(wa082CrnResid)
-plot(wa082CrnResid)
-```
-
-
-## Using a Sample Depth Cutoff
-
-A relatively simple addition to the traditional chronology is to truncate the
-chronology when the sample depth gets to a certain threshold. The output from
-the `chron` function contains a column called `samp.depth` which shows the
-number of series that are average for a particular year. We can use the 
-`subset` function to modify the chronology. A standard method is to truncate the sample depth to a minimum of five series.
-
-```{r}
-#| label: crn-trunc5
-head(wa082Crn)
-wa082CrnTrunc <- subset(wa082Crn, samp.depth > 4)
-plot(wa082CrnTrunc,add.spline=T,nyrs=30)
-```
-
-It would likely be more robust to recalculate the ring-width indices object by truncating the `rwl` file and then making a chronology which could be done by nesting commands via:
-
-```{r}
-#| label: crn-trunc5-crn
-wa082CrnTrunc <- chron(detrend(wa082[wa082Crn$samp.depth > 4,], 
-                               method="AgeDepSpline"))
-```
-
-The result in this case is likely to be virtually identical to truncating after calculating the chronology but still seems like a good practice.
-
-
-## Using SSS as a Cutoff
-
-A more interesting and likely more robust approach is to truncate via the
-subsample signal strength (SSS). Just for fun, I'll show how we can do this using `tidy` syntax and `ggplot`.
-
-```{r}
-#| label: crn-truncsss
-library(tidyverse)
+co021Ids <- autoread.ids(co021)
 wa082Ids <- autoread.ids(wa082)
-sssThresh <- 0.85
-wa082SSS <- sss(wa082RWI, wa082Ids)
-yrs <- time(wa082)
-yrCutoff <- max(yrs[wa082SSS < sssThresh])
-ggplot() +
-  geom_rect(aes(ymin=-Inf, ymax=Inf,xmin=-Inf,xmax=yrCutoff),
-            fill="darkred",alpha=0.5) +
-  annotate(geom = "text",y=1.5,x=1725,label="SSS < 0.85")+
-  geom_hline(yintercept = 1,linetype="dashed") +
-  geom_line(aes(x=yrs,y=wa082Crn$std)) +
-  labs(x="Year",y="RWI") + theme_minimal()
+co021Rwi <- detrend(co021, method = "Spline")
+wa082Rwi <- detrend(wa082, method = "Spline")
 ```
 
-Now we can cutoff the `rwl` data and redo the chronology.
+These are the same indices as in the last chapter, Mesa Verde (`co021`) and Hurricane Ridge (`wa082`), each detrended with a spline. Most of the work here is on Hurricane Ridge, because it is the collection where the decisions are hard.
+
+## The Mean
+
+`chron` averages the indices for each year and keeps count of how many series went into each average.
 
 ```{r}
-#| label: crn-truncsss2
-wa082RwlSSS <- wa082[wa082SSS > sssThresh,]
-wa082RwiSSS <- detrend(wa082RwlSSS, method="AgeDepSpl")
-
-wa082CrnSSS <- chron(wa082RwiSSS)
-ggplot() +
-  geom_hline(yintercept = 1,linetype="dashed") +
-  geom_line(aes(x=time(wa082CrnSSS),y=wa082CrnSSS$std)) +
-  geom_line(aes(x=time(wa082CrnSSS),
-                y=caps(wa082CrnSSS$std,nyrs = 30)),
-            color="darkred") +
-  labs(x="Year",y="RWI") + theme_minimal()
+#| label: crn-chron
+wa082Crn <- chron(wa082Rwi)
+str(wa082Crn)
 ```
 
-
-## Chronology Uncertainty
-Typically we calculate a chronology by taking the average of each year from the ring-width indices. And that is typically the biweight robust mean. The function `chron` like  many of the functions in `dplR` are relatively simple chunks of code that are used for convenience. We can make our own chronology and get the mean plus two standard errors of the yearly growth quite simply. It's important for new users of `dplR` not to get stuck with just the available functions and to roll your own code.
+The result has class `crn`. That class is why `plot` knows what to draw and `time` knows where the years are.
 
 ```{r}
-#| label: crn-se
-wa082AvgCrn <- apply(wa082RwiSSS,1,mean,na.rm=TRUE)
-se <- function(x){
-  x2 <- na.omit(x)
-  n <- length(x2)
-  sd(x2)/sqrt(n)
+#| label: fig-crn-chron
+#| fig-cap: "The Hurricane Ridge chronology with a 30-year spline, and its sample depth."
+plot(wa082Crn, add.spline = TRUE, nyrs = 30)
+```
+
+Which mean is it? By default `chron` uses Tukey's biweight robust mean, `tbrm`, which gives less weight to values far from the rest. Set `biweight = FALSE` for the arithmetic mean. Does it matter?
+
+```{r}
+#| label: crn-biweight
+wa082CrnMean <- chron(wa082Rwi, biweight = FALSE)
+meanGap <- abs(wa082Crn$std - wa082CrnMean$std)
+cor(wa082Crn$std, wa082CrnMean$std)
+summary(meanGap)
+```
+
+Most years it doesn't. The two chronologies correlate at `r round(cor(wa082Crn$std, wa082CrnMean$std), 3)` and the typical difference is under 0.01. Then there are years like this one.
+
+```{r}
+#| label: crn-biweight-year
+gapYear <- time(wa082Crn)[which.max(meanGap)]
+gapValues <- unlist(wa082Rwi[as.character(gapYear), ])
+gapValues <- sort(gapValues[!is.na(gapValues)])
+round(gapValues, 2)
+c(mean = mean(gapValues), biweight = tbrm(gapValues))
+```
+
+In `r gapYear` there are `r length(gapValues)` series. Most of them sit close together and a couple are far below. The arithmetic mean gets pulled toward the low ones. The biweight mean stays with the crowd.
+
+Is the crowd right? Not necessarily. Two cores with a narrow ring might be a measurement problem, or they might be the trees that got hit by something the others missed. The biweight mean makes a chronology that is harder to push around, which is usually what you want when you have twenty series and can't inspect every ring. With five series it can't tell an outlier from a third of your data. That is one more reason to care about the early years.
+
+## Whose Persistence Is It?
+
+A wide ring tends to follow a wide ring. Some of that persistence is in the climate. Some of it is in the tree: stored reserves, needles that last for years, a crown that takes a decade to recover from damage. A chronology is supposed to be about what the trees share, so which kind of persistence does it carry?
+
+Start by comparing the series with their mean.
+
+```{r}
+#| label: crn-lag1
+lag1 <- function(x) {
+  x <- x[!is.na(x)]
+  cor(x[-1], x[-length(x)])
 }
-wa082AvgCrnSE <- apply(wa082RwiSSS,1,se)
-
-dat <- data.frame(yrs =as.numeric(names(wa082AvgCrn)), 
-                  std = wa082AvgCrn,
-                  lwr = wa082AvgCrn - wa082AvgCrnSE*2,
-                  upr = wa082AvgCrn + wa082AvgCrnSE*2)
-ggplot(dat,aes(x=yrs)) +
-  geom_hline(yintercept = 1,linetype="dashed") +
-  geom_ribbon(aes(ymin=lwr,ymax=upr),
-              alpha=0.5,fill="blue") +
-  geom_line(aes(y=std),col="grey30") +
-  labs(x="Year",y="RWI") + theme_minimal()
+co021Crn <- chron(co021Rwi)
+data.frame(
+  site = c("co021", "wa082"),
+  medianSeries = c(median(sapply(co021Rwi, lag1)), median(sapply(wa082Rwi, lag1))),
+  chronology = c(lag1(co021Crn$std), lag1(wa082Crn$std))
+)
 ```
 
-It is interesting to note how the uncertainty increases towards the end of the chronology. This is somewhat unusual.
+At Mesa Verde the typical series has a lag-one autocorrelation of `r round(median(sapply(co021Rwi, lag1)), 2)` and the chronology has `r round(lag1(co021Crn$std), 2)`. Most of the persistence survives the averaging, so the trees share it. At Hurricane Ridge the series have `r round(median(sapply(wa082Rwi, lag1)), 2)` and the chronology has `r round(lag1(wa082Crn$std), 2)`. More than half of it averaged away. At that site the persistence mostly belongs to the individual trees.
 
-### Bootstrapping confidence intervals
-The above method uses a parametric approach to quantifying uncertainty. We can also use the `boot` library which is an incredibly powerful suite of functions for using resampling techniques to  calculate almost any imaginable statistic. Although `boot` and is used ubiquitously throughout R, its syntax is byzantine. Because of that we have created a wrapper for the `boot.ci` function will generate a mean-value chronology with bootstrapped confidence intervals. Here is a chronology using the `wa082RwiSSS` again but with 99% confidence intervals around the robust mean generated with 500 boostrap replicates.
+### The Residual Chronology
+
+If the persistence belongs to the trees and not to the stand, one answer is to take it out of each series before averaging. `chron` does that with `prewhiten = TRUE`. It fits an autoregressive model to each series, keeps the residuals, and averages those. The result comes back as a second column, `res`.
 
 ```{r}
-wa082CrnCI <- chron.ci(wa082RwiSSS, biweight = TRUE, R = 500, conf = 0.99)
-head(wa082CrnCI)
-
-dat <- data.frame(yrs=time(wa082CrnCI), wa082CrnCI)
-ggplot(data=dat, mapping = aes(x=yrs)) +
-  geom_hline(yintercept = 1,linetype="dashed") +
-  geom_ribbon(aes(ymin=lowerCI,ymax=upperCI),
-              alpha=0.5,fill="blue") +
-  geom_line(aes(y=std),col="grey30") +
-  labs(x="Year",y="RWI") + theme_minimal()
+#| label: crn-residual
+wa082CrnRes <- chron(wa082Rwi, prewhiten = TRUE)
+head(wa082CrnRes[!is.na(wa082CrnRes$res), ])
+lag1(wa082CrnRes$res)
 ```
 
+The old description of the residual chronology is that it is white noise. Is it? Each series is white after its own model is removed. Their mean has a lag-one autocorrelation of `r round(lag1(wa082CrnRes$res), 2)`, which is negative. Taking each tree's persistence out separately removed more than the trees had in common, and the mean went past zero.
 
-## The ARSTAN Chronology
+### The ARSTAN Chronology
 
-The function `chron.ars` produces the so-called ARSTAN chronology which retains the autoregressive structure of the input data. Users unfamiliar with the concept should dive into Cook [-@cook1985]. This produces three mean-value chronologies: standard, residual, and ARSTAN.
+Ed Cook worked on this problem in his dissertation [@cook1985], and the program that came out of it, ARSTAN, is named for the method: autoregressive standardization. The idea is to estimate one autoregressive model for the whole stand by pooling the series, and to treat that pooled model as the persistence the trees share. `chron.ars` follows it and returns three chronologies.
 
-The standard chronology is the (biweight) mean value across rows and identical to `chron`. The residual chronology is the prewhitened chronology as described by Cook [-@cook1985] and uses uses multivariate autoregressive modeling to determine the order of the AR process. It's important to note that residual chronology produced here is different than the simple residual chronology produced by `chron` which returns the residuals of an AR process using a naive call to `ar`. But in practice the results will be similar. For more on the residual chronology in this function, see pp. 153-154 in Cook [-@cook1985].
+- `std` is the standard chronology, the same as `chron` gives.
+- `res` is the residual chronology. Every series is whitened with a model of the pooled order, the whitened series are averaged, and the mean is whitened once more.
+- `ars` is the ARSTAN chronology. The pooled model is put back into the residual chronology. That leaves the shared persistence in and the tree-level persistence out.
 
-The ARSTAN chronology builds on the residual chronology but returns a re-whitened chronology where the pooled AR coefficients from the multivariate autoregressive modeling are reintroduced.
+I start each collection where its SSS reaches 0.85, so that the years with one or two series stay out of the pooled model. The next section is about that choice.
 
 ```{r}
 #| label: crn-ars
-wa082ArsCrnSSS <- chron.ars(wa082RwiSSS)
-str(wa082ArsCrnSSS)
-wa082ArsCrnSSS <- wa082ArsCrnSSS[,3:4]
-plot(wa082ArsCrnSSS,add.spline=TRUE,nyrs=20)
+startAt <- function(rwi, ids, threshold = 0.85) {
+  min(time(rwi)[sss(rwi, ids) >= threshold])
+}
+co021Cut <- window(co021Rwi, start = startAt(co021Rwi, co021Ids))
+wa082Cut <- window(wa082Rwi, start = startAt(wa082Rwi, wa082Ids))
+co021Ars <- chron.ars(co021Cut, verbose = FALSE)
+wa082Ars <- chron.ars(wa082Cut, verbose = FALSE)
+arsLag1 <- rbind(co021 = sapply(co021Ars[, c("std", "res", "ars")], lag1),
+                 wa082 = sapply(wa082Ars[, c("std", "res", "ars")], lag1))
+round(arsLag1, 2)
 ```
 
+Leave `verbose` at its default the first time you run it. It prints the pooled autocorrelations, the coefficients and the order it chose, and you should see those before you trust the output.
 
-## Stabalizing the Variance
-The function `chron.stabilized` builds a *variance stabilized* mean-value chronology following Frank et al. [-@frank2006]. The code for this function was written by David Frank and adapted for `dplR` by Stefan Klesse. The stabilized chronology accounts for both temporal changes in the interseries correlation and sample depth to produce a mean value chronology with stabilized variance.
+At Mesa Verde the standard chronology has a lag-one autocorrelation of `r round(arsLag1["co021", "std"], 2)`, the residual is near zero, and the ARSTAN chronology is at `r round(arsLag1["co021", "ars"], 2)`. Not much separates the standard and ARSTAN chronologies there, which is what you would expect where the trees share most of their persistence.
+
+At Hurricane Ridge the residual chronology sits at `r round(arsLag1["wa082", "res"], 2)`, where the one from `chron` over the same years is at `r round(lag1(chron(wa082Cut, prewhiten = TRUE)$res), 2)`. That is the second whitening doing its job. The ARSTAN chronology comes out at `r round(arsLag1["wa082", "ars"], 2)`, about half the `r sprintf("%.2f", arsLag1["wa082", "std"])` of the standard chronology. The pooled model says that is how much of the persistence these trees have in common. The rest was each tree's own business.
+
+(The `ars` column depends on `dplR` 1.8.1 or later. Earlier versions put the pooled model back before the second whitening, and at a site like Hurricane Ridge the ARSTAN chronology came out negatively autocorrelated.)
+
+So which of the three do you use? It depends on what the chronology is for. If the question is about year-to-year response, the residual chronology removes a problem before it starts. If the slow variation is the point, the choice is between the standard chronology, which carries every tree's persistence into the mean, and the ARSTAN chronology, which carries only what the pooled model finds in common. Check the lag-one numbers either way. The names of the columns describe the method. They don't promise the result.
+
+## Where Should It Start?
+
+The first year of `wa082` has one series in it. Nobody would call that a chronology. So where does the chronology begin?
+
+There are two common rules. One is a sample depth cutoff: keep the years with at least five series. The other uses the subsample signal strength from the last chapter: keep the years where SSS is at least 0.85.
 
 ```{r}
-#| label: crn-stab
-wa082StabCrnSSS <- chron.stabilized(wa082RwiSSS,winLength=101)
-str(wa082StabCrnSSS) # note that this is NOT class crn
-
-dat <- data.frame(yrs = as.numeric(rownames(wa082StabCrnSSS)), 
-                  Chron = wa082StabCrnSSS$vsc) %>%
-  mutate(Smoothed = caps(Chron,nyrs=20)) %>%
-  pivot_longer(cols = -yrs,names_to = "variable", values_to = "msmt")
-
-ggplot(dat,aes(x=yrs,y=msmt,color=variable)) +
-  geom_hline(yintercept = 1,linetype="dashed") +
-  geom_line() +
-  scale_color_manual(values = c("grey","darkred")) +
-  labs(x="Year",y="RWI",title="Variable Stabilized Chronology") + 
-  theme_minimal() +
-  theme(legend.title = element_blank(),legend.position = "bottom") 
-
+#| label: crn-cutoffs
+cutoffs <- function(rwi, ids) {
+  yrs <- time(rwi)
+  depth <- rowSums(!is.na(rwi))
+  sss85 <- startAt(rwi, ids)
+  present <- !is.na(rwi[as.character(sss85), ])
+  data.frame(firstYear = min(yrs),
+             fiveSeries = min(yrs[depth >= 5]),
+             sss85 = sss85,
+             treesAtSss85 = length(unique(ids$tree[present])))
+}
+bothCutoffs <- rbind(co021 = cutoffs(co021Rwi, co021Ids),
+                     wa082 = cutoffs(wa082Rwi, wa082Ids))
+bothCutoffs
 ```
 
-
-## Stripping out series by EPS
-We want to introduce one other approach that doesn't deal explicitly with chronology building but can be used to build a better chronology. The `strip.rwl` function uses EPS-based chronology stripping  where each series is assessed to see if its inclusion in the chronology improves the EPS [@fowler2003]. If it does not the series is dropped from the `rwl` object. As we will see in this example one series are excluded which causes a modest improvement in EPS. This function was contributed by Christain Zang.
+The two rules disagree, and they disagree in opposite directions. At Mesa Verde SSS lets you start `r bothCutoffs["co021", "fiveSeries"] - bothCutoffs["co021", "sss85"]` years before there are five series. At Hurricane Ridge five series are not enough, and SSS makes you wait another `r bothCutoffs["wa082", "sss85"] - bothCutoffs["wa082", "fiveSeries"]` years.
 
 ```{r}
-#| label: crn-eps
-#| error: true
-wa082StripRwl <- strip.rwl(wa082, ids = wa082Ids)
-wa082StripRwi <- detrend(wa082StripRwl, method="Spline")
-wa082StripCrn <- chron(wa082StripRwi)
-wa082StripCrn <- subset(wa082StripCrn, samp.depth > 4)
-plot(wa082StripCrn, add.spline=TRUE, nyrs=30)
+#| label: fig-crn-cutoffs
+#| fig-cap: "The first 150 years of each chronology. The dashed line is the first year with five series and the solid line is the first year with an SSS of 0.85."
+#| fig-height: 4
+earlyYears <- function(crn, site) {
+  early <- crn[1:150, ]
+  data.frame(site = site, year = time(early), std = early$std)
+}
+earlyBoth <- rbind(earlyYears(co021Crn, "co021"), earlyYears(wa082Crn, "wa082"))
+cutLines <- data.frame(site = rownames(bothCutoffs), bothCutoffs)
+ggplot(earlyBoth, aes(x = year, y = std)) +
+  geom_line(colour = "grey40") +
+  geom_vline(data = cutLines, aes(xintercept = fiveSeries), linetype = "dashed") +
+  geom_vline(data = cutLines, aes(xintercept = sss85)) +
+  facet_wrap(~ site, scales = "free_x") +
+  labs(x = "Year", y = "RWI") +
+  theme_minimal()
 ```
 
+Why do they disagree? The depth rule counts cores and knows nothing else. It gives the same answer for a stand where the trees agree at 0.8 and a stand where they agree at 0.2, and it counts two cores from one tree as two. SSS counts trees and uses rbar. At Mesa Verde `r bothCutoffs["co021", "treesAtSss85"]` trees are already a good stand-in for all `r length(unique(co021Ids$tree))`. At Hurricane Ridge it takes `r bothCutoffs["wa082", "treesAtSss85"]`.
 
-## Conclusion
-We have tried to introduce a few ways of building chronologies with `dplR` that are either typical (like truncating by sample depth) or less commonly used.  In this chapter we aren't advocating any particular method but trying to get the users familiar with ways of interacting with the objects that `dplR` produces. Once the user understands the data structures the rest of `R` opens up.
+I use SSS, because a rule that ignores how well the trees agree is ignoring the thing that matters most. Remember what the last chapter said about it, though. SSS is relative to your own full sample, and 0.85 is a convention. If the answer to your research question depends on whether the chronology starts in `r bothCutoffs["wa082", "fiveSeries"]` or `r bothCutoffs["wa082", "sss85"]`, the cutoff is not your problem. The trees are.
 
-Again, we feel that it is important to reiterate that the advantage of using `dplR` is that it gets the analyst to use `R` and thus have access to the 
-essentially limitless tool that it provides. Go foRth!
+### Cut Before or After Detrending?
+
+Once you have a year, `window` does the cutting.
+
+```{r}
+#| label: crn-window
+wa082Start <- bothCutoffs["wa082", "sss85"]
+wa082CrnCut <- window(wa082Crn, start = wa082Start)
+range(time(wa082CrnCut))
+```
+
+That cuts the finished chronology. You could instead cut the ring widths and detrend what is left. Is it the same thing?
+
+```{r}
+#| label: crn-cut-first
+wa082CutFirst <- chron(detrend(window(wa082, start = wa082Start), method = "Spline"))
+cor(wa082CrnCut$std, wa082CutFirst$std)
+max(abs(wa082CrnCut$std - wa082CutFirst$std))
+```
+
+Close, and not the same. The stiffness of the spline depends on the length of the series, so shortening a series changes its curve. I detrend the whole series and cut afterward. The rings before the cutoff are no use to the chronology, but they are still measurements of that tree, and the curve fit to a tree should use all of them.
+
+## How Sure Is the Mean?
+
+Every year of a chronology is a mean of some number of series, and a mean has an uncertainty. `chron.ci` puts an interval on it by bootstrapping. For each year it resamples the series with replacement many times and takes the spread of the resulting means.
+
+It needs at least two series in every year, so it runs on the indices that have been cut.
+
+```{r}
+#| label: crn-ci
+set.seed(1984)
+wa082Ci <- chron.ci(wa082Cut, biweight = TRUE, conf = 0.95, R = 500)
+head(wa082Ci)
+```
+
+```{r}
+#| label: fig-crn-ci
+#| fig-cap: "The Hurricane Ridge chronology with a 95% bootstrap interval for the mean."
+ciPlot <- data.frame(year = time(wa082Ci), wa082Ci)
+ggplot(ciPlot, aes(x = year)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_ribbon(aes(ymin = lowerCI, ymax = upperCI), fill = "grey75") +
+  geom_line(aes(y = std)) +
+  labs(x = "Year", y = "RWI") +
+  theme_minimal()
+```
+
+Before you put that figure in a paper, be clear about what the band is. It is uncertainty in the mean of these series in each year. If you went back to Hurricane Ridge and cored a different set of trees, the band says roughly where their mean would fall. It is not the uncertainty of a climate reconstruction. A reconstruction has its own error, from the fit between the chronology and the climate record, and that error is usually a good deal larger. A narrow band here says the trees agree. It says nothing about what they agree on.
+
+### Cores Are Still Not Trees
+
+There is a problem with the interval above. The bootstrap resamples series as if each were an independent draw from the stand. At Hurricane Ridge there are two cores from most trees, and two cores from one tree are not independent. Sound familiar? It is the same mistake as leaving `ids` out of `rwi.stats`.
+
+The fix is to average the cores within each tree first. `treeMean` does that.
+
+```{r}
+#| label: crn-ci-trees
+wa082Trees <- treeMean(wa082Cut, wa082Ids, na.rm = TRUE)
+ncol(wa082Trees)
+set.seed(1984)
+wa082CiTrees <- chron.ci(wa082Trees, biweight = TRUE, conf = 0.95, R = 500)
+ciWidth <- c(cores = mean(wa082Ci$upperCI - wa082Ci$lowerCI),
+             trees = mean(wa082CiTrees$upperCI - wa082CiTrees$lowerCI))
+ciWidth
+```
+
+With `r ncol(wa082Trees)` trees in place of `r ncol(wa082Cut)` cores the interval is `r round(100 * (ciWidth["trees"] / ciWidth["cores"] - 1))` percent wider on average. The narrower one was claiming a sample size it didn't have. Use the trees.
+
+## Variance, Sample Depth and Agreement
+
+Here is a problem that is easy to miss, because the chronology looks fine. Average five noisy series and the mean is still fairly noisy. Average twenty and the noise mostly cancels. So the early part of a chronology, where there are few trees, swings more widely than the late part, and the trees did nothing to cause it.
+
+How much more? The last chapter has what you need. For $n$ series with average correlation $\bar{r}$, the variance of the mean is the variance of one series times $\left[1 + (n - 1)\bar{r}\right] / n$. Here is that factor, as a standard deviation, for each year at Hurricane Ridge.
+
+```{r}
+#| label: fig-crn-inflation
+#| fig-cap: "Expected standard deviation of the Hurricane Ridge chronology in each year, relative to a chronology with every series present, from sample depth alone."
+wa082Rbar <- rwi.stats(wa082Rwi)$rbar.tot
+sdFactor <- function(n, rbar) {
+  sqrt((1 + (n - 1) * rbar) / n)
+}
+inflation <- data.frame(
+  year = time(wa082Crn),
+  factor = sdFactor(wa082Crn$samp.depth, wa082Rbar) / sdFactor(ncol(wa082Rwi), wa082Rbar)
+)
+ggplot(inflation, aes(x = year, y = factor)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_step() +
+  labs(x = "Year", y = "Relative standard deviation") +
+  theme_minimal()
+```
+
+With one series the chronology should swing `r round(sdFactor(1, wa082Rbar) / sdFactor(ncol(wa082Rwi), wa082Rbar), 1)` times as widely as it does at full depth. With five it is still about `r round(100 * (sdFactor(5, wa082Rbar) / sdFactor(ncol(wa082Rwi), wa082Rbar) - 1))` percent more. With a dozen it is down to `r round(100 * (sdFactor(12, wa082Rbar) / sdFactor(ncol(wa082Rwi), wa082Rbar) - 1))` percent. Is that what the chronology does?
+
+```{r}
+#| label: crn-variance-blocks
+halfCentury <- cut(time(wa082Crn), breaks = seq(1700, 2000, by = 50), dig.lab = 4)
+varianceBlocks <- data.frame(
+  depth = tapply(wa082Crn$samp.depth, halfCentury, mean),
+  sd = tapply(wa082Crn$std, halfCentury, sd)
+)
+round(varianceBlocks, 2)
+```
+
+Partly. The first half century has the fewest series and the largest standard deviation, as it should. But look at 1800 to 1850. The chronology is as variable there as in the first block, with nearly four times the series. Depth can't be the reason.
+
+Go back to the formula. It has two things in it besides $n$: how variable the series are, and how well they agree. Compute both for each block and see what the formula predicts.
+
+```{r}
+#| label: crn-variance-pieces
+blockPieces <- function(rwi) {
+  rwi <- rwi[, colSums(!is.na(rwi)) >= 30, drop = FALSE]
+  r <- cor(rwi, use = "pairwise.complete.obs")
+  c(rbar = mean(r[upper.tri(r)], na.rm = TRUE),
+    seriesSd = mean(sapply(rwi, sd, na.rm = TRUE)))
+}
+pieces <- t(sapply(split(as.data.frame(wa082Rwi), halfCentury), blockPieces))
+varianceBlocks$rbar <- pieces[, "rbar"]
+varianceBlocks$seriesSd <- pieces[, "seriesSd"]
+varianceBlocks$predicted <- with(varianceBlocks, seriesSd * sdFactor(depth, rbar))
+round(varianceBlocks, 2)
+```
+
+The last column is the formula's prediction from depth, rbar and the spread of the series in each block, and it follows the `sd` column closely. So the variance of this chronology is accounted for. The surprise is which piece does the work. From 1800 to 1850 the series agree at `r round(varianceBlocks$rbar[3], 2)`, against `r round(varianceBlocks$rbar[6], 2)` after 1950. That is the same peak in running rbar that turned up in the last chapter. When the trees agree more, less of each series cancels in the average, and the chronology swings more widely. (Don't lean on the rbar of the first block. It comes from a handful of series.)
+
+Why care? Because the variance of a chronology is often the thing being interpreted. A claim that one century had more extreme years than another is a claim about variance. If the two centuries differ in how many trees there are, or in how well the trees agree, part of that claim is arithmetic.
+
+### Stabilizing It
+
+`chron.stabilized` rescales the chronology year by year to take those effects out, following Frank and colleagues [@frank2006]. David Frank wrote the original code and Stefan Klesse adapted it for `dplR`. It computes rbar in a running window, here 101 years, and from that and the sample depth it works out an effective number of independent series for each year. Each year is then scaled by the square root of that number.
+
+That adjusts for two things at once, depth and agreement. To see them apart, here is a depth-only adjustment done by hand, which divides out the factor in the figure above, next to what the function gives.
+
+```{r}
+#| label: crn-stabilized
+wa082Stab <- chron.stabilized(wa082Rwi, winLength = 101)
+crnMean <- mean(wa082Crn$std)
+depthOnly <- crnMean + (wa082Crn$std - crnMean) / inflation$factor
+stabBlocks <- data.frame(
+  depth = varianceBlocks$depth,
+  rbar = varianceBlocks$rbar,
+  sd = varianceBlocks$sd,
+  sdDepthOnly = tapply(depthOnly, halfCentury, sd),
+  sdStabilized = tapply(wa082Stab$vsc, halfCentury, sd),
+  row.names = rownames(varianceBlocks)
+)
+round(stabBlocks, 2)
+```
+
+```{r}
+#| label: fig-crn-stabilized
+#| fig-cap: "The Hurricane Ridge chronology before (grey) and after (black) variance stabilization with chron.stabilized."
+stabPlot <- data.frame(year = time(wa082Crn),
+                       standard = wa082Crn$std,
+                       stabilized = wa082Stab$vsc)
+ggplot(stabPlot, aes(x = year)) +
+  geom_hline(yintercept = 1, linetype = "dashed") +
+  geom_line(aes(y = standard), colour = "grey65") +
+  geom_line(aes(y = stabilized)) +
+  labs(x = "Year", y = "RWI") +
+  theme_minimal()
+```
+
+The depth-only version pulls in the first half century and leaves the rest nearly alone. `chron.stabilized` does that and also pulls in the 1800s, where the standard deviation goes from `r sprintf("%.2f", stabBlocks$sd[3])` to `r sprintf("%.2f", stabBlocks$sdStabilized[3])`. After it, the six blocks are close to level.
+
+Is the second adjustment one you want? Low sample depth is a property of your sampling. Nobody thinks the trees were more variable because you found fewer of them. Agreement is harder. Frank and colleagues treat a change in rbar as another artifact, and it can be one: a change in which trees are in the sample, or in how the detrending fits them, will move rbar. But if the series are about as variable as ever and they agree more, the other reading is that the thing they share got stronger. Scaling that away removes something that happened. The ring widths alone won't tell you which reading is right.
+
+So know which adjustment you are making. If depth is the worry, the depth-only version is three lines, and its one assumption is a single rbar for the whole collection. If you use `chron.stabilized`, look at the running rbar it used (`running.rbar = TRUE` returns it) and ask whether you believe its changes are artifacts. The last chapter showed how rough a running rbar is where there are few trees, which is also where the adjustment is largest.
+
+And stabilizing does not add information. The early years still rest on a handful of trees. They have been scaled so that they don't look more dramatic than they are. Cut the chronology where it should start, and stabilize what remains if variance matters to your question.
+
+## Stripping Series by EPS
+
+Crossdating tells you a series is dated. Does that mean it belongs in the chronology? Fowler and Boswijk [-@fowler2003] asked that of fifteen kauri sites and wrote a procedure to answer it. Take each series out in turn and recompute EPS. If EPS goes up without one of them, drop the series whose removal helps the most. Repeat until nothing helps, then try putting the dropped ones back. `strip.rwl` does this. Christian Zang wrote it.
+
+```{r}
+#| label: crn-strip
+wa082Strip <- strip.rwl(wa082, ids = wa082Ids)
+```
+
+```{r}
+#| label: crn-strip-record
+#| include: false
+stripRecord <- attr(wa082Strip, "dplR.strip")
+stripYears <- stripRecord$years
+stripWorse <- stripYears$year[stripYears$eps.after < stripYears$eps.before]
+```
+
+One series goes, `r stripRecord$removed`, and EPS creeps from `r stripRecord$stats$eps[1]` to `r stripRecord$stats$eps[2]`. Don't stop reading there. The last lines of the printout say what that cost. From `r min(stripWorse)` to `r max(stripWorse)` the chronology has one tree fewer, and in those `r length(stripWorse)` years the EPS for the trees that are left is lower than it was. EPS over the whole span went up and a piece of the chronology got worse.
+
+Here the damage is trivial. It won't always be. In the early years of a collection, where three or four trees carry everything, losing one of them is a bad trade for a gain in the third decimal place. Fowler and Boswijk checked for this year by year and threw out their own stripping in six of their thirty tries. The function can't make that call for you. The record of what it did rides along with the result as `attr(wa082Strip, "dplR.strip")`.
+
+Now the catch. To get an EPS, `strip.rwl` has to detrend, and unless you say otherwise it uses a 20-year spline. That was Fowler and Boswijk's choice because it gave the highest correlations within their kauri sites. It is a very flexible curve, and it leaves little that is slower than a couple of decades. Is that the variation your chronology is going to keep? Mine isn't. I detrended `wa082` with the default spline at the top of this chapter. Its stiffness is two thirds of the length of each series, and that keeps a great deal more.
+
+So strip it three ways. The default. A 200-year spline, which was the other version Fowler and Boswijk tried. And the indices from this chapter, which `strip.rwl` takes as they are and doesn't detrend again. (The `nyrs` argument and stripping indices both need `dplR` 1.8.1 or later.)
+
+```{r}
+#| label: crn-strip-compare
+howMany <- function(x, ...) {
+  capture.output(res <- strip.rwl(x, ids = wa082Ids, ...))
+  rec <- attr(res, "dplR.strip")
+  data.frame(removed = length(rec$removed),
+             epsBefore = rec$stats$eps[1],
+             epsAfter = rec$stats$eps[2])
+}
+stripCompare <- rbind(howMany(wa082),
+                      howMany(wa082, nyrs = 200),
+                      howMany(wa082Rwi))
+row.names(stripCompare) <- c("20-year spline",
+                             "200-year spline",
+                             "this chapter's indices")
+stripCompare
+```
+
+One series or `r stripCompare$removed[3]`, out of `r ncol(wa082)`, from the same wood. Look at the EPS before stripping to see why. After a 20-year spline the series agree well, so hardly any of them looks like a drag. Keep the slower variation and the trees disagree more, and the disagreement is there to be judged. If you run the 200-year version yourself, `dplR` will warn that `r sum(colSums(!is.na(wa082)) < 200)` of these series are shorter than 200 years. It is right to.
+
+Which answer do you use? The one that judges the series on what the chronology keeps. Detrend the way you mean to, then hand `strip.rwl` the indices.
+
+```{r}
+#| label: crn-strip-crn
+wa082RwiStrip <- strip.rwl(wa082Rwi, ids = wa082Ids)
+wa082CrnStrip <- chron(wa082RwiStrip)
+plot(wa082CrnStrip, add.spline = TRUE, nyrs = 30)
+```
+
+```{r}
+#| label: crn-strip-crn-record
+#| include: false
+stripRecord2 <- attr(wa082RwiStrip, "dplR.strip")
+stripYears2 <- stripRecord2$years
+```
+
+Then read the cost before you believe it. This time `r length(stripRecord2$removed)` series are gone and a whole tree with them: `r stripRecord2$stats$trees[1]` trees became `r stripRecord2$stats$trees[2]`. There are fewer trees in `r sum(stripYears2$n.after < stripYears2$n.before)` of the `r nrow(stripYears2)` years. All of that bought an EPS of `r stripRecord2$stats$eps[2]`, up from `r stripRecord2$stats$eps[1]`.
+
+Would I take that trade? I'd want to see the wood first. A series that lowers EPS is one that disagrees with its neighbors, and EPS has no idea why. It might be a badly measured core. It might be the one tree on the wet side of the plot, in which case it is telling you something about the stand that the other trees are not. The [Chronology Statistics](06ChronologyStats.qmd) chapter goes through what EPS can and can't say, and Buras [-@Buras2017] is the short version. Use `strip.rwl` to find the series worth a second look. Let the wood decide what happens to them.
+
+## Wrapping Up
+
+One line makes a chronology and four decisions stand behind it. The biweight mean protects you from an odd ring when there are plenty of series and can't when there are few. The standard, residual and ARSTAN chronologies differ in whose persistence they keep, and you should check what you got. SSS is a better guide than a count of cores to where a chronology starts, and it is still a convention. The interval from `chron.ci` is about the mean of these trees and nothing further. And a chronology's variance follows its sample depth and the agreement among its trees, and you should know which of the two you are adjusting for.
+
+None of these functions knows what the chronology is for. A chronology built to date timbers, one built to reconstruct summer temperature and one built to study a stand's response to thinning could reasonably be three different chronologies from the same cores. Say what you did and why, so that a reader can judge whether your choices fit your question.
+
+Everything here detrends each series separately and then averages. The next two chapters, on [regional curves](08RegionalCurves.qmd) and the [signal-free method](09SignalFree.qmd), are about what that approach throws away and how to keep it.
+
+## Exercises
+
+1. Build the `co021` chronology with and without the biweight mean. In which years do they differ most, and how many series are there in those years?
+2. Repeat the variance blocks for `co021` in 100-year blocks. Does its standard deviation follow sample depth the way it does at Hurricane Ridge? Use the formula for the variance of a mean and the rbar of `co021` to say why or why not.
+3. Run `chron.ars` on the cut `wa082` indices with `verbose = TRUE`. What order did it choose, and what are the pooled autocorrelations? Then detrend `wa082` with `method = "AgeDepSpline"` and run it again. What changes?
+4. Compute `chron.ci` for `wa082` with 90%, 95% and 99% intervals and plot the widths against sample depth. How many trees does it take before the interval stops shrinking quickly?
+5. Run `chron.stabilized` on `wa082` with `winLength` set to 51 and to 151. Where do the results differ from the 101-year version, and what does that say about how much to trust the adjustment in the early years?
+6. Strip `co021` with `strip.rwl`. What does it remove? What does that say about the kind of collection where stripping has something to offer?
+
+## Further Reading
+
+- @cook1985 is Ed Cook's dissertation, where the pooled autoregressive model and the three chronologies of ARSTAN come from. Read it for the reasoning behind the residual and ARSTAN chronologies.
+- @Wigley1984 has the variance of a mean of correlated series, which is behind SSS and behind variance stabilization.
+- @frank2006 lays out the variance adjustment that `chron.stabilized` implements, with examples of what goes wrong without it.
+- @fowler2003 is the source of the stripping procedure, and it is candid about the cases where stripping made things worse.
+- @Buras2017 on why SSS, and not EPS, is the statistic for deciding where a chronology starts.

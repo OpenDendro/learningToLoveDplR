@@ -1,55 +1,459 @@
 # Chronology Statistics
 
-:::{.callout-note title="Partly written"}
-The sections below were moved here from A First Pass and have not been revised.
-
-Still planned:
-
-- rbar, EPS and SSS in more depth. These come before Chronology Building, which uses them for cutoffs, stripping and variance stabilization.
-- Running rbar and EPS with `rwi.stats.running` as a main section. This output is widely used and often misunderstood.
-- `treeMean`: averaging cores to a tree-level series, as used in ecological work where the tree-to-tree differences are the interest.
-- `common.interval`, if it fits without being clunky.
+:::{.callout-note title="Draft"}
+First full draft, 2026-10-13. Every number in the text is computed when the book builds. Open questions are in the backlog.
 :::
 
 ## Big Idea
 
-## Packages
+A chronology is an average. You take a few dozen cores that each say something a little different about the same years, and you take their mean. Should anyone trust that mean?
 
-We use `dplR` and the on-board Campito Mountain ring widths, `ca533`, detrended as in the Detrending chapter.
+The answer depends on two things. How well do the trees agree with each other? And how many trees are there? Every statistic in this chapter is one of those two things or a blend of them. The mean interseries correlation, rbar, is the agreement. The expressed population signal, EPS, blends agreement with the number of trees. Subsample signal strength, SSS, asks what you lose when the number of trees drops.
+
+Most of the ways these numbers get misread come from forgetting which ingredient moved. When EPS falls in the early part of a chronology, did the trees stop agreeing, or did you run out of trees? Those are different problems, and a single EPS value can't tell you which one you have.
+
+Both of the book's main collections are here because they sit far apart. At Mesa Verde (`co021`) the trees agree so well that almost any number of them will do. At Hurricane Ridge (`wa082`) you need every tree you have.
+
+## Packages
 
 ```{r}
 #| label: stats-setup
 library(dplR)
-data(ca533)
-ca533.rwi <- detrend(rwl = ca533, method = "AgeDepSpline")
+library(ggplot2)
+data(co021)
+data(wa082)
+co021Ids <- autoread.ids(co021)
+wa082Ids <- autoread.ids(wa082)
+co021Rwi <- detrend(co021, method = "Spline")
+wa082Rwi <- detrend(wa082, method = "Spline")
 ```
 
-## Descriptive Statistics for Detrended Data
+Each collection is detrended with a spline, as in the [Data Sources](A2DataSources.qmd) appendix. Is that the right detrending? That question belongs to the [Detrending](05Detrending.qmd) chapter, but it doesn't stay there. Later in this chapter the statistics change when the detrending does.
 
-It is also easy in `dplR` to compute commonly used descriptive statistics that describe the correlation between series (both within and between tree correlations) as well as the expressed population signal, signal-to-noise ratio, and subsample signal strength for a data set. These are done in `dplR` using the `rwi.stats` function so-named because these statistics are typically (but not always) carried out on detrended and standardized ring widths (rwi). If a data set has more than one core taken per tree this information can be used in the calculations to calculate within vs. between tree correlation. The function `read.ids` is used to identify which trees have multiple cores. 
+The `ids` objects say which cores come from which tree. For `wa082` the series names make that plain. For `co021` it is an educated guess, and the appendix shows the evidence for it.
+
+## How Well Do the Trees Agree?
+
+Start with Hurricane Ridge and do it by hand. Correlate every series with every other series and average the results.
 
 ```{r}
-ca533.ids <- read.ids(ca533, stc = c(3, 2, 1))
-rwi.stats(ca533.rwi, ca533.ids, prewhiten=TRUE)
+#| label: stats-rbar-hand
+wa082Cor <- cor(wa082Rwi, use = "pairwise.complete.obs", method = "spearman")
+upper <- upper.tri(wa082Cor)
+sum(upper)
+mean(wa082Cor[upper])
 ```
 
-There is (at least) one other way of looking at the average interseries correlation of a data set. The `interseries.cor` function in `dplR` gives a measure of average interseries correlation that is different from the rbar statistics from `rwi.stats`. In this function, correlations are calculated serially between each tree-ring series and a master chronology built from all the other series in the `rwl` object (leave-one-out principle). The average of those correlations is sometimes called the "overall interseries correlation" or even the "COFECHA correlation" in reference to commonly used crossdating software COFECHA. This number is typically higher than the various rbar values given by  `rwi.stats`. We are showing just the first five series and the mean for all series here:
+That is rbar, the mean of `r sum(upper)` pairwise correlations. I used Spearman's rank correlation because `rwi.stats` does by default. Use `method = "pearson"` if you want the other one. On these data it makes little difference.
+
+Not all of those pairs are alike. Some are two cores from the same tree.
 
 ```{r}
-ca533.rho <- interseries.cor(ca533.rwi, prewhiten=TRUE,
-                             method="spearman")
-ca533.rho[1:5, ]
-mean(ca533.rho[, 1])
+#| label: stats-rbar-trees
+sameTree <- outer(wa082Ids$tree, wa082Ids$tree, "==")
+wa082Within <- mean(wa082Cor[upper & sameTree])
+wa082Between <- mean(wa082Cor[upper & !sameTree])
+c(within = wa082Within, between = wa082Between)
 ```
 
-Again, if these concepts are unknown to you statistically look at some of the canonical works in dendrochronology like @Cook1990, @Fritts2001, and @Hughes2011.
+Two cores from one tree correlate at `r round(wa082Within, 2)`. Two cores from different trees correlate at `r round(wa082Between, 2)`. Those numbers answer different questions. The between-tree correlation says how much the trees at this site have in common, which is what a chronology is trying to capture. The within-tree correlation says how good one core is as a measurement of its own tree. At Hurricane Ridge a single core is not a very good measurement of its tree, and that is ordinary.
+
+`rwi.stats` does the same arithmetic.
+
+```{r}
+#| label: stats-rwi-stats
+wa082Stats <- rwi.stats(wa082Rwi, wa082Ids)
+wa082Stats
+```
+
+Find `rbar.tot`, `rbar.wt` and `rbar.bt`. They are the three numbers we just computed. Nothing else is going on in there.
+
+## From Agreement to a Chronology
+
+How does agreement among trees turn into confidence in their mean? Wigley and colleagues worked that out in 1984 [@Wigley1984]. If the average correlation among $n$ series is $\bar{r}$, then
+
+$$EPS = \frac{n\bar{r}}{1 + (n - 1)\bar{r}}$$
+
+Read it as a fraction. The numerator is the part of the chronology's variance that the series share. The denominator is all of the chronology's variance. Add trees and the noise averages away while the shared part stays, so EPS climbs toward one.
+
+There is a second way to read it, and it is the one that explains the name. Imagine you could core every tree in the stand, an infinite number of them, and average those. Call that the population chronology. EPS is the squared correlation you should expect between the chronology you have and the one you can't have.
+
+That is a claim we can test, because in a simulation we can have the population chronology. I'll make a signal, bury it in noise so that the series correlate with each other at 0.25, and see how well the mean of the first $n$ series recovers the signal.
+
+```{r}
+#| label: stats-sim
+set.seed(1984)
+nYears <- 2000
+nSeries <- 30
+rho <- 0.25
+signal <- rnorm(nYears)
+noise <- matrix(rnorm(nYears * nSeries), nrow = nYears)
+simSeries <- sqrt(rho) * signal + sqrt(1 - rho) * noise
+simCor <- cor(simSeries)
+mean(simCor[upper.tri(simCor)])
+```
+
+The rbar of the simulated series is close to the 0.25 I planted. Now build a chronology from the first series alone, then the first two, and so on, and correlate each with the signal.
+
+```{r}
+#| label: stats-sim-eps
+epsFormula <- function(n, rbar) {
+  n * rbar / (1 + (n - 1) * rbar)
+}
+simEps <- data.frame(n = 1:nSeries)
+simEps$recovered <- sapply(simEps$n, function(n) {
+  simChron <- rowMeans(simSeries[, 1:n, drop = FALSE])
+  cor(simChron, signal)^2
+})
+simEps$formula <- epsFormula(simEps$n, rho)
+```
+
+```{r}
+#| label: fig-stats-sim-eps
+#| fig-cap: "EPS from the formula (line) and the squared correlation between a chronology of n simulated series and the signal planted in them (points). The dashed line is 0.85."
+ggplot(simEps, aes(x = n)) +
+  geom_hline(yintercept = 0.85, linetype = "dashed") +
+  geom_line(aes(y = formula)) +
+  geom_point(aes(y = recovered)) +
+  labs(x = "Number of series", y = "Squared correlation with the signal") +
+  theme_minimal()
+```
+
+The points follow the line. So the formula does what it says, at least when the world is as tidy as the simulation: every series has the same variance, every pair has the same correlation, and nothing changes through time. Trees are not that tidy, which is why EPS from a living collection is an estimate and not a measurement.
+
+Look at where the line crosses 0.85. Turn the formula around and you get the number of series needed to reach a given EPS.
+
+```{r}
+#| label: stats-n-needed
+nNeeded <- function(rbar, eps = 0.85) {
+  eps * (1 - rbar) / (rbar * (1 - eps))
+}
+nNeeded(c(0.25, 0.5, 0.75))
+```
+
+With an rbar of 0.25 you need `r round(nNeeded(0.25))` series. With 0.75 you need two. That is the difference between a hard site and an easy one, in one line of arithmetic.
+
+### Cores Are Not Trees
+
+The formula wants $n$ independent samples of the stand. Two cores from the same tree are not that. They share everything that is particular to their tree. So `rwi.stats` counts trees, not cores, and it adjusts rbar for the fact that averaging the cores within a tree cleans up each tree's series a little before the trees are compared. The adjusted value is the effective rbar [@Briffa1990].
+
+$$\bar{r}_{eff} = \frac{\bar{r}_{bt}}{\bar{r}_{wt} + \frac{1 - \bar{r}_{wt}}{c_{eff}}}$$
+
+Here $c_{eff}$ is the effective number of cores per tree. With one core per tree it is one, and the effective rbar is the between-tree rbar. With more cores per tree the effective rbar goes up. The EPS that `rwi.stats` reports uses the effective rbar and the number of trees.
+
+```{r}
+#| label: stats-eps-hand
+with(wa082Stats, rbar.bt / (rbar.wt + (1 - rbar.wt) / c.eff))
+with(wa082Stats, epsFormula(n, rbar.eff))
+```
+
+Those match `rbar.eff` and `eps` in the output above. The last column, `snr`, is the signal-to-noise ratio. It is EPS over one minus EPS, so it carries no new information.
+
+### The Two Collections
+
+```{r}
+#| label: stats-both
+co021Stats <- rwi.stats(co021Rwi, co021Ids)
+bothStats <- rbind(co021 = co021Stats, wa082 = wa082Stats)
+bothStats[, c("n.cores", "n.trees", "rbar.wt", "rbar.bt", "rbar.eff", "eps")]
+```
+
+Mesa Verde has an effective rbar of `r co021Stats$rbar.eff` and an EPS of `r co021Stats$eps`. Hurricane Ridge has `r wa082Stats$rbar.eff` and `r wa082Stats$eps`. How many trees would each site need to reach 0.85?
+
+```{r}
+#| label: stats-both-needed
+round(nNeeded(bothStats$rbar.eff), 1)
+```
+
+Mesa Verde gets there with two trees and has `r co021Stats$n.trees`. Hurricane Ridge needs `r ceiling(nNeeded(wa082Stats$rbar.eff))` and has `r wa082Stats$n.trees`. That is what I meant by needing every tree you have.
+
+## Forget the Trees and EPS Goes Up
+
+What happens if you leave out `ids`? `rwi.stats` has no way to know which cores share a tree, so it treats every core as its own tree.
+
+```{r}
+#| label: stats-no-ids
+wa082NoIds <- rwi.stats(wa082Rwi)
+wa082NoIds[, c("n.cores", "n.trees", "rbar.bt", "rbar.eff", "eps")]
+```
+
+EPS went from `r wa082Stats$eps` to `r wa082NoIds$eps`. Nothing about the trees changed. The function now believes there are `r wa082NoIds$n.trees` trees where there are `r wa082Stats$n.trees`, and the within-tree correlations, which are the high ones, are counted as agreement between trees. Both mistakes push EPS up.
+
+It is an easy thing to forget, and here it is the difference between landing under 0.85 and over it. If a collection has more than one core per tree, give `rwi.stats` the `ids`. `autoread.ids` works for most naming schemes, and `read.ids` lets you spell the scheme out when it doesn't.
+
+## One Collection, Many Values of EPS
+
+So what is the EPS of Hurricane Ridge? I have been saying `r wa082Stats$eps`, but that number came with choices attached. I chose a spline. I chose not to prewhiten. Change either and the answer moves.
+
+```{r}
+#| label: stats-choices
+epsFor <- function(method, prewhiten) {
+  rwi <- detrend(wa082, method = method)
+  rwi.stats(rwi, wa082Ids, prewhiten = prewhiten)$eps
+}
+methods <- c("Mean", "ModNegExp", "AgeDepSpline", "Spline")
+wa082Choices <- data.frame(
+  method = methods,
+  eps = sapply(methods, epsFor, prewhiten = FALSE),
+  epsPrewhitened = sapply(methods, epsFor, prewhiten = TRUE),
+  row.names = NULL
+)
+wa082Choices
+```
+
+The same `r ncol(wa082)` cores give an EPS anywhere from `r min(wa082Choices$eps)` to `r max(wa082Choices$epsPrewhitened)`. Which side of 0.85 the collection lands on is up to you.
+
+Why does it move? The detrending decides how much slow variation stays in each series, and prewhitening takes the year-to-year persistence out. With prewhitening the four methods all land near `r round(mean(wa082Choices$epsPrewhitened), 2)`. So these trees agree better about the year-to-year changes than about the slow ones, and the more slow variation a method leaves in, the lower rbar goes.
+
+None of these values is wrong. Each one describes a different set of indices. The rule I follow is to compute the statistics on the indices that go into the chronology I am going to use. If I am building a residual chronology, I prewhiten. If I am building a standard chronology, I don't. And when I report EPS, I report the detrending with it, because the number means nothing without it.
+
+## Running rbar and EPS
+
+A single rbar for a collection hides a lot. Sample depth changes through time, and so might the agreement among trees. `rwi.stats.running` computes the same statistics in windows. The default is a 50-year window that overlaps its neighbors by half.
+
+```{r}
+#| label: stats-running
+wa082Run <- rwi.stats.running(wa082Rwi, wa082Ids, window.length = 50)
+wa082Run[, c("start.year", "end.year", "n.trees", "n", "n.bt", "rbar.eff", "eps")]
+```
+
+Each row is one window. `n.trees` is the number of trees with any data in the window, `n` is the average number of trees present in a year, and `n.bt` is the number of between-tree correlations that went into rbar. The same for Mesa Verde, and then a picture of both.
+
+```{r}
+#| label: stats-running-co021
+co021Run <- rwi.stats.running(co021Rwi, co021Ids, window.length = 50)
+```
+
+```{r}
+#| label: fig-stats-running
+#| fig-cap: "Running EPS, effective rbar and number of trees in 50-year windows for Mesa Verde (co021) and Hurricane Ridge (wa082). The dashed line is an EPS of 0.85."
+#| fig-height: 6
+runLong <- function(run, site) {
+  data.frame(
+    site = site,
+    year = run$mid.year,
+    stat = rep(c("EPS", "Effective rbar", "Trees"), each = nrow(run)),
+    value = c(run$eps, run$rbar.eff, run$n)
+  )
+}
+statLevels <- c("EPS", "Effective rbar", "Trees")
+runBoth <- rbind(runLong(co021Run, "co021"), runLong(wa082Run, "wa082"))
+runBoth$stat <- factor(runBoth$stat, levels = statLevels)
+epsLine <- data.frame(stat = factor("EPS", levels = statLevels), value = 0.85)
+ggplot(runBoth, aes(x = year, y = value)) +
+  geom_hline(data = epsLine, aes(yintercept = value), linetype = "dashed") +
+  geom_line() +
+  geom_point() +
+  facet_grid(stat ~ site, scales = "free") +
+  labs(x = "Middle year of window", y = NULL) +
+  theme_minimal()
+```
+
+This is the plot that gets put in the supplement of a paper with a sentence saying EPS exceeds 0.85 after some year. It deserves a closer reading than that.
+
+### EPS Fell. Which Ingredient Moved?
+
+Look at the first and last windows for Hurricane Ridge.
+
+```{r}
+#| label: stats-first-last
+wa082Run[c(1, nrow(wa082Run)), c("start.year", "end.year", "n", "rbar.eff", "eps")]
+```
+
+The effective rbar is `r wa082Run$rbar.eff[1]` in the first window and `r wa082Run$rbar.eff[nrow(wa082Run)]` in the last. The trees that are there agree with each other about as well at the start as at the end. EPS is `r wa082Run$eps[1]` in one and `r wa082Run$eps[nrow(wa082Run)]` in the other, and the only reason is the number of trees.
+
+You can take the depth out of the picture. For each window, ask what EPS would be if all `r wa082Stats$n.trees` trees were there, using that window's rbar.
+
+```{r}
+#| label: fig-stats-full-depth
+#| fig-cap: "Running EPS for Hurricane Ridge as computed (solid) and as it would be with every tree present in every window (dotted). The gap between the lines is the cost of low sample depth."
+wa082Run$epsFullDepth <- epsFormula(wa082Stats$n.trees, wa082Run$rbar.eff)
+ggplot(wa082Run, aes(x = mid.year)) +
+  geom_hline(yintercept = 0.85, linetype = "dashed") +
+  geom_line(aes(y = eps)) +
+  geom_line(aes(y = epsFullDepth), linetype = "dotted") +
+  labs(x = "Middle year of window", y = "EPS") +
+  theme_minimal()
+```
+
+Where the two lines part, the problem is too few trees, and the cure is more old trees, if there are any. Where they run together, the number of trees is not the problem and no amount of sampling would have helped.
+
+### The Trees Stopped Agreeing
+
+The second thing in the Hurricane Ridge panel is on the right. Here are the windows with every tree present.
+
+```{r}
+#| label: stats-full-depth-rows
+wa082Full <- wa082Run[wa082Run$n == wa082Stats$n.trees, ]
+wa082Full[, c("start.year", "end.year", "n", "rbar.eff", "eps")]
+```
+
+All `r wa082Stats$n.trees` trees are there from `r min(wa082Full$start.year)` on, and EPS still drops, from `r wa082Full$eps[1]` to `r wa082Full$eps[nrow(wa082Full)]`. Depth can't explain that. The effective rbar peaks at `r max(wa082Run$rbar.eff)` in the window centered on `r wa082Run$mid.year[which.max(wa082Run$rbar.eff)]` and is about half that by the end.
+
+Why? I don't know, and the statistic can't say. It could be the stand, the climate, the trees getting old, or the detrending. A falling rbar at full depth tells you where to look. It doesn't tell you what you will find.
+
+### How Noisy Is a Window?
+
+The first Hurricane Ridge window rests on `r wa082Run$n.bt[1]` between-tree correlations. The first Mesa Verde window rests on `r co021Run$n.bt[1]`. An average of that few correlations, each from a few decades of data, is a rough estimate. The window length matters too.
+
+```{r}
+#| label: fig-stats-windows
+#| fig-cap: "Running EPS for Hurricane Ridge with 30-year (dotted), 50-year (solid) and 100-year (dashed) windows. The grey line is 0.85."
+runWindow <- function(len) {
+  run <- rwi.stats.running(wa082Rwi, wa082Ids, window.length = len)
+  data.frame(window = paste(len, "years"), year = run$mid.year, eps = run$eps)
+}
+wa082Windows <- rbind(runWindow(30), runWindow(50), runWindow(100))
+wa082Windows$window <- factor(wa082Windows$window,
+                              levels = c("30 years", "50 years", "100 years"))
+ggplot(wa082Windows, aes(x = year, y = eps, linetype = window)) +
+  geom_hline(yintercept = 0.85, colour = "grey60") +
+  geom_line() +
+  scale_linetype_manual(values = c("dotted", "solid", "dashed")) +
+  labs(x = "Middle year of window", y = "EPS", linetype = "Window") +
+  theme_minimal()
+```
+
+The year in which EPS first passes 0.85 depends on the window you picked. So does whether it stays there. A short window bounces around because each rbar comes from few years. A long window is steadier and tells you less about when anything changed. There is no correct length, which is one more reason not to hang a decision on the year the line crosses.
+
+### What EPS Does Not Say
+
+EPS says how well your sample mean stands in for the mean of all the trees like these. That is all. It doesn't say what those trees are recording. A stand can have an EPS of 0.95 and no usable climate signal, because the thing the trees share might be a thinning, an insect outbreak or the neighbor's irrigation. Buras [-@Buras2017] wrote a short and pointed comment on this, and it is worth the ten minutes.
+
+And 0.85? Wigley and colleagues did not hand it down as a threshold. It has been cited as one ever since, and you have now seen how easily a collection moves across it with the detrending, the prewhitening, the window and whether anybody remembered the `ids`. Report EPS and rbar, say how you computed them, and let the reader see the trees thin out. Don't treat one side of 0.85 as safe.
+
+## Subsample Signal Strength
+
+Running EPS mixes two questions. Is this a good set of trees? And how much worse is the chronology back when only some of them were alive? Subsample signal strength answers the second one by itself. It compares a subsample of $n$ trees with the full sample of $N$.
+
+$$SSS = \frac{n\left[1 + (N - 1)\bar{r}\right]}{N\left[1 + (n - 1)\bar{r}\right]}$$
+
+That is the EPS of the subsample divided by the EPS of the full sample. `sss` computes it for every year, using one rbar for the whole collection and the number of trees present in each year.
+
+```{r}
+#| label: stats-sss
+co021Sss <- sss(co021Rwi, co021Ids)
+wa082Sss <- sss(wa082Rwi, wa082Ids)
+```
+
+Check one year by hand so there is no mystery in it. In 1750, how many Hurricane Ridge trees have a ring?
+
+```{r}
+#| label: stats-sss-hand
+present1750 <- !is.na(wa082Rwi["1750", ])
+n1750 <- length(unique(wa082Ids$tree[present1750]))
+n1750
+epsFormula(n1750, wa082Stats$rbar.eff) /
+  epsFormula(wa082Stats$n.trees, wa082Stats$rbar.eff)
+wa082Sss[time(wa082) == 1750]
+```
+
+```{r}
+#| label: fig-stats-sss
+#| fig-cap: "Subsample signal strength by year for Mesa Verde (co021) and Hurricane Ridge (wa082). The dashed line is 0.85."
+sssBoth <- rbind(
+  data.frame(site = "co021", year = time(co021), sss = co021Sss),
+  data.frame(site = "wa082", year = time(wa082), sss = wa082Sss)
+)
+ggplot(sssBoth, aes(x = year, y = sss)) +
+  geom_hline(yintercept = 0.85, linetype = "dashed") +
+  geom_line() +
+  facet_wrap(~ site, scales = "free_x") +
+  labs(x = "Year", y = "SSS") +
+  theme_minimal()
+```
+
+Because SSS uses one rbar, it has no windows and none of the noise that comes with them. It moves only when a tree joins or drops out. That makes it the better tool for the question people usually bring to running EPS, which is where the early part of a chronology stops being trustworthy.
+
+It has a catch, and it is easy to miss. SSS is relative to your own full sample. An SSS of one means the chronology is as good as these trees can make it. It doesn't mean the chronology is good.
+
+```{r}
+#| label: stats-sss-relative
+wa082First <- min(time(wa082)[wa082Sss >= 0.85])
+wa082First
+wa082Sss[time(wa082) == wa082First] * wa082Stats$eps
+```
+
+Hurricane Ridge reaches an SSS of 0.85 in `r wa082First`. The full sample it is being compared with has an EPS of `r wa082Stats$eps`, so the chronology in `r wa082First` has an EPS near `r round(wa082Sss[time(wa082) == wa082First] * wa082Stats$eps, 2)`. Mesa Verde has an SSS of `r round(co021Sss[1], 2)` in its very first year, with one tree, because one tree at Mesa Verde already tells you most of what eleven do.
+
+What to do with a cutoff, and whether to use one at all, is the business of the [next chapter](07Chronologies.qmd).
+
+## The Other Interseries Correlation
+
+If you have used COFECHA you know a different number, the series intercorrelation. It is the correlation between each series and a master chronology built from all the others, averaged over the series. `interseries.cor` computes it, and it comes back in the [crossdating chapters](10Crossdating.qmd), where it earns its keep.
+
+```{r}
+#| label: stats-interseries
+co021Inter <- interseries.cor(co021Rwi)
+wa082Inter <- interseries.cor(wa082Rwi)
+c(co021 = mean(co021Inter$res.cor), wa082 = mean(wa082Inter$res.cor))
+```
+
+Those are a good deal higher than the rbar values. Did the trees get better? No. A master built from many series has most of its noise averaged away, so a series correlates with the master better than it correlates with any single neighbor. You can get close to the number from rbar alone. The correlation between one series and the mean of $n$ others is about the square root of rbar times the EPS of those $n$.
+
+```{r}
+#| label: stats-interseries-approx
+interApprox <- function(rwi) {
+  rbar <- rwi.stats(rwi, prewhiten = TRUE)$rbar.tot
+  sqrt(rbar * epsFormula(ncol(rwi) - 1, rbar))
+}
+c(co021 = interApprox(co021Rwi), wa082 = interApprox(wa082Rwi))
+```
+
+I prewhitened there because `interseries.cor` does by default. The two statistics carry much the same information about agreement. They are on different scales, so don't compare a series intercorrelation from one paper with an rbar from another.
 
 ## Mean Sensitivity
 
-There are a few other descriptive stats that are available. Mean sensitivity (`sens1` and `sens2`) used to be included in the standard summary statistics but **mean sensitivity is actually a terrible statistic that should rarely, if ever, be used [@Bunn2013].** It is at best equivalent to the standard deviation of a time series in cases without high autocorrelation and is an inefficient estimator of the coefficient of variation. So use cautiously if at all.
+Mean sensitivity is the average relative change from one ring to the next. It is one of the oldest statistics in the field, `dplR` still computes it with `sens1` and `sens2`, and it is a terrible statistic. I say that with affection for the people who came up with it, and with evidence [@Bunn2013].
+
+The trouble is that it tells you nothing you didn't already have. For a series with standard deviation $s$ and first-order autocorrelation $\phi$, the typical size of a year-to-year change is $s\sqrt{2(1 - \phi)}$. Mean sensitivity is very nearly that. Here are all `r ncol(co021) + ncol(wa082)` series from the two collections.
+
+```{r}
+#| label: fig-stats-sens
+#| fig-cap: "Mean sensitivity of each detrended series against a value computed from its standard deviation and first-order autocorrelation alone."
+sensCompare <- function(rwi, site) {
+  ar1 <- apply(rwi, 2, function(x) {
+    x <- x[!is.na(x)]
+    cor(x[-1], x[-length(x)])
+  })
+  data.frame(
+    site = site,
+    sens = apply(rwi, 2, sens1),
+    fromSdAr1 = apply(rwi, 2, sd, na.rm = TRUE) * sqrt(2 * (1 - ar1))
+  )
+}
+sensBoth <- rbind(sensCompare(co021Rwi, "co021"), sensCompare(wa082Rwi, "wa082"))
+ggplot(sensBoth, aes(x = fromSdAr1, y = sens, shape = site)) +
+  geom_point() +
+  scale_shape_manual(values = c(1, 16)) +
+  labs(x = "Standard deviation and AR1 combined", y = "Mean sensitivity",
+       shape = NULL) +
+  theme_minimal()
+cor(sensBoth$fromSdAr1, sensBoth$sens)
+```
+
+The correlation is `r round(cor(sensBoth$fromSdAr1, sensBoth$sens), 3)` across all the series, and it is `r round(min(sapply(split(sensBoth, sensBoth$site), function(d) cor(d$fromSdAr1, d$sens))), 2)` or better within each collection. Mean sensitivity is the standard deviation and the autocorrelation stirred together so that you can't get either one back out. Report those two instead. `rwl.stats` gives both, and a reader can do something with them.
 
 ## Wrapping Up
 
+There are two ingredients, agreement and depth. rbar is the first. EPS is both, and it moves when either one does, so read it next to rbar and the number of trees and never alone. SSS holds the agreement fixed and shows you the depth.
+
+None of these numbers is a property of the trees alone. Each one also depends on the detrending, on prewhitening, on the window, and on telling the function which cores share a tree. And none of them says what the trees are responding to. They say how well a mean represents a stand. What the stand is recording is a separate question that needs other data.
+
+The [next chapter](07Chronologies.qmd) builds chronologies and puts these statistics to work on where a chronology should start and how to keep its variance from tracking its sample depth.
+
 ## Exercises
 
+1. Compute `rwi.stats` for `wa082` with `period = "common"` and compare it with the default. Then try the same on `co021`. What happens, and what does `common.interval` tell you about why?
+2. Rerun the running statistics for `wa082` with `prewhiten = TRUE`. Does the drop in rbar in the twentieth century survive? What does that suggest about where the disagreement among trees is?
+3. In the simulation, change `rho` to 0.75 and redraw the figure. How many series does it take to reach 0.85? Then make the noise unequal, so that half the series are twice as noisy as the others, and see how well the formula holds.
+4. Leave `ids` out of `rwi.stats.running` for `wa082` and plot EPS against the version with `ids`. In which windows is the difference largest?
+5. Find the first year with an SSS of at least 0.85 for `wa082` under each of the four detrending methods. How far does the year move?
+
 ## Further Reading
+
+- @Wigley1984 is where EPS and SSS come from. The derivation is short and readable, and reading it is the cure for treating 0.85 as a law.
+- @Briffa1990 lays out the within-tree and between-tree correlations and the effective rbar.
+- @Buras2017 is a three-page comment on how EPS gets misused and why SSS is the statistic to use for truncating a chronology.
+- @Bunn2013 has the simulations behind my opinion of mean sensitivity.
+- @Cook1990 and @Fritts2001 are where to go if the ideas of signal and noise in a tree-ring series are new to you.

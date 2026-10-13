@@ -31,20 +31,24 @@ book:
         - 05Detrending.qmd
         - 06ChronologyStats.qmd
         - 07Chronologies.qmd
+    - part: "Regional Curves and Signal-Free"
+      chapters:
         - 08RegionalCurves.qmd
         - 09SignalFree.qmd
-        - 10BasalArea.qmd
     - part: "Crossdating"
       chapters:
-        - 11Crossdating.qmd
-        - 11xAsideSignAgreement.qmd
-        - 12FixingErrors.qmd
-        - 13Floaters.qmd
-        - 13xAsideCrossdatingStats.qmd
+        - 10Crossdating.qmd
+        - 10xAsideSignAgreement.qmd
+        - 11FixingErrors.qmd
+        - 12Floaters.qmd
+        - 12xAsideCrossdatingStats.qmd
     - part: "Time Series"
       chapters:
-        - 14SmoothingFiltering.qmd
-        - 15MemoryCycles.qmd
+        - 13SmoothingFiltering.qmd
+        - 14MemoryCycles.qmd
+    - part: "Trees and Disturbance"
+      chapters:
+        - 15BasalArea.qmd
         - 16Events.qmd
     - part: "Wrapping Up"
       chapters:
