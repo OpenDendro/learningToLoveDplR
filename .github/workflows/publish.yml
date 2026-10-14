@@ -47,6 +47,11 @@ jobs:
         env:
           GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Bundle data for download
+        # Ships the example data alongside the book so readers can grab the
+        # exact data for this build at <site>/data.zip.
+        run: zip -r docs/data.zip data
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:

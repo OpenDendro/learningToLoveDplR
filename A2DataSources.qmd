@@ -7,7 +7,7 @@ Every statement about the data below was checked against the data on 2026-10-06,
 - The tree and core structure of `co021`. The file has no header. The grouping comes from the series names and is supported by the correlations shown below, which is evidence and not proof.
 - The ITRDB ranks are fixed numbers from the crossdating summary in my ITRDB clone (dplR 1.8.1, 6,764 ring-width files). They need refreshing if that summary is rebuilt.
 
-Still planned: citations for the Gus Pearson and Zofingen data, a deliberately broken file for the Tucson aside, and a download of the `data/` folder from the book's site.
+Still planned: citations for the Gus Pearson and Zofingen data, and a deliberately broken file for the Tucson aside.
 :::
 
 Why does the book keep coming back to the same two sets of trees? Because a method only shows you what it does when you know the data underneath it. If every chapter brought a new collection, you would spend your attention on the trees and have none left for the method. So I picked two collections that behave very differently, and I use them almost everywhere. A few others show up where those two can't do the job.
@@ -102,7 +102,7 @@ The original Hurricane Ridge file also has a flaw worth meeting early. One serie
 
 ## The Files
 
-The two main collections are in `data/` exactly as the ITRDB serves them.
+The two main collections are in `data/` exactly as the ITRDB serves them. You can download the folder as [data.zip](data.zip) and unzip it in your project directory, so the paths below work as written.
 
 ```{r}
 #| label: a2-read

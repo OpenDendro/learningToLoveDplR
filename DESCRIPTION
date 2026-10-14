@@ -24,4 +24,5 @@ Imports:
     tidyverse,
     waveslim
 Remotes:
-    jakelawlor/PNWColors
+    jakelawlor/PNWColors,
+    OpenDendro/dplR

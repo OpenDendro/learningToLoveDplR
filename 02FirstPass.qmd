@@ -2,6 +2,8 @@
 
 This chapter is a quick first pass through `dplR`, following the steps an analyst might take with a new tree-ring data set. We read in ring widths and plot them, detrend them, and build and plot a simple mean-value chronology. Each step gets a fuller treatment in its own chapter later in the book.
 
+One step is missing from that list. In a project you crossdate before you detrend, because a missing or false ring puts every later year of that series in the wrong place. The ring widths here were dated by the people who collected them before they went to the ITRDB, so this chapter skips that step. The book comes back to it in [Crossdating a Collection](10Crossdating.qmd).
+
 ## What is Covered
 
 The Dendrochronology Program Library in R (`dplR`) is a package for  dendrochronologists to handle data processing and analysis. This document gives just a brief introduction of some of the most commonly used functions in `dplR`. There is more detailed information available in the help files and in the literature [@Bunn2008]. 

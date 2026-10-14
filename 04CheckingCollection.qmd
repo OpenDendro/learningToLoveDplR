@@ -70,6 +70,8 @@ ggplot(ar1,aes(x,y)) + geom_boxplot(width=.2) +
 
 ## Wrapping Up
 
+None of these checks tells you whether the rings are dated correctly. Shift part of a series by a year and its mean, its autocorrelation and its segment length barely move. That takes crossdating, which the book covers in [Crossdating a Collection](10Crossdating.qmd) after the standardization chapters. In a project, that is the next step after this chapter, before you detrend anything.
+
 ## Exercises
 
 ## Further Reading

@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this book, please cite it as below."
+title: "Learning to Love dplR: Or Using R for Tree-Ring Analysis"
+abstract: >-
+  A book about doing tree-ring analysis in R with the dplR package. It covers
+  reading and checking ring-width data, detrending, chronology statistics and
+  chronology building, regional curve and signal-free standardization,
+  crossdating, time series methods, and tree-level and disturbance work, with
+  an emphasis on what each method does and when it misleads. Two ITRDB
+  collections run through the book. It grew out of dplR workshop notes.
+authors:
+  - family-names: Bunn
+    given-names: "Andrew G."
+    affiliation: "Western Washington University"
+    orcid: "https://orcid.org/0000-0001-9027-2162"
+repository-code: "https://github.com/OpenDendro/learningToLoveDplR"
+license: CC-BY-NC-SA-4.0
+keywords:
+  - dendrochronology
+  - tree rings
+  - dplR
+  - crossdating
+  - detrending
+  - chronology
+  - R
+version: "0.1.0"

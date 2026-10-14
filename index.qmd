@@ -1,12 +1,216 @@
-# Learning to Love dplR {.unnumbered}
+---
+toc: false
+page-layout: custom
+sidebar: false
+title: ""
+subtitle: ""
+description: ""
+author: ""
+date: ""
+---
 
-*Or Using R for Tree-Ring Analysis*
+```{=html}
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=Source+Code+Pro:wght@400;600&display=swap');
 
-Andy Bunn
+  /* Kill Quarto's auto-generated title block on cover page */
+  #title-block-header { display: none !important; }
 
-This book is being rewritten. Chapters marked as stubs are planned and not yet written.
+  /* Scoped reset. Do NOT use * {} or it kills Quarto's navbar */
+  .banner, .banner * { box-sizing: border-box; }
+
+  .banner {
+    width: 100%;
+    min-height: calc(100vh - 60px);
+    position: relative;
+    background: #f7f4ee;
+    overflow: hidden;
+    font-family: 'Source Code Pro', monospace;
+    display: flex;
+    align-items: stretch;
+  }
+
+  /* ── Left column ── */
+  .left-col {
+    flex: 0 0 420px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 64px 48px 84px 64px;
+    position: relative;
+    z-index: 2;
+  }
+
+  .left-col::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, #1a3a5c 0%, #8a5a2b 55%, #c8922a 100%);
+  }
+
+  .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: #8a5a2b;
+    margin-bottom: 20px;
+  }
+
+  .banner-title {
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    font-size: 52px;
+    line-height: 1.08;
+    color: #1a2535;
+    letter-spacing: -0.02em;
+    margin-bottom: 12px;
+  }
+  .banner-title em {
+    color: #c8922a;
+    font-style: italic;
+  }
+
+  .banner-subtitle {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: #5a7a9a;
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+
+  .divider {
+    width: 48px;
+    height: 2px;
+    background: #c8922a;
+    margin-bottom: 28px;
+  }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 36px;
+  }
+  .tag {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: #1a3a5c;
+    border: 1px solid #d8c8a8;
+    padding: 4px 10px;
+    border-radius: 2px;
+    background: #fbf3e2;
+  }
+
+  .enter-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    align-self: flex-start;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #f7f4ee;
+    text-decoration: none;
+    background: #1a3a5c;
+    padding: 12px 24px;
+    border-radius: 2px;
+    transition: background 0.2s;
+  }
+  .enter-button:hover { background: #2a5a8c; color: #f7f4ee; }
+
+  .status {
+    font-size: 11px;
+    line-height: 1.6;
+    color: #8a9aaa;
+    margin-top: 28px;
+    max-width: 300px;
+  }
+
+  .credit {
+    position: absolute;
+    bottom: 28px; left: 64px;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    color: #8a9aaa;
+    text-transform: uppercase;
+  }
+
+  /* ── Right column ── */
+  .right-col {
+    flex: 1;
+    position: relative;
+    background: #ffffff;
+    border-left: 1px solid #dde5ee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 44px;
+  }
+
+  .art-svg {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 640px;
+    overflow: visible;
+  }
+
+  @media (max-width: 860px) {
+    .banner { flex-direction: column; }
+    .left-col { flex: none; padding: 48px 32px 72px 32px; }
+    .credit { left: 32px; }
+    .right-col { padding: 32px 20px 32px 32px; }
+    .banner-title { font-size: 38px; }
+  }
+</style>
+
+<div class="banner">
+
+  <div class="left-col">
+    <div class="eyebrow">openDendro &nbsp;·&nbsp; Dendrochronology</div>
+    <div class="banner-title">Learning to <em>Love</em> dplR</div>
+    <div class="banner-subtitle">Or Using R for Tree-Ring Analysis</div>
+    <div class="divider"></div>
+    <div class="tags">
+      <span class="tag">Ring Widths</span>
+      <span class="tag">Detrending</span>
+      <span class="tag">Chronologies</span>
+      <span class="tag">Signal-Free</span>
+      <span class="tag">Crossdating</span>
+      <span class="tag">Time Series</span>
+    </div>
+    <a href="00Preface.html" class="enter-button">Preface &nbsp;→</a>
+    <div class="status">This book is being rewritten. Chapters marked as stubs are planned and not yet written.</div>
+    <div class="credit">Andy Bunn</div>
+  </div>
+
+  <div class="right-col">
+```
 
 ```{r}
+#| label: cover-art
+#| echo: false
+#| results: asis
+# The art is drawn from co021 by assets/cover-art.R. With freeze: auto this
+# chunk reruns only when index.qmd changes, so after redrawing the art,
+# render with: quarto render index.qmd --cache-refresh
+cat("```{=html}", readLines("assets/cover-art.svg"), "```", sep = "\n")
+```
+
+```{=html}
+  </div>
+
+</div>
+```
+
+```{r}
+#| label: write-package-bib
 #| include: false
 # automatically create a bib database for R packages
 knitr::write_bib(c(
