@@ -26,22 +26,22 @@ book:
         - 03xAsideTucsonFormat.qmd
         - 04CheckingCollection.qmd
         - 04xAsideClassesGenerics.qmd
-    - part: "Standardization and Chronologies"
-      chapters:
-        - 05Detrending.qmd
-        - 06ChronologyStats.qmd
-        - 07Chronologies.qmd
-    - part: "Regional Curves and Signal-Free"
-      chapters:
-        - 08RegionalCurves.qmd
-        - 09SignalFree.qmd
     - part: "Crossdating"
       chapters:
-        - 10Crossdating.qmd
-        - 10xAsideSignAgreement.qmd
-        - 11FixingErrors.qmd
-        - 12Floaters.qmd
-        - 12xAsideCrossdatingStats.qmd
+        - 05Crossdating.qmd
+        - 05xAsideSignAgreement.qmd
+        - 06FixingErrors.qmd
+        - 07Floaters.qmd
+        - 07xAsideCrossdatingStats.qmd
+    - part: "Standardization and Chronologies"
+      chapters:
+        - 08Detrending.qmd
+        - 09ChronologyStats.qmd
+        - 10Chronologies.qmd
+    - part: "Regional Curves and Signal-Free"
+      chapters:
+        - 11RegionalCurves.qmd
+        - 12SignalFree.qmd
     - part: "Time Series"
       chapters:
         - 13SmoothingFiltering.qmd

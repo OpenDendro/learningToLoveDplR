@@ -10,7 +10,7 @@ Making a chronology takes one line. You average the indices across series, year 
 
 Because that one line hides four decisions. Which mean? Which years, given that the early ones rest on two or three trees? How far do you trust the result? And what do you do about a chronology that gets noisier wherever the trees thin out? `dplR` has a function for each, and none of them can make the decision for you.
 
-The last chapter supplies the tools. rbar, EPS and SSS all come back here and get put to work, so read [Chronology Statistics](06ChronologyStats.qmd) first if you skipped it.
+The last chapter supplies the tools. rbar, EPS and SSS all come back here and get put to work, so read [Chronology Statistics](09ChronologyStats.qmd) first if you skipped it.
 
 ## Packages
 
@@ -422,7 +422,7 @@ stripYears2 <- stripRecord2$years
 
 Then read the cost before you believe it. This time `r length(stripRecord2$removed)` series are gone and a whole tree with them: `r stripRecord2$stats$trees[1]` trees became `r stripRecord2$stats$trees[2]`. There are fewer trees in `r sum(stripYears2$n.after < stripYears2$n.before)` of the `r nrow(stripYears2)` years. All of that bought an EPS of `r stripRecord2$stats$eps[2]`, up from `r stripRecord2$stats$eps[1]`.
 
-Would I take that trade? I'd want to see the wood first. A series that lowers EPS is one that disagrees with its neighbors, and EPS has no idea why. It might be a badly measured core. It might be the one tree on the wet side of the plot, in which case it is telling you something about the stand that the other trees are not. The [Chronology Statistics](06ChronologyStats.qmd) chapter goes through what EPS can and can't say, and Buras [-@Buras2017] is the short version. Use `strip.rwl` to find the series worth a second look. Let the wood decide what happens to them.
+Would I take that trade? I'd want to see the wood first. A series that lowers EPS is one that disagrees with its neighbors, and EPS has no idea why. It might be a badly measured core. It might be the one tree on the wet side of the plot, in which case it is telling you something about the stand that the other trees are not. The [Chronology Statistics](09ChronologyStats.qmd) chapter goes through what EPS can and can't say, and Buras [-@Buras2017] is the short version. Use `strip.rwl` to find the series worth a second look. Let the wood decide what happens to them.
 
 ## Wrapping Up
 
@@ -430,7 +430,7 @@ One line makes a chronology and four decisions stand behind it. The biweight mea
 
 None of these functions knows what the chronology is for. A chronology built to date timbers, one built to reconstruct summer temperature and one built to study a stand's response to thinning could reasonably be three different chronologies from the same cores. Say what you did and why, so that a reader can judge whether your choices fit your question.
 
-Everything here detrends each series separately and then averages. The next two chapters, on [regional curves](08RegionalCurves.qmd) and the [signal-free method](09SignalFree.qmd), are about what that approach throws away and how to keep it.
+Everything here detrends each series separately and then averages. The next two chapters, on [regional curves](11RegionalCurves.qmd) and the [signal-free method](12SignalFree.qmd), are about what that approach throws away and how to keep it.
 
 ## Exercises
 

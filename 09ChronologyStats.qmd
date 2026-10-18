@@ -28,7 +28,7 @@ co021Rwi <- detrend(co021, method = "Spline")
 wa082Rwi <- detrend(wa082, method = "Spline")
 ```
 
-Each collection is detrended with a spline, as in the [Data Sources](A2DataSources.qmd) appendix. Is that the right detrending? That question belongs to the [Detrending](05Detrending.qmd) chapter, but it doesn't stay there. Later in this chapter the statistics change when the detrending does.
+Each collection is detrended with a spline, as in the [Data Sources](A2DataSources.qmd) appendix. Is that the right detrending? That question belongs to the [Detrending](08Detrending.qmd) chapter, but it doesn't stay there. Later in this chapter the statistics change when the detrending does.
 
 The `ids` objects say which cores come from which tree. For `wa082` the series names make that plain. For `co021` it is an educated guess, and the appendix shows the evidence for it.
 
@@ -376,11 +376,11 @@ wa082Sss[time(wa082) == wa082First] * wa082Stats$eps
 
 Hurricane Ridge reaches an SSS of 0.85 in `r wa082First`. The full sample it is being compared with has an EPS of `r wa082Stats$eps`, so the chronology in `r wa082First` has an EPS near `r round(wa082Sss[time(wa082) == wa082First] * wa082Stats$eps, 2)`. Mesa Verde has an SSS of `r round(co021Sss[1], 2)` in its very first year, with one tree, because one tree at Mesa Verde already tells you most of what eleven do.
 
-What to do with a cutoff, and whether to use one at all, is the business of the [next chapter](07Chronologies.qmd).
+What to do with a cutoff, and whether to use one at all, is the business of the [next chapter](10Chronologies.qmd).
 
 ## The Other Interseries Correlation
 
-If you have used COFECHA you know a different number, the series intercorrelation. It is the correlation between each series and a master chronology built from all the others, averaged over the series. `interseries.cor` computes it, and it comes back in the [crossdating chapters](10Crossdating.qmd), where it earns its keep.
+If you have used COFECHA you know a different number, the series intercorrelation. It is the correlation between each series and a master chronology built from all the others, averaged over the series. `interseries.cor` computes it, and you met it in the [crossdating chapters](05Crossdating.qmd), where it earns its keep.
 
 ```{r}
 #| label: stats-interseries
@@ -440,7 +440,7 @@ There are two ingredients, agreement and depth. rbar is the first. EPS is both, 
 
 None of these numbers is a property of the trees alone. Each one also depends on the detrending, on prewhitening, on the window, and on telling the function which cores share a tree. And none of them says what the trees are responding to. They say how well a mean represents a stand. What the stand is recording is a separate question that needs other data.
 
-The [next chapter](07Chronologies.qmd) builds chronologies and puts these statistics to work on where a chronology should start and how to keep its variance from tracking its sample depth.
+The [next chapter](10Chronologies.qmd) builds chronologies and puts these statistics to work on where a chronology should start and how to keep its variance from tracking its sample depth.
 
 ## Exercises
 

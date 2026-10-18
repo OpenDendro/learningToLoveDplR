@@ -6,8 +6,6 @@ In this document, we will use example ring-width files from the ITRDB to demonst
 
 In the following pages we will cover the basics of `dplR`, crossdating, and some limited time-series analysis. Users should be familiar with the basics of dendrochronology and concepts like detrending, autocorrelation, spectral analysis and so on.
 
-The book's order differs from the order of a project. In practice you crossdate first, because every step after that assumes each ring has the right year. Here the crossdating chapters come after detrending and chronology building. dplR's crossdating tools prewhiten each series and build the master with a biweight mean before they correlate anything, and those steps are easier to follow once you have seen them in the standardization chapters. If you are working on your own collection, read [Crossdating a Collection](10Crossdating.qmd) before you detrend it.
-
 If this is all new to you -- you should proceed immediately to a good primer on dendrochronology like Fritts [-@Fritts2001] or the Cook Book [-@CookBook]. These pages are not intended to teach you about how to do tree-ring analysis. They are intended to teach you how to use R for dendro.
 
 **Please note! This is a very drafty document and there are typos and all kinds of silliness in it.**
