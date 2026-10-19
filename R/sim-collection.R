@@ -16,8 +16,10 @@
 #       (p. 98), typical of open-canopy trees. No dplR method fits it by
 #       name, but ModNegExp follows it closely (r = 0.999 for SIM05A at
 #       seed 1). Cook's answer for closed canopies is that A is a stochastic
-#       process with no predictable shape (p. 100), which is the way to
-#       answer the circularity worry in BACKLOG.md; not done yet.
+#       process with no predictable shape (p. 100). So half the trees
+#       (compete.frac) also get a slow AR(1) wander on the log scale
+#       (compete, compete.phi): a competition history no detrending curve
+#       assumes. compete = 0 gives open-canopy trees only.
 #   C   climate, shared by every tree
 #   T   noise shared by the cores of one tree. Cook's E covers microsite
 #       and measurement noise, uncorrelated within and between trees
@@ -50,6 +52,8 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
                            rbar.bt = 0.4, rbar.wt = 0.6, sd.hf = 0.25,
                            phi = 0.5, climate = NULL,
                            bai = 600, bai.sdlog = 0.4, juv = 25,
+                           compete = 0.3, compete.frac = 0.5,
+                           compete.phi = 0.97,
                            pith.miss = 5,
                            release = list(tree = 10, year = 1950,
                                           size = log(2), decay = 25),
@@ -139,6 +143,31 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
     dist[, cols] <- dist[, cols] + pulse(event$year, event$size, event$decay)
   }
 
+  # ── competition: A as a stochastic process ──
+  # In a closed canopy, suppression and release by neighbours bend the age
+  # trend into a shape no curve predicts (Cook 1990, p. 100). A slow,
+  # smoothed AR(1) wander on the log scale, shared by the cores of a tree,
+  # does that for
+  # a fraction of the trees. Drawn last so the other draws for a given seed
+  # don't change. It is part of A, so truth$age includes it.
+  n.comp <- round(compete.frac * n.tree)
+  comp.trees <- if (compete > 0 && n.comp > 0) {
+    sort(sample.int(n.tree, n.comp))
+  } else {
+    integer(0)
+  }
+  wander <- matrix(0, n.yr, n.tree)
+  for (tr in comp.trees) {
+    # an AR(1) wander, then an 11-year running mean so it changes over
+    # decades rather than from one year to the next
+    w <- as.numeric(stats::filter(rnorm(n.yr + 2 * burn), compete.phi,
+                                  method = "recursive"))
+    w <- as.numeric(stats::filter(w, rep(1 / 11, 11), sides = 2))
+    w <- w[burn + seq_len(n.yr)]
+    wander[, tr] <- (w - mean(w)) / sd(w) * compete
+  }
+  age.mm <- age.mm * exp(wander[, ids$tree])
+
   # ── widths, cut to what each core reaches ──
   width <- age.mm * exp(hf + dist)
   for (i in seq_along(series)) {
@@ -214,7 +243,10 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
          event = c(event, list(trees = hit)),
          errors = errors,
          pith = data.frame(tree = tree.id, pith = pith, row.names = NULL),
+         competition = tree.id[comp.trees],
          params = list(n.tree = n.tree, n.core = n.core, end.year = end.year,
                        rbar.bt = rbar.bt, rbar.wt = rbar.wt, sd.hf = sd.hf,
-                       phi = phi, bai = bai, juv = juv, seed = seed)))
+                       phi = phi, bai = bai, juv = juv, compete = compete,
+                       compete.frac = compete.frac,
+                       compete.phi = compete.phi, seed = seed)))
 }

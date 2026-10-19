@@ -6,6 +6,21 @@ Working notes for the rewrite. Not part of the book.
 
 State of the repo: the Quarto conversion, the restructure into parts, the stubs and the dataset work are on the `quarto-rewrite` branch. `main` is still the 2024 bookdown version. The folder moved from `workshopMaterials/dplR-workshop` to `openDendro/learningToLoveDplR`; the GitHub repo was renamed from `OpenDendro/dplR-workshop` to `OpenDendro/learningToLoveDplR` on 2026-10-13, and the old name no longer resolves. The writing spec is a local file and is not in the repo.
 
+### Chapter 1 and the name-conflicts aside, 2026-10-19 (uncommitted)
+
+- Andy is happy with chapter 2 as the intro and roadmap. Chapter 1 (2022 Welcome) and the name-conflicts aside don't fit in front of it.
+- `01xAsideNameConflicts.qmd` is out of `_quarto.yml` until later; the file is kept. Its two links are gone: the pointer sentence in 01Welcome, and the link in the 13SmoothingFiltering footnote (the footnote still says `signal` masks `hanning`). 13 is a likely home if it comes back, since that is where a mask first bites.
+- What chapter 1 is for: decided 2026-10-19, the lineage chapter. First draft written the same day (see the next item).
+
+### 01 Where dplR Comes From, first draft 2026-10-19 (uncommitted)
+
+- `01Welcome.qmd` is now "Where dplR Comes From": COFECHA, ARSTAN and the DPL; the 20 to 32-year spline story; a table, computed from `formals`, showing that `xdate.report` (32-year spline, Pearson) and `corr.rwl.seg` (divide by the mean, Spearman) have different defaults; scripture and not a target; other R packages; citing dplR (the "idle rich" paragraph kept). Renamed to `01WhereDplRComesFrom.qmd` with `git mv` (staged, `_freeze` folder too) on 2026-10-19.
+- Setup moved to A1, now "Setup, Packages and References": R and an editor, YaRrr, installing dplR (CRAN and the dev version), the package list read from `DESCRIPTION`, `sessionInfo()`. The Preface is rewritten to spec: who the book is for, what it assumes, a pointer to A1, the draft warning.
+- New bib entry `GrissinoMayer2001`, checked against the PDF.
+- Checked against sources: COFECHA 1982 and the "co-date" name (Grissino-Mayer 2001, p. 205); 20-year spline on California collections (Holmes 1983, p. 72); 32-year default (Grissino-Mayer 2001, p. 207); Fritts 1963 routine and its limits (Holmes 1983, p. 69); no AR modeling in the 1983 description, AR in the 2002 `COFECHA.f` banner; LTRR and IANIGLA (Holmes 1983 acknowledgements); ARSTAN change log 2006 to 2019 with the age-dependent spline in 2014 (`ARSTAN_49v1b.f` header); `/pub/dpl` on the LTRR server (Grissino-Mayer 2001); the 2022 package list against CRAN on 2026-10-19 (`MtreeRing` is archived and was dropped; `BIOdry`, `DendroSync` and `tracheideR` are on CRAN but left out to keep the list short).
+- Andy confirmed 2026-10-19: the name dplR is a nod to Holmes's DPL; the DPL is a set of programs sharing Fortran routines; Ed Cook's comment stays in, and Andy added a sentence after the quote. Still resting on Andy's own word: "I started dplR around 2006" (from A3) and the paragraph on tuning dplR to match COFECHA and ARSTAN.
+- For 07xAsideCrossdatingStats, not checked carefully: a missing ring planted mid-series in each `wa082` core longer than 200 rings was found at every spline setting, but false flags on other cores averaged 0 with a 10-year spline or with the mean, 0.2 at 20 years, 1.9 at 32, 1.8 at 64 and 1.0 at 100. Some of that is the two series `wa082` flags anyway at 32 years. On `co021` every setting found the ring with no false flags. Worth a proper run before the aside says anything about the 32-year default.
+
 ### Crossdating reorder, done 2026-10-15 (uncommitted)
 
 - Crossdating now comes right after Ring Widths. Renamed with `git mv`, `_freeze` folders included: 10Crossdating to 05Crossdating, 10xAsideSignAgreement to 05xAsideSignAgreement, 11FixingErrors to 06FixingErrors, 12Floaters to 07Floaters, 12xAsideCrossdatingStats to 07xAsideCrossdatingStats, 05Detrending to 08Detrending, 06ChronologyStats to 09ChronologyStats, 07Chronologies to 10Chronologies, 08RegionalCurves to 11RegionalCurves, 09SignalFree to 12SignalFree. 01 to 04 and 13 to 18 kept their numbers. Section ids don't use file names, so only the `.qmd` links changed.
@@ -20,6 +35,60 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - Layering for those ideas: 2 gives the intuition, 05 to 07 use the defaults with a sentence on why, 07x gives the mechanics (planned: simulated cores with a shared signal, age trends, AR(1) memory and a planted missing ring, compared raw against filtered; not yet run), 08 and 13 come back to the same spline from the other side.
 - New appendix: a one-page quick reference, the main calls in pipeline order (`read.rwl`, `rwl.check`, `xdate.report`, `detrend`, `rwi.stats`, `chron`), one line each with a link to its chapter. For returning readers and for workshops. Not started; file name and position among the appendices open.
 - `02FirstPass.qmd` stays in place until the new chapter is written. Blocked on the simulation: decide whether its code lives in the book or becomes `sim.rwl` in dplR, and check Cook's aggregate model against his text.
+
+### References from Kevin, 2026-10-18
+
+Kevin sent a folder of classic papers, now in `workspace/references/`; `notes/folder-summary.md` there lists them by chapter (abstracts read, not the papers). For this book:
+- 02: cite Cook (1987, Tree-Ring Bulletin 47) for the aggregate model alongside `Cook1990model`; needs a bib entry. Fritts (1966, Science) and Schulman (1941, Ecology) are short classics for the climate term and site selection.
+- 05-07: Douglass (1941) on crossdating vs correlation, Douglass (1946) on precision of dating, Douglass (1929, National Geographic) for the HH-39 story in 07.
+- 08: Cook and Peters (1997) on ratio bias, with a Campito Mountain example (`ca533`'s site).
+- 09: Wigley et al. (1984) and Buras (2017) are now in hand; check the "not a threshold" sentence against the bodies.
+- 10: `frank2006` is the TRACE 4 paper (not in the folder); Frank et al. (2007, GRL) and Osborn et al. (1997) are. Consider citing all three for `chron.stabilized`, as its help page does.
+- 11-12: Cook et al. (1995), Briffa et al. (1992), Briffa et al. (1996), Esper et al. (2003), Briffa and Melvin (2011), and Bunn et al. (2004), Andy's own simulation of RCS vs negative exponential.
+- Climate part: the Cook, Briffa and Jones NATO report (published as Cook et al. 1994, IJC 14) defines CE; Cook et al. (1999) uses RE and CE; Fritts et al. (1971) for response functions; Meko et al. (1993) found the weakest drought signal in the Pacific Northwest, worth knowing before the `wa082` climate check.
+- Cook and Peters (1981) added by Andy 2026-10-18 (`CookPeters1981_spline.pdf`). Still missing: Frank et al. (2006 TRACE), Holmes (1983), Grissino-Mayer (2001), Wigley et al. (1987), Black et al. (2016), Zang and Biondi (2015, Ecography, not Dendrochronologia), Schweingruber et al. (1990), Becker et al. (1994), Nowacki and Abrams (1997).
+
+### 02 An Additive Model of Tree Growth, third draft 2026-10-19 (uncommitted)
+
+Decided with Andy 2026-10-19: the chapter is about the aggregate model (a ring width is several parts, never seen separately, and each method estimates one and can mistake one for another). It is not a quick tour of dplR functions; that job stays with the planned quick-reference appendix. Retitled "An Additive Model of Tree Growth"; the file is still `02CoresToRecord.qmd`, so links and `_freeze` names are unchanged.
+
+New structure: Big Idea (the claim, then the 40 simulated series and what is hidden in them); A Ring Width in Parts (Cook, the method-to-part paragraph, the parts figure, a "Who Shares What" subsection with the within- and between-tree correlations); The Missing Ring; The Crowded Trees; The Stand Event (sample depth, recovery by century, EPS, then the 1880 event); The Released Tree (the Cook signal/noise quote moved here); What the Simulation Leaves Out (Schulman's selection point folded into the site bullet); Wrapping Up with a method / part / what it mistakes / where-in-the-book table and the project-order paragraph. The six coring-trip questions are no longer headings. Cut: the pith-offset summary (belongs in 11 Regional Curves), the naming-scheme aside, and the body text and hidden chunk on the between-tree rbar shortfall (now only exercise 1). Exercises reordered to follow the sections. Computed numbers unchanged.
+
+### 02 From Cores to a Record, second draft 2026-10-19 (uncommitted)
+
+Prose reworked against the papers in `workspace/references/`; code, figures and computed numbers unchanged from the first draft (re-rendered fresh, same values). New citations, each checked against the PDF:
+- Cook (1987) pp. 38-45 (scan, read as page images): the model and its terms, the signal/noise quote (p. 38, the chapter's one direct quote), open vs closed-canopy A (p. 40, Fig. 1), D2 example of logged hemlocks (Fig. 3), heteroscedasticity r = 0.67 in lodgepole pine (p. 43), and the no-covariance caveat (p. 43), now used for the crowded tree.
+- Schulman (1941): selection is deliberately non-random; the crossdated group is the unit of study; false and locally absent rings.
+- Douglass (1941): no correlation formula should decide dating; first principle of interpretation (many trees, wide area, long time means climate), used to open Solid for What?; the Mesa Verde canyon slope as one of the best sites in forty years. That is Mesa Verde fir in general, not a claim that `co021` is the same trees.
+- Fritts (1966): two radii in each of ten trees; complacent vs sensitive along the forest-border gradient; outer rings hold more wood; indices with mean 1 and equal weight.
+- Holmes (1983): COFECHA's spline, master without the series, 50-year segments lagged 25, a 20-year spline chosen by trial, not a substitute for crossdating on the wood.
+- Black et al. (2016): abstract only, for 1% and 5% dating error rates.
+- Wigley et al. (1984) p. 206 (scan): common signal can come from management, pests and disease, pollution; no obvious EPS level for reconstruction. Buras (2017) for how that got lost.
+- Bunn et al. (2004) as the precedent for the simulation.
+New bib entries: `Cook1987`, `Schulman1941`, `Douglass1941`, `Fritts1966`, `Holmes1983`, `Black2016`, `Bunn2004`. Not checked against the PDFs: Douglass volume 39 (from memory) and the issue numbers, which are left out for Black, Douglass and Fritts.
+New exercise 6 (spline stiffness in `xdate.report`, Holmes's trade-off), not run.
+For Andy: `GrissinoMayer2001_softwareReview.pdf` (was `Grissino 2001.pdf`) in the references folder is a 2001 software review of a dendrology CD, not the COFECHA manual.
+
+### 02 From Cores to a Record, first draft 2026-10-17 (uncommitted)
+
+`02FirstPass.qmd` renamed with `git mv` to `02CoresToRecord.qmd` and rewritten; `_freeze/02FirstPass` removed, the new chapter renders on its own and in the full book. The old TL;DR code walk-through is gone from the chapter; it belongs in the quick-reference appendix, still not started.
+
+Structure: Big Idea; Packages; A Collection Built from Parts (Cook's model, the parts of SIM10A); then the six questions as sections (What Do I Have?, When Did Each Ring Grow?, Are the Counts Right?, What Is Each Tree Doing?, How Good Is the Record?, Solid for What?), each ending with a pointer to its part; Beside a Collection Nobody Built (`wa082`); Wrapping Up; five exercises that turn the simulation's dials; Further Reading. Six figures, black and white `theme_minimal`.
+
+Simulation change for the chapter: `compete`, `compete.frac`, `compete.phi` in `R/sim-collection.R`. Half the trees get a slow log-scale wander in A (AR(1) at 0.97, then an 11-year running mean, sd 0.3), drawn last so the other seed-1 draws don't change, but widths and everything computed from them do. The numbers recorded under "Simulated collection, first version" below are from before this change. With it (seed 1): ModNegExp tracks the true A at median r 0.998 on open trees and 0.81 on competition trees (one core, SIM14B, falls back to a flat line); `xdate.report` still flags SIM03A at lag -1 before 1800, plus weak unplanted flags on SIM08B and SIM10A (gains .004 and .024); prewhitened rbar.bt 0.35 against a target of 0.4.
+
+Findings the chapter uses (all computed inline):
+- Raw widths hide the missing ring. SIM03A over 1725-1799 correlates at only about 0.2 with the raw master as dated, positive at every shift, and nothing stands out. After a 32-year spline and AR residuals (the chapter's `toWiggles`, close to `xdate.report`'s defaults) it is -0.28 as dated and 0.53 one year earlier.
+- A stand-wide event looks like climate: the standard chronology drops from 1.05 to 0.81 across 1880 while the true climate barely moves.
+- EPS tracks the squared correlation between the residual chronology and the true climate in 50-year windows, within 0.13.
+- `wa082` looks a lot like the simulation without tuning: rbar.wt 0.59 vs 0.58, rbar.bt 0.35 vs 0.35, median AR1 0.75 vs 0.80.
+
+For Andy to check:
+- Voice: first draft of the opening chapter in the new spec. Opinion written for you: "the most useful equation in dendrochronology, and not because anybody fits it". Three "X, not Y" lines cut on 2026-10-17 at Andy's request (they read as the AI contrast tell).
+- The between-tree rbar shortfall (0.35 against 0.4, and 0.36 without competition) is unexplained, and the chapter says so. Exercise 2 sends the reader after it. Worth running down before the chapter is final, since 09 relies on rbar behaving.
+- `wa082` has no locally absent rings (its one zero is the 1900 gap); the chapter uses `co021`'s 716 zeros for that point.
+- Climate part not promised: the Solid for What? section points to Trees and Disturbance and Time Series only. Add a pointer if the Climate part goes ahead.
+- Pointers to 03, 04, 05, 08, 09, 10, 11, 13, 15 all resolve. 04 and 08 still carry "moved here from A First Pass" notes at the top, which are still true.
 
 ### Reference notes on the Cook Book, 2026-10-17
 
@@ -161,7 +230,7 @@ Notes:
 
 ### Open decisions
 
-- dplR version in CI. Decided 2026-10-13: dplR 1.8.1 goes to CRAN only after the rewrite is done, since more dplR changes are expected (signal-free especially). Until then `DESCRIPTION` has `OpenDendro/dplR` under `Remotes:`, so CI builds on dplR's master and dplR changes must be pushed before the chapters that need them. When 1.8.1 is on CRAN: take the remote out, and check that `01Welcome.qmd`, which tells readers to `install.packages("dplR")`, needs no note about the dev version.
+- dplR version in CI. Decided 2026-10-13: dplR 1.8.1 goes to CRAN only after the rewrite is done, since more dplR changes are expected (signal-free especially). Until then `DESCRIPTION` has `OpenDendro/dplR` under `Remotes:`, so CI builds on dplR's master and dplR changes must be pushed before the chapters that need them. When 1.8.1 is on CRAN: take the remote out, and check that `A1PackagesUsed.qmd` (the setup section, moved from the old Welcome), which tells readers to `install.packages("dplR")`, needs no note about the dev version.
 - Deployment. The workflow in `.github/workflows/publish.yml` deploys with GitHub Actions and `docs/` is gitignored but still tracked. Before pushing: switch Pages to "workflow" and run `git rm -r --cached docs`. Until both are done the old bookdown site stays live.
 - Cover page: first version 2026-10-13, same layout as the time series book. `assets/cover-art.R` draws the art from `co021` into `assets/cover-art.svg`, which `index.qmd` reads at render time.
 - `LICENSE.md`, `CITATION.cff`, `.zenodo.json`: drafted 2026-10-13 on the pattern of the time series and spatial books (CC BY-NC-SA 4.0 for prose and figures, MIT for code). `LICENSE.md` says the data in `data/` and in dplR keep their sources' terms. Still to add once they exist: `url` (the site address) and `doi` and `date-released` in `CITATION.cff`. The README has no license section yet and is still the 2022 text.

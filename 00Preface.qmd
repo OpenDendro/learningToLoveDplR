@@ -1,13 +1,15 @@
 # Preface
 
-`R` is both a programming language and a software environment for statistical computing. It is free and open-source, licensed under the GNU General Public License. The Dendrochronology Program Library in R (`dplR`) is an add-on package for R that performs many of the standard tasks in tree-ring analysis including cross-dating, detrending, chronology building, spectral and wavelet analyses, and so on.  
+:::{.callout-warning title="Work in progress"}
+The book is being rewritten in 2026. Some chapters are finished drafts, some are the 2022 workshop notes, and some are empty. Each chapter says which at the top. Expect typos and all kinds of silliness until then.
+:::
 
-In this document, we will use example ring-width files from the ITRDB to demonstrate the functionality of `dplR`. The `R` environment is powerful and flexible and its use allows great transparency in presenting data results. An advantage of `dplR`'s open-source licensing is that one has the option to modify or add to the library's functionality for performing specific experiments or producing custom figures.
+This is a book about doing tree-ring analysis in R with `dplR`, the Dendrochronology Program Library in R. It covers the work in roughly the order you'd do it: reading ring widths, crossdating, detrending, building a chronology, and then asking what the record says about time or about the trees.
 
-In the following pages we will cover the basics of `dplR`, crossdating, and some limited time-series analysis. Users should be familiar with the basics of dendrochronology and concepts like detrending, autocorrelation, spectral analysis and so on.
+I assume you know some dendrochronology, or are learning it alongside. You should know what a ring width is, why trees at a dry site might agree with each other, and what crossdating is for. If that's all new, start with a good primer like Fritts [-@Fritts2001] or the Cook Book [-@CookBook] and come back. The book won't teach you dendrochronology from the beginning. It will show you what the methods are doing, how to run them in R, and where they mislead.
 
-If this is all new to you -- you should proceed immediately to a good primer on dendrochronology like Fritts [-@Fritts2001] or the Cook Book [-@CookBook]. These pages are not intended to teach you about how to do tree-ring analysis. They are intended to teach you how to use R for dendro.
+I also assume you can get around in R a little. The [Setup appendix](A1PackagesUsed.qmd) says what to install and points to a good place to start if you can't.
 
-**Please note! This is a very drafty document and there are typos and all kinds of silliness in it.**
+The code in every chapter runs as the book builds, and in the rewritten chapters every figure and every number in the text comes from the code next to it. Copy it, run it, break it. The data are either on board in `dplR` or in a [zip file](A2DataSources.qmd) you can download.
 
-This document was written in **Markdown** using [Quarto](https://quarto.org).
+The book is written in [Quarto](https://quarto.org), and the source is on [GitHub](https://github.com/OpenDendro/learningToLoveDplR). If you find a mistake, open an issue there. I'd be grateful.

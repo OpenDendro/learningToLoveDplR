@@ -168,7 +168,7 @@ These smoothing lines above are essentially eye candy. We can use filtering for 
 
 Another common technique used in tree-ring analysis is to filter data like we did above with moving averages, splines, and so on but doing so in the frequency domain explicitly rather than in the time domain. For instance, we might want to remove the high frequencies from a data set and leave the low frequencies (low-pass filtering) or vice versa (high-pass filtering). Or extract specific frequencies and discard others (band-pass and stop-pass filtering).
 
-Let's look at the `signal` library.^[Loading `signal` masks some functions, including `hanning` from `dplR`. See the [aside on name conflicts](01xAsideNameConflicts.qmd).]
+Let's look at the `signal` library.^[Loading `signal` masks some functions, including `hanning` from `dplR`.]
 
 ```{r}
 library(signal)

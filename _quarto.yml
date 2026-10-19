@@ -17,9 +17,8 @@ book:
     - 00Preface.qmd
     - part: "Getting Going"
       chapters:
-        - 01Welcome.qmd
-        - 01xAsideNameConflicts.qmd
-        - 02FirstPass.qmd
+        - 01WhereDplRComesFrom.qmd
+        - 02CoresToRecord.qmd
     - part: "Ring Widths"
       chapters:
         - 03ReadingWriting.qmd

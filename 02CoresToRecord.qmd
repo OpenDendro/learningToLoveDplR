@@ -1,0 +1,447 @@
+# An Additive Model of Tree Growth
+
+:::{.callout-note title="Draft"}
+Third draft, 2026-10-19, organized around the aggregate model and the things hidden in the simulation. Replaces A First Pass. Every number in the text is computed when the book builds. Open questions are in the backlog.
+:::
+
+## Big Idea
+
+A ring width is several things added together. Part of it comes from the tree's age and size, part from the weather that year, part from whatever happened to the tree and its neighbors, and the rest is noise. You never see those parts separately in wood. Every method in this book is an attempt to estimate one of them, and each method has its own ways of mistaking one part for another. This chapter is about the parts.
+
+To show them I need a collection where I know what the parts are. So here are 40 simulated tree-ring series, two cores from each of twenty trees. I wrote the code that made them, and I hid three things in them. One core is missing a ring. One tree was released when a neighbor fell. And in one year, something knocked back half the trees in the stand. I also gave half the trees neighbors, so their growth trends wander. None of it jumps out of the ring widths. The chapter goes looking for each of these with `dplR`, and because I know where they are, we can check whether the methods find them.
+
+A simulation lets you test each method: here is what went in, did it come back out, and if not, what got lost? Working with simulated data is a great way to learn how analytic methods behave. When you know the answer going in, every result is a check on the method, and the fun is in trying to get the answer back. I have been doing this for more than twenty years with tree-ring data and still find it useful [@Bunn2004].
+
+## Packages
+
+```{r}
+#| label: cores-setup
+#| message: false
+library(dplR)
+library(ggplot2)
+source("R/sim-collection.R")
+data(wa082)
+```
+
+The simulation of the data we use heavily is a single function, `sim.collection`, that lives in the book's `R/` folder.
+
+## A Ring Width in Parts
+
+The parts come from Ed Cook, who wrote a ring-width series as a sum. This aggregate growth model is laid out in the *Tree-Ring Bulletin* in 1987 and again, more briefly, in the famous "Cook Book" [@Cook1987; @Cook1990model]:
+
+$$R_t = A_t + C_t + \delta D1_t + \delta D2_t + E_t$$
+
+$A_t$ is the trend that comes with age and size. $C_t$ is climate. It acts across the whole landscape, so every tree in the stand feels the same weather. $D1_t$ is a disturbance inside the forest that hits one tree, like a neighbor falling and opening a gap. Cook's point about these is that they turn up at random in space and time, so they don't line up from one tree to the next. $D2_t$ is a disturbance that hits the whole stand at once: fire, wind, insects, logging. $E_t$ is everything left over, from microsite differences to measurement error. The $\delta$s switch the disturbances on and off, because they come and go while the other three are always there.
+
+Wide rings vary more than narrow ones. Cook showed it with lodgepole pine, where the mean and the standard deviation of ring width, decade by decade, correlated at 0.67 [@Cook1987]. So the parts behave better if you add them up on the log scale and exponentiate, which makes the spread grow with the level the way it does in wood. Cook's later version of the model says as much [@Cook1990model], and that is how the simulation does it.
+
+I think this is the most useful equation in dendrochronology, even though nobody ever estimates it. You never get the five parts of a measured core separately. What the equation gives you is a way to see what each method is after. Crossdating works because $C_t$ is the same in every tree, so the year-to-year wiggles line up across trees when the dating is right. Detrending fits a curve to each series as an estimate of $A_t$ and divides it out. A chronology averages the detrended series, so the parts that differ from tree to tree, $D1_t$ and $E_t$, tend to cancel, and the shared parts survive. That means $C_t$, and also $D2_t$ if a fire or an outbreak hit the whole stand, because averaging can't tell the two apart. A dendroclimatologist would want $C_t$ and treat everything else as noise. A dendroecologist would turn this around, go after the $D$s, and treat the climate as the thing to remove.
+
+Here is the collection, built with a fixed seed so you get the same trees I do.
+
+```{r}
+#| label: cores-sim
+sim <- sim.collection(seed = 1)
+simRwl <- sim$rwl
+simTruth <- sim$truth
+dim(simRwl)
+```
+
+`simRwl` is what you would have after measuring: `r ncol(simRwl)` series of ring widths in millimeters, with the years as row names. It is an ordinary `rwl` object, so everything in `dplR` works on it. `simTruth` is what you would never have: each part, separately, for every core.
+
+```{r}
+#| label: cores-parts
+#| fig-height: 6
+#| fig-cap: "The parts of one core, SIM10A, and the ring widths they make. The disturbance panel is the release planted in tree 10 in 1950. The middle panel is climate plus the tree's own noise, passed through a year or two of memory."
+oneCore <- "SIM10A"
+partYears <- as.numeric(rownames(simTruth$rwl))
+parts <- data.frame(
+  year = partYears,
+  value = c(simTruth$age[[oneCore]],
+            simTruth$memory.noise[[oneCore]],
+            simTruth$disturbance[[oneCore]],
+            simTruth$rwl[[oneCore]]),
+  part = factor(rep(c("Age trend (mm)", "Climate, noise and memory (log)",
+                      "Disturbance (log)", "Ring width (mm)"),
+                    each = length(partYears)),
+                levels = c("Age trend (mm)", "Climate, noise and memory (log)",
+                           "Disturbance (log)", "Ring width (mm)"))
+)
+ggplot(na.omit(parts), aes(x = year, y = value)) +
+  geom_line() +
+  facet_wrap(~part, ncol = 1, scales = "free_y") +
+  labs(x = "Year", y = NULL) +
+  theme_minimal()
+```
+
+Where does the age trend come from? Partly from geometry. A stem that adds about the same area of wood each year has to spread it around a bigger circle every year, so the rings get thinner. Fritts made the same point from the other direction: two rings of the same width hold more wood on the outside of a big stem than near the pith [@Fritts1966]. In an open stand that geometry gives the familiar decaying curve, and Cook's example of it is a ponderosa pine from an open, semiarid site. In a closed canopy he argued that $A_t$ has no expected shape at all. Competition suppresses a tree and a gap releases it, and his red spruce and hemlock series climb and fall over a century in a way no growth curve predicts [@Cook1987]. So half of the simulated trees have neighbors, and their age trend wanders.
+
+### Who Shares What
+
+There is one way of sorting the parts that every method in this chapter relies on, and that is by who shares them. Climate and a stand-wide disturbance are shared by every tree. The age trend, a release, and some of the noise belong to one tree, so both cores from that tree carry them. The rest of the noise belongs to a single core. Cook lumps those last two kinds of noise into $E_t$. The simulation splits them, so that two cores from one tree agree more than two trees do.
+
+That sorting is why the collection has two cores from each of twenty trees. It is the design Schweingruber and colleagues recommend for a ring-width chronology [@CookBook, p. 27], and Fritts's bristlecone chronologies in the 1960s used two radii from each of ten trees [@Fritts1966]. Two cores from a tree separate what belongs to the tree from what belongs to the core. Many trees separate what belongs to the stand from what belongs to the tree. Schulman put the principle in a sentence: the crossdated group is the unit of study, and the single specimen never is [@Schulman1941].
+
+The series names say which cores share a tree. `autoread.ids` reads them as a site code, a two-digit tree number and a core letter.
+
+```{r}
+#| label: cores-ids
+simIds <- autoread.ids(simRwl)
+head(simIds)
+```
+
+With the trees known, you can measure the sorting. Compare two cores from the same tree with two cores from different trees.
+
+```{r}
+#| label: cores-agree
+simIndices <- detrend(simRwl, method = "Spline")
+simStats <- rwi.stats(simIndices, simIds, prewhiten = TRUE)
+simStats[, c("n.trees", "rbar.wt", "rbar.bt")]
+```
+
+Cores from one tree correlate at `r round(simStats$rbar.wt, 2)`. Cores from different trees correlate at `r round(simStats$rbar.bt, 2)`. The difference between the two is the part that belongs to each tree and to no other. I set those correlations to `r simTruth$params$rbar.wt` and `r simTruth$params$rbar.bt` when I built the collection, and they come back near their targets, the between-tree one a little low. The exercises go after why.
+
+The hidden things are made the same way, by turning parts up and down. Tree 10 gets a release in `r simTruth$release$year`, which is $D1_t$ switched on in one tree. An event in `r simTruth$event$year` knocks back `r length(simTruth$event$trees)` of the trees standing at the time, which is $D2_t$. The missing ring is simpler. I deleted the `r simTruth$errors$year` ring from `r simTruth$errors$series`.
+
+## The Missing Ring
+
+The outside ring of a living tree grew in the year you cored it. Here that is `r simTruth$params$end.year` for every core. Count inward and every ring gets a year. Every year assigned by counting is a hypothesis, though. It holds only if no ring is missing and no ring is doubled, and a count of one core can't tell you that. Schulman's list of what goes wrong is worth reading for the variety alone: false rings that can't be told from annual ones until they are crossdated, and rings so thin they vanish around part of the stem, sometimes several years in a row [@Schulman1941].
+
+`r simTruth$errors$series` is missing its `r simTruth$errors$year` ring, so every ring inside that one is labeled a year too late. How much can one ring hurt? Black and colleagues took well-dated collections, from trees and from shells and fish, added and dropped increments at random at rates of one and five percent, and watched what happened to the mean. Errors started to pile up within about twenty years. After two centuries little was left but variation on the scale of decades, and the extreme years were gone [@Black2016]. Dating errors compound, because each one moves every ring inside it.
+
+Could you find `r simTruth$errors$series` without being told? Dating leans on the parts every tree shares, so the obvious check is to correlate each core with the mean of all the others, year by year. Here is what that gives for `r simTruth$errors$series` over the 75 years before the error, on the ring widths as measured.
+
+```{r}
+#| label: cores-raw-check
+checkYears <- as.character(1725:1799)
+badSeries <- simTruth$errors$series
+otherCores <- simRwl[, sim$ids$tree != sim$ids[badSeries, "tree"]]
+rawMaster <- rowMeans(otherCores[checkYears, ], na.rm = TRUE)
+cor(simRwl[checkYears, badSeries], rawMaster)
+```
+
+The correlation is `r round(cor(simRwl[checkYears, badSeries], rawMaster), 2)`. It's positive, which is what a core that belongs should give, and nothing about it says misdated. The trouble is $A_t$. Every tree has its own age trend, but they all slope downhill, so two old series correlate a little from sharing that slope whether or not their years line up. In raw widths the age trend passes for a shared part.
+
+So the dating tools in `dplR` filter first. They take out each series' slow changes with a stiff spline, which removes most of $A_t$, and then they take out its memory, the way a good year carries over into the next one. What is left is the year-to-year wiggle, mostly $C_t$ plus noise, and that is the part that pins a ring to a year. This is the first place in the book where splines and prewhitening show up, and they show up as dating tools.
+
+The idea is Richard Holmes's. His program COFECHA, published in 1983, divided each series by a short spline before comparing it with a master built from all the others, and he described the filtering as a stand-in for what a dendrochronologist's eye does with a ring series [@Holmes1983]. He tried splines of different stiffness and found the trade-off you would expect. Too stiff, and trends left in the series hide the dating errors. Too flexible, and segments that are fine get flagged. He settled on 20 years for his California collections. `dplR` uses 32.
+
+```{r}
+#| label: cores-filter
+toWiggles <- function(x) {
+  ok <- !is.na(x)
+  smooth <- caps(x[ok], nyrs = 32)
+  ratio <- x[ok] / smooth
+  resid <- ar(ratio, order.max = 3)$resid
+  out <- rep(NA_real_, length(x))
+  out[ok] <- resid
+  out
+}
+wiggles <- as.data.frame(lapply(simRwl, toWiggles))
+rownames(wiggles) <- rownames(simRwl)
+```
+
+`toWiggles` divides a series by a 32-year spline and keeps the residuals from an autoregressive model. That is close to what `xdate.report` does by default. Now repeat the check at the dated position and at a few shifts on either side.
+
+```{r}
+#| label: cores-lags
+#| fig-cap: "Correlation between SIM03A and the mean of the other trees, 1725-1799, with SIM03A shifted by up to five years. Positive shifts move the series earlier. Raw widths (open circles) correlate at every shift. After filtering (filled circles) there is one clear peak, one year off."
+wiggleMaster <- apply(wiggles[, sim$ids$tree != sim$ids[badSeries, "tree"]], 1,
+                      tbrm)
+lagCor <- function(series, master, shift) {
+  shifted <- series[as.character(as.numeric(checkYears) + shift)]
+  cor(shifted, master[checkYears], use = "complete.obs")
+}
+rawSeries <- setNames(simRwl[[badSeries]], rownames(simRwl))
+wiggleSeries <- setNames(wiggles[[badSeries]], rownames(wiggles))
+rawMasterAll <- setNames(rowMeans(otherCores, na.rm = TRUE), rownames(simRwl))
+shifts <- -5:5
+lagTable <- data.frame(
+  shift = rep(shifts, 2),
+  r = c(sapply(shifts, function(k) lagCor(rawSeries, rawMasterAll, k)),
+        sapply(shifts, function(k) lagCor(wiggleSeries, wiggleMaster, k))),
+  data = rep(c("Raw widths", "Filtered"), each = length(shifts))
+)
+ggplot(lagTable, aes(x = shift, y = r, shape = data)) +
+  geom_hline(yintercept = 0, colour = "grey60") +
+  geom_point(size = 2.5) +
+  scale_shape_manual(values = c(16, 1)) +
+  scale_x_continuous(breaks = shifts) +
+  labs(x = "Shift (years)", y = "Correlation", shape = NULL) +
+  theme_minimal()
+```
+
+```{r}
+#| label: cores-lag-values
+#| echo: false
+filtAt <- function(k) lagTable$r[lagTable$data == "Filtered" & lagTable$shift == k]
+rawAt <- function(k) sapply(k, function(j) lagTable$r[lagTable$data == "Raw widths" & lagTable$shift == j])
+```
+
+On the raw widths every shift correlates positively, from `r round(min(rawAt(shifts)), 2)` to `r round(max(rawAt(shifts)), 2)`. The best of them is a year off, but the dated position at `r round(rawAt(0), 2)` doesn't stand out from its neighbours, and if you only ever looked at the dated position you would pass it. After filtering, the dated position drops to `r round(filtAt(0), 2)` and a shift of one year gives `r round(filtAt(1), 2)`. The rings before `r simTruth$errors$year` line up when they are moved one year earlier, which is exactly what a missing ring does to them.
+
+You won't do this by hand in practice. `xdate.report` runs that check for every series against every other, in overlapping segments, and flags the ones that line up better somewhere else. It is COFECHA's design: 50-year segments overlapping by 25, each series left out of the master it is compared with.
+
+```{r}
+#| label: cores-xdate
+simReport <- xdate.report(simRwl)
+simFlags <- simReport$flagged
+simFlags[, c("series", "from", "to", "flag", "best.lag", "gain")]
+```
+
+```{r}
+#| label: cores-xdate-other
+#| echo: false
+otherFlags <- simFlags[simFlags$series != badSeries, ]
+```
+
+It finds `r badSeries` in the segments before `r simTruth$errors$year`, with a best lag of -1. It also flags `r paste(otherFlags$series, collapse = " and ")`, where I didn't plant anything. The best lags there are `r paste(abs(otherFlags$best.lag), collapse = " and ")` years away, and they raise the correlation by `r paste(format(round(otherFlags$gain, 3), nsmall = 3), collapse = " and ")`. That is noise lining up by chance at some other shift. Here there is no wood to go back to, but there is the truth, and it says those cores are dated correctly.
+
+The statistics say where to look, and the wood says what happened. That is an old rule. Douglass didn't want any correlation formula deciding whether two trees showed the same dates [@Douglass1941], and Holmes wrote that COFECHA was for finding measurements to look at again, with no business replacing crossdating on the wood [@Holmes1983]. A flag tells you which core to take out of the drawer and look at again.
+
+The [Crossdating](05Crossdating.qmd) part of the book is all about this. In a project it comes before everything that follows here, because every later step assumes each ring has the right year. From here on I use the collection as it should be, with the missing ring put back.
+
+```{r}
+#| label: cores-fixed
+simFixed <- simTruth$rwl
+```
+
+## The Crowded Trees
+
+Each tree is growing old, and half of them are being crowded. That is $A_t$, the part you usually want to take out. Detrending fits a curve to each series and divides the ring widths by it, and the curve is your estimate of the age trend. Cook traces the practice back to Douglass [@Cook1987]. Fritts gave the reason for dividing: the indices that come out have a mean of one and a variance that no longer depends on the tree's age, so a fast-growing tree and a slow one carry equal weight when you average them [@Fritts1966].
+
+How good is that estimate? With a field collection you can only argue about it. Here you can check. Take one open-grown tree and one crowded tree and fit two common curves to a core from each.
+
+```{r}
+#| label: cores-detrend
+#| fig-height: 6
+#| fig-cap: "Ring widths (grey), the true age trend (thick line), and two fitted curves for an open-grown tree (SIM05A) and a crowded one (SIM06A). Both curves get the open-grown tree right. Neither can follow the crowded tree's competition history."
+curveFor <- function(series, method) {
+  x <- simFixed[[series]]
+  ok <- !is.na(x)
+  out <- rep(NA_real_, length(x))
+  out[ok] <- detrend.series(x[ok], method = method, make.plot = FALSE,
+                            return.info = TRUE)$curves
+  out
+}
+twoTrees <- c("SIM05A", "SIM06A")
+curveData <- do.call(rbind, lapply(twoTrees, function(s) {
+  data.frame(year = as.numeric(rownames(simFixed)), series = s,
+             width = simFixed[[s]], truth = simTruth$age[[s]],
+             ModNegExp = curveFor(s, "ModNegExp"),
+             Spline = curveFor(s, "Spline"))
+}))
+curveData <- na.omit(curveData)
+ggplot(curveData, aes(x = year)) +
+  geom_line(aes(y = width), colour = "grey70") +
+  geom_line(aes(y = truth), linewidth = 1) +
+  geom_line(aes(y = ModNegExp, linetype = "ModNegExp")) +
+  geom_line(aes(y = Spline, linetype = "Spline")) +
+  facet_wrap(~series, ncol = 1, scales = "free_y") +
+  scale_linetype_manual(values = c(ModNegExp = "dashed", Spline = "dotted")) +
+  labs(x = "Year", y = "Ring width (mm)", linetype = NULL) +
+  theme_minimal()
+```
+
+```{r}
+#| label: cores-detrend-r
+#| echo: false
+curveR <- sapply(split(curveData, curveData$series), function(d) {
+  c(ModNegExp = cor(d$ModNegExp, d$truth), Spline = cor(d$Spline, d$truth))
+})
+```
+
+For the open-grown tree, both curves correlate with the true trend at `r round(min(curveR[, "SIM05A"]), 3)` or better. Don't read much into that. The negative exponential is the shape of an open-grown tree, and I built an open-grown tree. Of course it fits. For the crowded tree, the best either curve manages is `r round(max(curveR[, "SIM06A"]), 2)`. The competition history leaves bumps that a smooth curve either rides over or follows too closely, and either way part of the age-and-size story ends up in the indices.
+
+Cook saw this coming. The aggregate model assumes its parts don't covary, and he said plainly that the assumption fails when a disturbance lasts a long time compared with the series. Then the trend you fit is partly the disturbance, and no method can pull the two apart without assuming a shape for $A_t$ in advance [@Cook1987]. The crowded tree is that case.
+
+Is that bad? It depends on what you want, and that is the theme of the [Standardization and Chronologies](08Detrending.qmd) part. The spline here is the same tool as the 32-year spline in the dating section, used from the other side. For dating it takes out what you don't want to compare. For detrending it decides what you keep.
+
+## The Stand Event
+
+Average the detrended series across trees and you have a chronology. Averaging cancels the parts that differ from tree to tree and keeps the ones the trees share, so a chronology is an estimate of $C_t$ plus $D2_t$. How well it does that depends first on how many trees go into the average.
+
+```{r}
+#| label: cores-depth
+#| fig-cap: "Number of cores measured in each year. Old trees are few, so the record thins out going back in time."
+simDepth <- data.frame(year = as.numeric(rownames(simRwl)),
+                       cores = rowSums(!is.na(simRwl)))
+ggplot(simDepth, aes(x = year, y = cores)) +
+  geom_step() +
+  labs(x = "Year", y = "Cores") +
+  theme_minimal()
+```
+
+That is the shape of almost every collection. All `r max(simDepth$cores)` cores reach the twentieth century. In 1800 there are `r simDepth$cores[simDepth$year == 1800]`, and in 1700 there are `r simDepth$cores[simDepth$year == 1700]`.
+
+I built a climate series into every tree, so I can ask how much of it the chronology recovers as the trees pile up. Compare the residual chronology with the true climate, a century at a time.
+
+```{r}
+#| label: cores-chron
+simIndicesFixed <- detrend(simFixed, method = "Spline")
+simChron <- chron(simIndicesFixed, prewhiten = TRUE)
+trueClimate <- setNames(simTruth$climate$climate, simTruth$climate$year)
+byCentury <- function(span) {
+  y <- as.character(span)
+  c(cores = mean(simChron[y, "samp.depth"]),
+    r = cor(simChron[y, "res"], trueClimate[y], use = "complete.obs"))
+}
+round(rbind(`1700s` = byCentury(1700:1799), `1800s` = byCentury(1800:1899),
+            `1900s` = byCentury(1900:1999)), 2)
+```
+
+In the 1700s, with about `r round(byCentury(1700:1799)["cores"])` cores, the chronology correlates with the climate at `r round(byCentury(1700:1799)["r"], 2)`. In the 1900s, with about `r round(byCentury(1900:1999)["cores"])`, it reaches `r round(byCentury(1900:1999)["r"], 2)`.
+
+With a field collection there is no true climate to compare with. What you can measure is how well the trees agree with each other, and Wigley, Briffa and Jones worked out what that buys you [@Wigley1984]. Their expressed population signal, EPS, estimates how closely the mean of the trees you have follows the mean of the whole population the trees came from, given how many there are and how well they correlate. Here it is in 50-year windows, next to the squared correlation with the climate I put in.
+
+```{r}
+#| label: cores-eps
+#| fig-cap: "EPS in 50-year windows (filled circles) and the squared correlation between the residual chronology and the true climate in the same windows (open circles)."
+simRun <- rwi.stats.running(simIndicesFixed, simIds, prewhiten = TRUE,
+                            window.length = 50, window.overlap = 25)
+simRun$trueR2 <- sapply(seq_len(nrow(simRun)), function(i) {
+  y <- as.character(simRun$start.year[i]:simRun$end.year[i])
+  cor(simChron[y, "res"], trueClimate[y], use = "complete.obs")^2
+})
+epsLong <- data.frame(
+  year = rep(simRun$mid.year, 2),
+  value = c(simRun$eps, simRun$trueR2),
+  what = rep(c("EPS", "True r squared"), each = nrow(simRun))
+)
+ggplot(epsLong, aes(x = year, y = value, shape = what)) +
+  geom_point(size = 2.5) +
+  scale_shape_manual(values = c(16, 1)) +
+  labs(x = "Middle year of window", y = NULL, shape = NULL) +
+  theme_minimal()
+```
+
+They track each other, and that is no accident. EPS is defined as a squared correlation with the population mean, and in this stand most of what the population shares is the climate I put in. The largest gap between them in any window is `r round(max(abs(simRun$eps - simRun$trueR2)), 2)`. Both rise as the trees come in, and the early windows, built from a handful of trees, are where you should trust the chronology least.
+
+Notice the condition hiding in that paragraph. EPS tracks the climate here because I made climate the main thing the trees share. EPS measures agreement, and agreement is $C_t$ plus $D2_t$.
+
+Douglass's first principle of interpretation was that when many independent trees over a wide area and a long time vary together, the cause is climate, because climate is the one factor they all share [@Douglass1941]. It is a good rule. Look at the conditions on it, though. Many trees, a wide area, a long time. A single stand in a single decade meets none of them. Here is the event in `r simTruth$event$year`.
+
+```{r}
+#| label: cores-event
+#| fig-cap: "The standard chronology (line) and the true climate (points, rescaled to the chronology), 1860-1910. The dip after 1880 is the stand event. The climate didn't do it."
+simStd <- chron(simIndicesFixed)
+eventYears <- as.character(1860:1910)
+climateScaled <- 1 + trueClimate[eventYears] / sd(trueClimate) *
+  sd(simStd[eventYears, "std"])
+eventData <- data.frame(year = as.numeric(eventYears),
+                        chronology = simStd[eventYears, "std"],
+                        climate = climateScaled)
+ggplot(eventData, aes(x = year)) +
+  geom_point(aes(y = climate), shape = 1) +
+  geom_line(aes(y = chronology)) +
+  geom_vline(xintercept = simTruth$event$year, linetype = "dashed") +
+  labs(x = "Year", y = "Index") +
+  theme_minimal()
+```
+
+```{r}
+#| label: cores-event-values
+#| echo: false
+before <- as.character(simTruth$event$year - 5:1)
+after <- as.character(simTruth$event$year + 0:4)
+```
+
+The chronology averages `r round(mean(simStd[before, "std"]), 2)` in the five years before the event and `r round(mean(simStd[after, "std"]), 2)` in the five years after. The climate barely moves over the same ten years. A stand-wide disturbance hits many trees at once, so to a chronology it looks just like a run of bad years. Nothing in the averaging can tell the difference. Only knowing the stand can. Cook's example of $D2_t$ is three hemlocks from one stand that all took off together after the forest around them was logged in the early 1900s [@Cook1987]. Averaged into a chronology, that would read as a run of good years.
+
+Wigley and his coauthors warned about exactly this when they introduced EPS. The strength of the common signal can't be read as climate alone, they wrote, because management, pests and disease, and pollution also make trees agree. They added that there is no obvious way to say how high EPS must be for a chronology to be fit for climate reconstruction [@Wigley1984, p. 206]. Both warnings got lost as EPS became a standard check, and Buras went back to the paper to point them out [@Buras2017].
+
+The [Chronology Statistics](09ChronologyStats.qmd) chapter takes EPS apart, and the [Chronology Building](10Chronologies.qmd) chapter asks what to do with the thin early years.
+
+## The Released Tree
+
+Everything so far has treated the shared parts as the prize. Cook's reason for laying out the model at all was that "signal" and "noise" have no meaning until you say what you are asking. In his words, "one researcher's 'signal' will frequently be another researcher's 'noise'" [@Cook1987, p. 38].
+
+If you care about the trees rather than the climate, the shared part is the noise and the differences are the signal. Tree 10 was released in `r simTruth$release$year`. Average its two cores into one series with `treeMean`, which keeps the part that belongs to the tree and averages away the part that belongs to each core, and compare it with the chronology.
+
+```{r}
+#| label: cores-release
+simTrees <- treeMean(simIndicesFixed, simIds)
+treeTen <- setNames(simTrees[, "10"], rownames(simTrees))
+gap <- function(span) {
+  y <- as.character(span)
+  mean(treeTen[y] - simStd[y, "std"], na.rm = TRUE)
+}
+c(before = gap(1940:1949), after = gap(1950:1959))
+```
+
+Tree 10 runs `r abs(round(gap(1940:1949), 2))` below the chronology in the 1940s and `r round(gap(1950:1959), 2)` above it in the 1950s. In the chronology that release is a small wobble, diluted by the other trees. In the tree it is the whole story.
+
+So a record is solid only for a purpose. A chronology that is good for climate can be blind to the forest's history, and a stand-wide event can pass itself off as climate in a chronology that otherwise looks excellent. The [Trees and Disturbance](15BasalArea.qmd) part takes the ecologist's side, and the [Time Series](13SmoothingFiltering.qmd) part looks at what a finished chronology contains.
+
+## What the Simulation Leaves Out
+
+Is the simulation anything like the wood? Put it next to Hurricane Ridge, `wa082`, a Pacific silver fir collection from the Olympic Mountains that the [Data Sources](A2DataSources.qmd) appendix describes. It has `r ncol(wa082)` series from `r length(unique(autoread.ids(wa082)$tree))` trees, nearly the same design.
+
+```{r}
+#| label: cores-wa082
+wa082Ids <- autoread.ids(wa082)
+wa082Indices <- detrend(wa082, method = "Spline")
+wa082Stats <- rwi.stats(wa082Indices, wa082Ids, prewhiten = TRUE)
+side <- rbind(simStats, wa082Stats)[, c("n.trees", "rbar.wt", "rbar.bt", "eps")]
+side$ar1 <- c(median(rwl.stats(simRwl)$ar1), median(rwl.stats(wa082)$ar1))
+rownames(side) <- c("simulation", "wa082")
+round(side, 3)
+```
+
+Closer than I expected, and I didn't tune it. The agreement within and between trees and the year-to-year memory of the ring widths are all in the same range. The simulation is a fair caricature of an ordinary stand.
+
+```{r}
+#| label: cores-zeros
+#| echo: false
+data(co021)
+```
+
+It is still a caricature. Here are some things collections from the field have that the simulation left out:
+
+- A site. In the simulation the size of each part is a number I chose. In the wood it comes from where the trees grow, and choosing the site is how you make the part you want large. Schulman, summing up the Tucson lab's experience with close to a million rings, said a chronology collection is deliberately unrepresentative of the trees in a region [@Schulman1941]. Fritts traced why along a gradient in northern Arizona: trees in the moist forest interior make "complacent" series that hardly agree with each other, and trees at the dry lower forest border make "sensitive" ones that agree with each other and with the climate [@Fritts1966]. Douglass called a steep canyon slope at Mesa Verde, where the firs have little to drink but the rain that falls on them, one of the best crossdating sites he had seen in forty years of fieldwork [@Douglass1941]. The book's other running collection, `co021`, is Douglas-fir from Mesa Verde.
+- Locally absent rings, where a stressed tree fails to lay down a ring all the way around the stem, so the ring is there in one core and missing in another. The simulation's only missing ring is one I deleted. Hurricane Ridge happens to have none, but Mesa Verde (`co021`) has `r sum(co021 == 0, na.rm = TRUE)` rings recorded as zero.
+- Measurement error, and files with quirks of their own. The original `wa082` file has a gap of `-999` in one series in 1900 that the copy in `dplR` holds as a zero. The [Data Sources](A2DataSources.qmd) appendix shows it.
+- Climate that is not white noise. Measured climate has persistence, trends and swings over decades, and the simulation's climate has none of that unless you hand it a series that does.
+- A history that nobody wrote down. Nobody can tell you which of the wiggles at Hurricane Ridge are climate and which are something else.
+
+That last one is why both kinds of data are in the book. The simulation tells you what a method does when the answer is known. The wood is where you find out whether it matters. Most chapters do both: the method on data with a known answer, and then on Mesa Verde and Hurricane Ridge, where nobody knows it.
+
+## Wrapping Up
+
+Everything I built in turned up, each in its own way. `xdate.report` found the missing ring, along with two flags on cores that were fine. Neither curve could follow the crowded tree. The stand event was easy to see and impossible to tell from climate without knowing it was there. The release showed plainly in tree 10 and barely in the chronology.
+
+Here is the chapter in one table: what each method is after, what it can mistake for it, and where the book takes it up.
+
+| Method | Part it is after | What it can mistake for that part | Where in the book |
+|---|---|---|---|
+| Crossdating (`xdate.report`) | The year-to-year wiggles every tree shares, mostly $C_t$ | An age trend in raw widths, which hides errors; noise that lines up by chance at another shift | [Crossdating](05Crossdating.qmd) |
+| Detrending (`detrend`) | $A_t$ in each series | A long disturbance like competition; a slow swing in climate (exercise 4) | [Standardization and Chronologies](08Detrending.qmd) |
+| Chronology (`chron`) | $C_t$ | $D2_t$, anything that hits the whole stand | [Chronology Building](10Chronologies.qmd) |
+| EPS (`rwi.stats`) | How well the mean stands in for what the trees share | Agreement from any cause, read as a climate signal | [Chronology Statistics](09ChronologyStats.qmd) |
+| Tree series (`treeMean`) | $D1_t$ in one tree | Climate and the tree's own noise, until you compare it with the stand | [Trees and Disturbance](15BasalArea.qmd) |
+
+If you come to this book with forty cores of your own, the parts of the book follow the order of the work. You read and check the files ([Ring Widths](03ReadingWriting.qmd)), make sure every ring has the right year ([Crossdating](05Crossdating.qmd)), take out the age trend and build a chronology ([Standardization and Chronologies](08Detrending.qmd)), and then decide what the record is for: what it says about time ([Time Series](13SmoothingFiltering.qmd)) or about the trees ([Trees and Disturbance](15BasalArea.qmd)).
+
+The model is too simple to fit, but it tells you what each method is trying to estimate, and what it will mistake for what. The [next chapter](03ReadingWriting.qmd) starts at the beginning: getting ring widths into R.
+
+## Exercises
+
+1. The between-tree correlation came back a little under its target. Build one collection with `compete = 0` and one with `compete.frac = 1`. How does the between-tree rbar change after a spline? Then try `prewhiten = FALSE` in `rwi.stats`, and `method = "Mean"` in `detrend` with `compete = 0`. Where does the missing correlation go?
+2. Plant a false ring instead of a missing one with `errors = data.frame(series = "SIM07B", year = 1850, type = "false")`. Which way does the best lag go, and why?
+3. Holmes picked a 20-year spline for dating and `dplR` defaults to 32. Run `xdate.report(simRwl, nyrs = 10)` and `xdate.report(simRwl, nyrs = 100)`. Does the missing ring still show up? How many cores get flagged that are dated correctly?
+4. Pass in a climate series with a slow swing, for example `swing <- sin(2 * pi * (1646:2025) / 150) + rnorm(380, sd = 0.5)` named by year, as `climate`. How much of the swing survives `detrend(method = "Spline")`? Try `nyrs = 32`.
+5. Build a collection with `rbar.bt = 0.2`. Does `xdate.report` still find the missing ring? What happens to EPS, and to the correlation between the chronology and the true climate in the 1700s?
+6. Set `event = list(year = 1880, frac = 1, size = -log(2), decay = 8)` so the event hits every standing tree, as Cook defined it. Can you tell the event from a drought using anything in the chronology alone?
+
+## Further Reading
+
+- @Cook1987 is the aggregate model in full, with ring-width series from open and closed stands showing what each part looks like in wood. It is a scan, but the first eight pages are the ones to read. @Cook1990model is the six-page version in the Cook Book. Read one now and again after the detrending chapters.
+- @cook1985 is the dissertation behind both, and behind much of how `dplR` standardizes ring widths.
+- @Schulman1941 is three pages on the principles of selection, crossdating and sensitivity as practised in Tucson, followed by a set of propositions on false and absent rings. Short, and it has aged well.
+- @Douglass1941 is Douglass answering a skeptic in the *Journal of Forestry*, with photographs of ring patterns matched across trees. It is the source of the rule that the wood decides the dating.
+- @Fritts1966 explains the biology behind $A_t$ and $C_t$ in seven pages of *Science*, including why trees at the dry forest border record climate best. @Fritts2001 is the long version.
+- @Holmes1983 introduces COFECHA. Nearly every crossdating program since, `xdate.report` included, follows its design.
+- @Black2016 shows with Monte Carlo experiments what small dating error rates do to climate signals and extreme years. Read it if anyone asks you why crossdating is worth the trouble.
+- @Wigley1984 is where EPS and SSS come from. Read the discussion on page 206 before you quote an EPS, and then @Buras2017 on how the field came to misread it.
+- @CookBook, chapter 2, says how to choose sites and trees, and recommends two cores from each of 20 trees for a ring-width chronology (p. 27). It is where the design of this simulation comes from.
+- @Bunn2004 uses a simulation like this one to compare two detrending methods on low-frequency signals of known size. It comes back in the [Regional Curves](11RegionalCurves.qmd) chapter.

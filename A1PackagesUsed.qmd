@@ -2,7 +2,79 @@
 suppress-bibliography: false
 ---
 
-# Packages Used and References
+# Setup, Packages and References
+
+:::{.callout-note title="Draft"}
+First draft, 2026-10-19. The setup material moved here from the old Welcome chapter.
+:::
+
+## R and an Editor
+
+Install R from [www.r-project.org](https://www.r-project.org/). You'll want an editor that knows about R as well. [RStudio](https://posit.co/download/rstudio-desktop/) is what most people use, and [Positron](https://positron.posit.co/) is its newer sibling from the same company. Either one runs everything in the book. This build of the book used `r version$version.string`.
+
+If you are new to R, [YaRrr! The Pirate's Guide to R](https://bookdown.org/ndphillips/YaRrr/) is a friendly place to start. The book assumes you can read a data frame, call a function and look at its help page, and not much more.
+
+## dplR
+
+`dplR` is on CRAN:
+
+```{r}
+#| label: setup-install-dplr
+#| eval: false
+install.packages("dplR")
+```
+
+This build of the book used `dplR` `r packageVersion("dplR")`. Check yours with:
+
+```{r}
+#| label: setup-version
+#| eval: false
+packageVersion("dplR")
+```
+
+While the book is being rewritten it runs ahead of CRAN. A few chapters use functions or arguments that are only in the development version, and those chapters will stop with an error on an older `dplR`. The development version lives on GitHub:
+
+```{r}
+#| label: setup-install-dev
+#| eval: false
+install.packages("remotes")
+remotes::install_github("OpenDendro/dplR")
+```
+
+Update your packages now and then with `update.packages()`. When a chunk gives you a different answer than it gives me, an old package is the first thing to check.
+
+## Other Packages
+
+Each chapter lists what it loads in its Packages section. You install a package once and then load it with `library` in each session. Here is everything the book uses, read from the file that tells the build server what to install:
+
+```{r}
+#| label: setup-packages
+pkgs <- read.dcf("DESCRIPTION", fields = "Imports")
+pkgs <- trimws(strsplit(pkgs, ",")[[1]])
+pkgs
+```
+
+To get all of them at once:
+
+```{r}
+#| label: setup-install-all
+#| eval: false
+install.packages(setdiff(pkgs, "PNWColors"))
+remotes::install_github("jakelawlor/PNWColors")
+```
+
+`PNWColors` is a set of color palettes that isn't on CRAN, so it comes from GitHub.
+
+## Session Info
+
+The R session that built the book:
+
+```{r}
+#| label: setup-session
+sessionInfo()
+```
+
+## References
 
 ::: {#refs}
 :::
