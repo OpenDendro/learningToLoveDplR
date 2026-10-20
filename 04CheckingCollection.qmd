@@ -1,72 +1,109 @@
 # Checking a Collection
 
 :::{.callout-note title="Partly written"}
-The section below was moved here from A First Pass and has not been revised.
-
-Still planned: `rwl.check`, segment and spaghetti plots, `fill.internal.NA`, `subset`, `window`. A sentence on the Gini coefficient that `rwl.stats` reports.
+Draft, 2026-10-19. Moved from `ca533` to `co021` and `wa082`, read from the files in `data/`. The report and series statistics are written. The rest is an outline. Filling the 1900 gap moved to 08 Detrending on 2026-10-19. Open questions are in the backlog.
 :::
 
 ## Big Idea
 
-## Packages
+You have a collection read into R. Before you date anything, what do you actually have? How many series, how long, how deep in each century, and is anything in the file going to break the analysis later? None of this is glamorous. It is the part of the work where you find out that one core has a hole in it, or that the early centuries rest on a handful of trees, while it is still cheap to find out.
 
-We use `dplR` and the on-board Campito Mountain ring widths, `ca533`.
+The two collections answer these questions very differently, which is why they make a good pair. Mesa Verde is long, deep, and full of absent rings. Hurricane Ridge is short, with no absent rings and one year nobody measured.
+
+## Packages
 
 ```{r}
 #| label: check-setup
+#| message: false
 library(dplR)
-data(ca533)
-```
-
-## Descriptive Statistics
-
-The simplest report on a `rwl` object can be print to the screen via:
-```{r}
-rwl.report(ca533)
-```
-
-That's pretty basic information. We can look at some common (and not-so common) descriptive statistics of a `rwl` object:
-
-```{r}
-ca533.stats <- summary(ca533) # same as calling rwl.stats(ca533)
-head(ca533.stats,n=5) # look at the first five series
-```
-
-These are common summary statistics like mean, median, etc. but also statistics that are more specific to dendrochronology like the first-order autocorrelation (`ar1`), gini (`gini`). Note that output object `ca533.stats` is itself a `data.frame` and its data can be used to plot, summarize, etc.
-
-For instance, we can get the mean and standard deviation of segment length via:
-
-```{r}
-#| label: check-mean-seg
-mean(ca533.stats$year)
-sd(ca533.stats$year)
-```
-
-Or, we can look at the spread of the first-order autocorrelation via `summary(ca533.stats$ar1)` or make a plot to show the data. Here we will demonstrate a somewhat involved plot to get you an idea of how to layer plotting commands:
-
-```{r}
-#| fig-height: 5
-#| fig-width: 5
-boxplot(ca533.stats$ar1,ylab=expression(phi[1]),col = "lightblue")
-stripchart(ca533.stats$ar1, vertical = TRUE,  
-    method = "jitter", jitter = 0.02,add = TRUE, pch = 20, col = 'darkblue',cex=1.25)
-ar1Quant <- quantile(ca533.stats$ar1,probs = c(0.25,0.5,0.75))
-abline(h=ar1Quant,lty="dashed",col="grey")
-mtext(text = names(ar1Quant),side = 4,at = ar1Quant,las=2)
-```
-
-Quick editorial note. I've switched from base R plotting to using `ggplot` in most all of my work. I need to go through and provide new plotting examples for everything, but time is short. Real quick though, here is a `ggplot`
-
-```{r}
-#| fig-width: 2
-#| fig-height: 4
 library(ggplot2)
-ar1 <- data.frame(x="CA 533",y=ca533.stats$ar1)
-ggplot(ar1,aes(x,y)) + geom_boxplot(width=.2) +
-  geom_jitter(width=0.1) + 
-  labs(y=expression(phi[1]),x=element_blank()) +
+co021 <- read.rwl("data/co021.rwl", format = "tucson")
+wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
+```
+
+These are the files from the previous chapter, read the same way. That matters for `wa082`. The on-board copy holds a zero in 1900 where the file has no measurement, and this chapter is partly about that gap.
+
+## The Report
+
+`rwl.report` gives a page about a collection.
+
+```{r}
+#| label: check-report-co021
+rwl.report(co021)
+```
+
+Most of that page is the absent rings. `co021` has `r sum(co021 == 0, na.rm = TRUE)` of them, `r round(100 * mean(co021 == 0, na.rm = TRUE), 1)` percent of all the measurements, and the report lists every one by series. Look down that list and some years keep coming back. In 1585, `r sum(co021["1585", ] == 0, na.rm = TRUE)` of the `r sum(!is.na(co021["1585", ]))` series have no ring at all, and `r sum(co021["1584", ] == 0 & co021["1585", ] == 0, na.rm = TRUE)` of them are missing both 1584 and 1585. Absent rings that line up across trees are dating evidence, and the crossdating chapters use them. Why Mesa Verde has so many is a question I have not checked, so I won't guess.
+
+Hurricane Ridge is a much shorter page.
+
+```{r}
+#| label: check-report-wa082
+rwl.report(wa082)
+```
+
+No absent rings, and one internal `NA`: series 712011 in 1900. The warning about internal `NA` values is the report's way of saying that a lot of `dplR` will refuse this series until you decide what to do with that year.
+
+Two numbers in the reports are worth reading side by side. The mean interseries correlation is `r round(mean(interseries.cor(co021)[, 1]), 2)` at Mesa Verde and `r round(mean(interseries.cor(wa082)[, 1]), 2)` at Hurricane Ridge. That is the gap between a collection where everything agrees and an ordinary one, and A2 puts both against the rest of the ITRDB. The series at Hurricane Ridge average `r round(mean(colSums(!is.na(wa082))))` years. At Mesa Verde they average `r round(mean(colSums(!is.na(co021))))`.
+
+## Series Statistics
+
+`summary` on a `rwl` object calls `rwl.stats` and returns one row per series.
+
+```{r}
+#| label: check-stats
+co021Stats <- summary(co021)
+wa082Stats <- summary(wa082)
+head(wa082Stats)
+```
+
+Mean, median, standard deviation, skew and kurtosis are what they always are. Two columns are more particular to tree rings. `ar1` is the lag-one autocorrelation, how much a ring resembles the one before it. `gini` is the Gini coefficient, a measure of how unequal the rings in a series are, which Biondi and Qeadan proposed as a replacement for mean sensitivity. The arithmetic is the one economists use on incomes.
+
+`ar1` is the column I look at first, because it tells you how much memory the trees carry from one year to the next, and that memory is what prewhitening removes before crossdating.
+
+```{r}
+#| label: check-ar1
+#| fig-height: 3.5
+#| fig-cap: "Lag-one autocorrelation of each series in the two collections."
+ar1 <- data.frame(
+  site = rep(c("co021", "wa082"), c(nrow(co021Stats), nrow(wa082Stats))),
+  ar1 = c(co021Stats$ar1, wa082Stats$ar1)
+)
+ggplot(ar1, aes(x = site, y = ar1)) +
+  geom_boxplot(width = 0.3, outlier.shape = NA) +
+  geom_jitter(width = 0.08, height = 0) +
+  labs(x = NULL, y = expression(phi[1])) +
   theme_minimal()
 ```
+
+Both collections carry a lot of memory, Hurricane Ridge more on average (median `r round(median(wa082Stats$ar1), 2)` against `r round(median(co021Stats$ar1), 2)`). Some of that is the age trend. A series that declines slowly over two centuries is autocorrelated whether or not the tree remembers anything, so this is memory and trend together. Detrending separates them.
+
+:::{.callout-note title="For Andy"}
+The Gini sentence cites Biondi and Qeadan (2008) from memory of the dplR help page. The paper is not in `dplR.bib` yet. Check the claim and add the entry, or cut the attribution.
+:::
+
+## Seeing the Collection
+
+- Segment plot, `plot(co021, plot.type = "seg")` and the same for `wa082`. Read off what the report can't show: the staircase of start years, and how few series reach back.
+- Sample depth as its own figure, both collections, with a ggplot of `rowSums(!is.na(x))`. Point ahead to SSS in 09 and 10, which asks how much depth is enough.
+- Spaghetti plot, `plot(x, plot.type = "spag")`, mostly to show why nobody can see anything in one. Keep it short.
+- Possibly a ggplot of each series as a line segment coloured by tree, if the dplR segment plot reads poorly. Show options before choosing.
+
+## Looking for Trouble
+
+- `rwl.check` on both. Explain the three severities (error, warning, note) and `rwl.check.catalogue` as the list of everything it looks for.
+- `co021`: no errors or warnings. The notes are the runs of two or three absent rings (1584 to 1585 in most series) and the first 24 years resting on one series. Say what a note asks of you, which is to know about it.
+- `wa082`: the warning on 712011's gap, and the note that the series can't be checked against the others until the gap is closed. Read the warning's text, which names the functions that will stop.
+- One sentence that `rwl.check` also runs a first crossdating pass, and the crossdating chapters do that properly.
+
+## The Gap in 712011
+
+- One short paragraph, no code. The gap stays open through crossdating, on purpose. A fill that borrows from the other trees agrees with them by construction, so it has no place in a dating check. `xdate.report` leaves 712011 out and says why, and `corr.rwl.seg` skips the segments that include 1900. The crossdating chapters run on `co021`, so little is lost. `detrend` is the first function that refuses the gap, so the fill comes at the start of [Detrending](08Detrending.qmd).
+
+## Trimming
+
+- `window` to cut a collection to a span. `window(wa082, start = 1800)` drops the eighteenth century, and any series left empty is dropped with a message.
+- `subset` to pick series, which keeps class `rwl`.
+- `[` keeps empty columns on purpose. One sentence and a pointer to the classes aside.
 
 ## Wrapping Up
 
@@ -74,4 +111,11 @@ None of these checks tells you whether the rings are dated correctly. Shift part
 
 ## Exercises
 
+- Which `co021` series has the most absent rings, and what fraction of its length is that? Does it come from a tree whose other cores also have many?
+- Make a table of the years in which more than half of the `co021` series present have a zero. How many are there?
+- Run `xdate.report` on `wa082` and find 712011 in what it returns. What does it say, and what are your three ways forward?
+
 ## Further Reading
+
+- To add: Biondi and Qeadan (2008) on the Gini coefficient, once checked.
+- The `rwl.check` help page, which describes every check. Help pages are the reference, so say so in one line and move on.

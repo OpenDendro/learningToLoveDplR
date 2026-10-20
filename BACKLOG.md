@@ -6,6 +6,17 @@ Working notes for the rewrite. Not part of the book.
 
 State of the repo: the Quarto conversion, the restructure into parts, the stubs and the dataset work are on the `quarto-rewrite` branch. `main` is still the 2024 bookdown version. The folder moved from `workshopMaterials/dplR-workshop` to `openDendro/learningToLoveDplR`; the GitHub repo was renamed from `OpenDendro/dplR-workshop` to `OpenDendro/learningToLoveDplR` on 2026-10-13, and the old name no longer resolves. The writing spec is a local file and is not in the repo.
 
+### Ring Widths outlines, 2026-10-19 (uncommitted)
+
+- `03ReadingWriting.qmd` and `03xAsideTucsonFormat.qmd` are outlines, section by section. 03 is built around the `wa082` 1900 gap: file holds `-999`, `read.tucson` gives `NA`, `fill.internal.NA = 0` and `read.tucson.legacy` give 0. Checked 2026-10-19: `rwl.check` on the file warns (`RWL_INTERNAL_NA`) and notes 712011 is uncheckable; on the on-board `wa082` (legacy zero) it gives only `RWL_ZERO_RING`, so the gap is invisible once it is a zero.
+- `04CheckingCollection.qmd` moved off `ca533`. It reads `data/co021.rwl` and `data/wa082.rwl` (so `wa082` has the `NA`). The report and series statistics sections are written to the spec with inline numbers; the base-R boxplot is replaced by one ggplot of `ar1` for both collections. The rest (segment and depth plots, `rwl.check`, trimming) is an outline.
+- Dev dplR: nothing in 03 needs 1.8.1. 04 needs none of it now that filling moved to 08; 08's Closing the Gap needs it for `fill.internal.NA(fill = "Chron")` and `series =`, and for the filled object keeping class `rwl`. `RWL_ZERO_RUN` doesn't fire on either collection. The column-73 stop marker fix matters only if the broken file for 03x plants one.
+- Decided 2026-10-19 (Andy): 712011's 1900 gap stays open through crossdating and is filled at the start of 08 Detrending, where `detrend` first refuses it. The "Closing the Gap" outline moved from 04 to 08; 04 keeps a short section, "The Gap in 712011", pointing forward. Checked 2026-10-19 with the gap open: `xdate.report` lists 712011 under `excluded` (the `nyrs` spline needs an unbroken series); `corr.rwl.seg` gives it no correlation for 1875-1924 or 1900-1949; `ccf.series.rwl` loses 1900-1949; `interseries.cor` works (0.66) with a warning. The crossdating chapters use `co021`, so little is lost. 04's exercise on fills became one on what `xdate.report` says about 712011.
+- Not explained yet (now in 08's outline): `Chron` fills 1900 at 0.24 against 0.45 (1899) and 0.39 (1901); `Linear` 0.42, `Spline` 0.47. The other series' mean spline index in 1900 is about 0.82, so a narrow year, but that doesn't obviously give half the neighbours. Work through the method before 04 says why.
+- For Andy to check: Biondi and Qeadan (2008) for the Gini coefficient, from memory of the help page, not in `dplR.bib`. Further Reading for 03 has no Tucson-format citation yet.
+- Open: whether `read.crn` and `write.crn` belong in 03 or 10. The name of the broken file for 03x and whether it is made in a chunk or an `R/` script.
+- dplR, found 2026-10-19, not fixed: after `fill.internal.NA(fill = "Chron")` on `wa082`, `rwl.check` reports precision as 0.002 mm (it infers precision from the filled value; the file is 0.01 mm). And the read record on the filled object still lists the gap as holding `-999` with `fill.internal.NA` NULL, so nothing records that the year was filled or how.
+
 ### Chapter 1 and the name-conflicts aside, 2026-10-19 (uncommitted)
 
 - Andy is happy with chapter 2 as the intro and roadmap. Chapter 1 (2022 Welcome) and the name-conflicts aside don't fit in front of it.
@@ -19,6 +30,7 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - New bib entry `GrissinoMayer2001`, checked against the PDF.
 - Checked against sources: COFECHA 1982 and the "co-date" name (Grissino-Mayer 2001, p. 205); 20-year spline on California collections (Holmes 1983, p. 72); 32-year default (Grissino-Mayer 2001, p. 207); Fritts 1963 routine and its limits (Holmes 1983, p. 69); no AR modeling in the 1983 description, AR in the 2002 `COFECHA.f` banner; LTRR and IANIGLA (Holmes 1983 acknowledgements); ARSTAN change log 2006 to 2019 with the age-dependent spline in 2014 (`ARSTAN_49v1b.f` header); `/pub/dpl` on the LTRR server (Grissino-Mayer 2001); the 2022 package list against CRAN on 2026-10-19 (`MtreeRing` is archived and was dropped; `BIOdry`, `DendroSync` and `tracheideR` are on CRAN but left out to keep the list short).
 - Andy confirmed 2026-10-19: the name dplR is a nod to Holmes's DPL; the DPL is a set of programs sharing Fortran routines; Ed Cook's comment stays in, and Andy added a sentence after the quote. Still resting on Andy's own word: "I started dplR around 2006" (from A3) and the paragraph on tuning dplR to match COFECHA and ARSTAN.
+- 2026-10-19, Andy: "A Default Is a Judgment Call" was too inside baseball. Rewritten plain: why COFECHA smooths, 20 years in 1983 and 32 by 2001, Ed on the log transform (Andy's sentence kept), and that dplR makes these arguments. Cut and parked for 05Crossdating or 07x: the `formals` table showing `xdate.report` (32-year spline, Pearson) and `corr.rwl.seg` (divide by the mean, Spearman) default differently; the AR step and the Spearman option Ed says he talked Holmes into; the 1983 paper's lack of AR modeling against the 2002 source. Exercises cut to three (help page `nyrs`, `?detrend` `nyrs`, `citation`); the `wa082` spline and Pearson/Spearman exercises go with the table.
 - For 07xAsideCrossdatingStats, not checked carefully: a missing ring planted mid-series in each `wa082` core longer than 200 rings was found at every spline setting, but false flags on other cores averaged 0 with a 10-year spline or with the mean, 0.2 at 20 years, 1.9 at 32, 1.8 at 64 and 1.0 at 100. Some of that is the two series `wa082` flags anyway at 32 years. On `co021` every setting found the ring with no false flags. Worth a proper run before the aside says anything about the 32-year default.
 
 ### Crossdating reorder, done 2026-10-15 (uncommitted)
@@ -183,7 +195,7 @@ Puts together the crossdating reorder, the concepts chapter and the climate part
 | # | Chapter | Data | Status |
 |---|---|---|---|
 | | Preface | none | 2022 text plus the dating-first paragraph, which the reorder removes |
-| **Getting Going** ||||
+| **Foundations** (was Getting Going, renamed 2026-10-19) ||||
 | 1 | Welcome | none | 2022 text |
 | 1x | Aside: Name Conflicts | none | carried over |
 | 2 | From Cores to a Record (new, replaces A First Pass) | simulated 20 trees × 2 cores, ending beside `wa082` | not started |

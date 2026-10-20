@@ -22,6 +22,21 @@ library(dplR)
 data(ca533)
 ```
 
+## Closing the Gap
+
+:::{.callout-note title="Outline"}
+Moved from 04 Checking a Collection on 2026-10-19. Reads `data/wa082.rwl`, so 712011 has its `NA` in 1900, even while the rest of this chapter is still on `ca533`. Needs dev dplR 1.8.1 for `fill = "Chron"` and `series =`.
+:::
+
+- Open with the stop: `detrend` on `wa082` as read fails on 712011. This is where the gap left open in 04 and through crossdating has to be closed.
+
+- `fill.internal.NA` on 712011, four ways, in one small table for 1900 with the neighbouring rings: `Mean`, `Linear`, `Spline` and `Chron`. Computed 2026-10-19: Linear 0.42, Spline 0.47, Chron 0.24, against 0.45 in 1899 and 0.39 in 1901.
+- Why `Chron` comes out so much lower: the first three only look at 712011, and `Chron` asks the other trees what kind of year 1900 was. Check the mechanism (20-year spline indices, scaled by the series' own spread) before explaining the size of the difference. The mean index of the other series in 1900 is about 0.82 with a default spline, so 1900 was a narrow year, but that alone does not account for a fill near half the neighbours.
+- The catch, from the help page: a fill built from the other trees agrees with them by construction, so it inflates every statistic of agreement and should not be used for crossdating.
+- Decided 2026-10-19: the gap stays open through crossdating and is filled here. Say why in a sentence: crossdating is done, so a fill that borrows agreement from the other trees can no longer bias a dating check. Splitting 712011 at the gap stays an option worth one sentence, for longer gaps.
+- `fill.internal.NA(..., series = "712011")` to fill only that series.
+- Agreement statistics come after this chapter too (rbar and EPS in 09), so the inflation doesn't go away once dating is done. For one ring in one series it should be tiny. Compute rbar and EPS with a `Chron` fill and a `Linear` fill before saying so.
+
 ## Common Detrending Methods
 
 As any dendrochronologist will tell you, detrending is a dark art. In `dplR` we have implemented some of the standard tools for detrending but all have drawbacks. In all of the methods, the detrending is the estimation and removal of the low frequency variability that is due to biological or stand  effects. The standardization is done by dividing each series by the growth  trend to produce units in the dimensionless ring-width index (RWI). Much of the text that follows is modified from the help page of `detrend`.

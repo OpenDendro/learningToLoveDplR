@@ -1,19 +1,67 @@
 # Reading and Writing Data
 
-:::{.callout-note title="Stub"}
-Not written yet.
-
-Planned: `read.rwl`, `read.tucson` and its read record, `read.sheet`, `read.fh`, gaps as `NA`, `read.ids`, `combine.rwl`, the writers, and `read.crn` for chronology files.
-
-Source: new.
+:::{.callout-note title="Outline"}
+Outline, 2026-10-19. Each section below says what it will do and with what data. Nothing in this chapter needs dev dplR: the one reader change since 1.8.0 (a stop marker past column 72) touches no ITRDB file, and only the Tucson aside's broken file would use it. Open questions are in the backlog.
 :::
 
 ## Big Idea
 
+- A ring-width file is somebody's measurements plus their decisions about how to write them down. A reader has to decide what the file meant, and sometimes it guesses.
+- Open on the one year in the book's two files where that guess matters: tree 1 at Hurricane Ridge, 1900. The file holds `-999`. Is that a ring of zero width or a year nobody measured? The answer changes what every later chapter does with the series.
+- Promise: by the end you can read a file, see what the reader decided for you, and write the data back out without losing anything.
+
 ## Packages
+
+- `dplR` only. The files are `data/co021.rwl` and `data/wa082.rwl`, as the ITRDB serves them (A2 has the download).
+
+## Reading a File
+
+- `read.rwl` on both files, messages shown. It guesses the format, then hands off to `read.tucson`. Say that naming the format (`format = "tucson"`) is better in a script, since a guess can change when a file does.
+- What comes back: a data frame with years as row names and one column per series, `NA` before a series starts and after it ends. One short look (`dim`, `head` of a few columns, `time`). Point to the classes aside (04x) for what class `rwl` buys you.
+- The printed summary line (series, span, precision) and where precision comes from. One sentence, then the aside.
+
+## The Read Record
+
+- The reader keeps notes: `attr(x, "dplR.provenance")`. Walk through it on `wa082`: the file name and reader, the three header lines (site, species, elevation, Schweingruber), precision by series, renames, gaps and events.
+- `co021` has no header, so its record has nothing to say about the site. Show that too, briefly, and tie it to A2's caution about tree structure.
+- Opinion for Andy: keep the record with the data and look at it before trusting the numbers. It is the only place the file's oddities survive the read.
+
+## A Gap Is Not a Zero
+
+- The center of the chapter. Read `wa082.rwl` three ways: `read.tucson` (gap returned as `NA`, with the message), `read.tucson(fill.internal.NA = 0)` and `read.tucson.legacy` (both give 0). Small table of 1898 to 1902 for series 712011.
+- Run `rwl.check` on the file as read and on the on-board `wa082`, which holds the legacy zero. The file gets a warning naming the gap and the functions it will stop. The on-board copy gets only a note that one ring has zero width. Once a gap becomes a zero, nothing downstream can tell it from an absent ring, and detrending treats it as a year of no growth.
+- Contrast with `co021`, whose 716 zeros are absent rings recorded on purpose. Same number, opposite meaning, and only the file's author knew which was which.
+- What to do about the gap belongs to the next chapter (`fill.internal.NA`). Here the point is to see it.
+
+## Trees and Cores
+
+- Series names often carry the tree and the core. `read.ids` and `autoread.ids` on `wa082`: 12 trees, 11 with two cores. On `co021` it works with a warning, and A2 shows the evidence for the grouping.
+- `read.ids` with an explicit `stc` (site, tree, core widths) for when the guess is wrong. Chapter 2 already used `autoread.ids` on the simulation, so keep this short.
+
+## Other Formats
+
+- Spreadsheets: `read.sheet` for csv and Excel, one column per series with a year column. Show it by writing `co021` out with `write.sheet` to a temporary file and reading it back, so no new file is needed.
+- Heidelberg: `read.fh`, a sentence on where you meet it (TSAP and European labs).
+- Compact and TRiDaS: one sentence that they exist and are read by `read.compact` and `read.tridas`. They see little use and get no example.
+
+## Writing
+
+- `write.tucson`, `write.sheet`, and `write.rwl` as the switchboard. Round trip `wa082` as read, gap and all, through `write.tucson` and back, and check it with `all.equal`. The gap goes out as `-999` and comes back as `NA`.
+- Precision on the way out: `prec = 0.01` against `0.001`, and what happens to widths that need the finer one. Check what `write.tucson` does with a value it can't represent before saying anything.
+- Header: `write.tucson(header = ...)` with a short list, to show what an ITRDB submission wants.
+- Chronologies: `read.crn` and `write.crn` get one paragraph and a pointer forward to Chronology Building. Open: whether they belong here or in 10.
 
 ## Wrapping Up
 
+- What reading tells you: the shape of the data and what the file said about itself. What it can't: whether any of the years are right. The next chapter checks the collection; crossdating comes after that.
+
 ## Exercises
 
+- Read `wa082.rwl` with `fill.internal.NA = 0` and run `rwl.check`. Which finding disappears, and what took its place?
+- Write `co021` with `write.sheet`, open the file in a spreadsheet, delete one value in the middle of a series, save, and read it back. What does the reader do with the hole, and where is that recorded?
+- Read the header lines from the `wa082` read record. What do they tell you that the ring widths can't?
+
 ## Further Reading
+
+- @GrissinoMayer2001 on the history and conventions of COFECHA input files, which is where most of the Tucson format's habits come from. Check the page range covering format before citing it for that.
+- To find: a citation for the Tucson format itself and for the ITRDB's submission rules. Leave out if nothing solid turns up.

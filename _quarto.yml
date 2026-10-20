@@ -15,7 +15,7 @@ book:
     - file: index.qmd
       text: "Cover"
     - 00Preface.qmd
-    - part: "Getting Going"
+    - part: "Foundations"
       chapters:
         - 01WhereDplRComesFrom.qmd
         - 02CoresToRecord.qmd

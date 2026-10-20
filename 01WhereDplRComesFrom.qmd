@@ -12,13 +12,6 @@ The difference is where the choices sit. In COFECHA a choice was a prompt you an
 
 This chapter is the short history behind that, and one example of why it matters.
 
-## Packages
-
-```{r}
-#| label: lineage-setup
-library(dplR)
-```
-
 ## The Programs Before dplR
 
 Crossdating was done by eye long before it was done by computer, with skeleton plots and by matching ring patterns from memory [@Holmes1983]. Douglass held to the rule that the wood decides the dating [@Douglass1941]. A correlation could help, but it couldn't overrule the rings.
@@ -33,32 +26,13 @@ I started `dplR` around 2006 [see @Bunn2008; @Bunn2010]. A lot of it began as an
 
 ## A Default Is a Judgment Call
 
-Here is one choice and how it moved. Before COFECHA correlates anything, it takes the slow wiggles out of each series with a smoothing spline. A shared age trend would make every series look like it matches every other one at almost any lag. How stiff should that spline be?
+Every program has to decide what to ignore. Trees put on wide rings when they're young and narrow ones when they're old, and if you correlate raw ring widths, every series looks like it matches every other one. So COFECHA smooths away the slow changes in each series first and compares what's left. How much to smooth is a judgment call.
 
-In 1983 Holmes used a 20-year spline. He had tried different lengths on collections from California, and 20 years found the errors without flagging many segments that were fine. A stiffer spline left too much slow variation in, and a more flexible one flagged good segments [@Holmes1983, p. 72]. By 2001 the default was 32 years. In data sets from several regions it usually did the best job of finding errors, and it gave the highest interseries correlations [@GrissinoMayer2001, p. 207]. Same author, same program, a different answer. Both were reasonable. They came from different collections.
+In 1983 Holmes smoothed with a 20-year spline, a choice he made by testing collections from California [@Holmes1983]. By 2001 the default was 32 years, after experience with collections from many more places [@GrissinoMayer2001]. Same author, same program, a different answer. Both were reasonable. They came from different wood.
 
-Other choices moved too. The 1983 paper describes a spline, a log transform and the correlation, and says nothing about autoregressive modeling. By the 2002 source, COFECHA prewhitens each series with an AR model before correlating. Ed Cook told me he talked Holmes into adding the AR step, and an option for Spearman's rank correlation. He also argued against the log transform as a default, since it skews the indices and needs a made-up constant for zero-width rings. Holmes kept it. Ed's verdict: "Not good in my opinion." Even the best disagree from time to time.
+The people who wrote these programs argued about the choices, too. Ed Cook told me he wanted COFECHA to stop taking logs of the ring widths by default before comparing them. Holmes kept the logs. Ed's verdict: "Not good in my opinion." Even the best disagree from time to time.
 
-So what does `dplR` do? It depends which function you ask.
-
-```{r}
-#| label: lineage-defaults
-dating <- data.frame(
-  `function` = c("xdate.report", "corr.rwl.seg"),
-  spline = c(deparse(formals(xdate.report)$nyrs),
-             deparse(formals(corr.rwl.seg)$nyrs)),
-  correlation = c(eval(formals(xdate.report)$method)[1],
-                  eval(formals(corr.rwl.seg)$method)[1]),
-  prewhiten = c(formals(xdate.report)$prewhiten,
-                formals(corr.rwl.seg)$prewhiten),
-  check.names = FALSE
-)
-dating
-```
-
-`xdate.report` follows COFECHA, with a `r formals(xdate.report)$nyrs`-year spline and `r tools::toTitleCase(eval(formals(xdate.report)$method)[1])`'s correlation, so people coming from COFECHA see familiar numbers. `corr.rwl.seg` is older. With `nyrs = NULL` it divides each series by its mean and leaves the AR model to take out the persistence, and it uses `r tools::toTitleCase(eval(formals(corr.rwl.seg)$method)[1])`'s rank correlation. Neither takes logs. Both prewhiten, which is Ed's step.
-
-Neither set of defaults is the right one. They are two sensible answers to the same question, and the crossdating chapters show you how to tell when the choice changes what gets flagged. And you can see them. To know what COFECHA was doing to your series you had to know the program well. In `dplR` you can type `formals(xdate.report)` or read the help page, and if you change something, the change is in your script for anyone to see.
+In `dplR` choices like these are arguments to functions. Each has a default, the help page says what it is, and you can change it in one line. When you do, the change is in your script for anyone to see. Most of the rest of the book is about when a choice like that changes your answer.
 
 ## Scripture
 
@@ -83,16 +57,15 @@ citation("dplR")
 
 ## Wrapping Up
 
-`dplR` grew out of COFECHA, ARSTAN and the DPL, and it keeps most of their methods. What it changes is where the choices live. A spline length or a correlation method is an argument you can read, change and record, and the defaults are judgment calls that someone else could reasonably make differently. Even `dplR`'s own dating functions disagree.
+`dplR` grew out of COFECHA, ARSTAN and the DPL, and it keeps many of their methods. What it changes is a judgment call. A spline length or a correlation method is an argument you can read, change and record, and the defaults are judgment calls that someone else could reasonably make differently.
 
 None of this tells you which choice is right for your collection. That depends on the data, and finding out is most of what the rest of the book does. The [next chapter](02CoresToRecord.qmd) starts by asking what a ring width is made of.
 
 ## Exercises
 
-1. Run `corr.rwl.seg(wa082, make.plot = FALSE)` with the default `nyrs = NULL`, then with `nyrs = 20` and `nyrs = 32`. How many series are flagged each time? What would you need to know to say which run is right?
+1. Open `?xdate.report` and find `nyrs`. What is the default, and which program does the help page say it comes from?
 2. Look up `nyrs` in `?detrend`. What spline stiffness do you get when it is `NULL`? Find where that rule comes from in the Cook Book [@Cook1990, p. 114].
-3. Plant a missing ring with `bad <- delete.ring(co021, series = "643143", year = 1600)`, then run `xdate.report(bad)` with `method = "pearson"` and with `method = "spearman"`. Does the choice change what gets flagged at Mesa Verde? Try the same thing on a `wa082` series. Do you expect a difference there?
-4. Run `citation()` for `dplR` and for one other package you use. What would you put in a methods section?
+3. Run `citation()` for `dplR` and for one other package you use. What would you put in a methods section?
 
 ## Further Reading
 

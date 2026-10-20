@@ -1,9 +1,20 @@
 # Aside: The Tucson Format {- .aside-chapter}
 
-:::{.callout-note title="Stub"}
-Not written yet.
-
-Planned: stop markers, precision, headers, and why files go wrong.
-
-Source: new.
+:::{.callout-note title="Outline"}
+Outline, 2026-10-19. Needs the deliberately broken file, which doesn't exist yet. Plan for it is below.
 :::
+
+- Tie back: Reading and Writing showed what the reader decided. This aside shows what it was deciding about.
+- The layout, from one line of `data/wa082.rwl` printed with `readLines`: series ID in columns 1 to 8, the decade's first year in 9 to 12, then up to ten widths of six characters each. A ruler above the line so the columns can be counted.
+- Stop markers: `999` ends a series in 0.01 mm, `-9999` ends one in 0.001 mm. The marker is the only place the precision is written down, so a lost marker changes every value by a factor of ten. `-999` inside a series is a gap. Zero is an absent ring.
+- Headers: the ITRDB's three lines, shown from the `wa082` file. `co021` has none.
+- History, briefly: why a punch-card layout is still the field's file format. Lean on @GrissinoMayer2001 and Holmes's programs; check what the sources say before writing any of it.
+- Why files go wrong, each shown on the broken file and found in the read record (`renames`, `events`, `gaps`, `precision`):
+  - an ID longer than eight characters running into the year
+  - a decade line with the wrong year, or out of order
+  - a series split into two records with the same ID
+  - mixed precision in one file
+  - a missing stop marker
+  - a stop marker in an eleventh field past column 72 (read correctly from dplR 1.8.1; 1.8.0 read such a 0.001 mm series ten times too large)
+- The broken file: built from `co021` in code (a chunk or `R/make-broken-tucson.R`), with each defect planted on purpose and listed, so the aside can check that the reader found every one. Written into `data/` so readers can open it in a text editor. Name open.
+- Close: when a file reads strangely, open it in a text editor before blaming the reader.
