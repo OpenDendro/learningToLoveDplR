@@ -1,20 +1,108 @@
 # Aside: The Tucson Format {- .aside-chapter}
 
-:::{.callout-note title="Outline"}
-Outline, 2026-10-19. Needs the deliberately broken file, which doesn't exist yet. Plan for it is below.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-21. The broken file is made by `R/make-broken-tucson.R` and written to `data/co021broken.rwl`. Two things need dev dplR 1.8.1: the reader's warning about a missing stop marker (`NO_STOP_MARKER`) and the scale check at the end (`RWL_SERIES_SCALE`). Open questions are in the backlog.
 :::
 
-- Tie back: Reading and Writing showed what the reader decided. This aside shows what it was deciding about.
-- The layout, from one line of `data/wa082.rwl` printed with `readLines`: series ID in columns 1 to 8, the decade's first year in 9 to 12, then up to ten widths of six characters each. A ruler above the line so the columns can be counted.
-- Stop markers: `999` ends a series in 0.01 mm, `-9999` ends one in 0.001 mm. The marker is the only place the precision is written down, so a lost marker changes every value by a factor of ten. `-999` inside a series is a gap. Zero is an absent ring.
-- Headers: the ITRDB's three lines, shown from the `wa082` file. `co021` has none.
-- History, briefly: why a punch-card layout is still the field's file format. Lean on @GrissinoMayer2001 and Holmes's programs; check what the sources say before writing any of it.
-- Why files go wrong, each shown on the broken file and found in the read record (`renames`, `events`, `gaps`, `precision`):
-  - an ID longer than eight characters running into the year
-  - a decade line with the wrong year, or out of order
-  - a series split into two records with the same ID
-  - mixed precision in one file
-  - a missing stop marker
-  - a stop marker in an eleventh field past column 72 (read correctly from dplR 1.8.1; 1.8.0 read such a 0.001 mm series ten times too large)
-- The broken file: built from `co021` in code (a chunk or `R/make-broken-tucson.R`), with each defect planted on purpose and listed, so the aside can check that the reader found every one. Written into `data/` so readers can open it in a text editor. Name open.
-- Close: when a file reads strangely, open it in a text editor before blaming the reader.
+[Reading and Writing](03ReadingWriting.qmd) showed what the reader decided about two files. This aside is about what it was deciding between. The Tucson format is old, plain text, and forgiving to write by hand, which is why files in it go wrong. Once you know how a line is laid out, most of what can go wrong is visible in a text editor.
+
+```{r}
+#| label: tuc-setup
+#| message: false
+library(dplR)
+```
+
+## One Line at a Time
+
+Here are the first lines of the Hurricane Ridge file, with a ruler on top so you can count columns.
+
+```{r}
+#| label: tuc-ruler
+waLines <- readLines("data/wa082.rwl")
+ruler <- paste0(rep(c(1:9, 0), 8), collapse = "")
+tens <- paste0(sprintf("%10d", 1:8), collapse = "")
+cat(tens, ruler, waLines[1:5], waLines[13], sep = "\n")
+```
+
+The first three lines are the header, which comes up below. After that every line is one decade of one series:
+
+- Columns 1 to 8 are the series ID. Here it is six characters, 712011, and the next two columns are blank.
+- Columns 9 to 12 are a year, the first year on the line.
+- After that come up to ten measurements, six characters each, ending at column 72.
+
+A decade line normally starts on a year ending in zero and holds ten values. The first line of a series starts wherever the series does, so 712011 begins in 1811 with nine values to fill out the decade. The last line ends with a stop marker. Nothing ties the lines of a series together except the ID repeated at the start of each one.
+
+The numbers are whole numbers in units of the precision, so 153 is 1.53 mm. Where is the precision written? Only in the stop marker. A series that ends with 999 is in hundredths of a millimeter. A series that ends with -9999 is in thousandths. That one number at the end of the last line decides the scale of every value above it.
+
+There are two more special values. A zero is an absent ring, a year in which the tree laid down no wood along that radius. A -999 inside a series is a year with no measurement, which is what 712011 has in 1900, the line at the bottom of the output. They look alike in a hurry and they mean very different things, and [Reading and Writing](03ReadingWriting.qmd) is about what happens when one is read as the other.
+
+## The Header
+
+The ITRDB puts three header lines at the top of a file. Each starts with the site code and a line number (712, then 1, 2 or 3), and the rest holds the site name, the variable and species code, the country and species, the elevation, the coordinates, the span, and the person who collected the wood. At Hurricane Ridge, `4757-12328` is 47°57' N, 123°28' W, written as degrees and minutes run together.
+
+Nothing in the format marks a header as a header. The reader recognizes one because it doesn't parse as a decade line, and it keeps the three lines in the read record. Plenty of files have no header at all. Mesa Verde is one of them.
+
+Where does the layout come from? Grissino-Mayer [-@GrissinoMayer2001] calls it the ring measurement, or "Tucson" or "Decadal", format, one of the ITRDB's standard formats, and says that COFECHA and the other DPL programs read it at either precision. Measuring programs write it, so most raw data you are given will be in it.
+
+## A File With Known Defects
+
+To see how files go wrong, I broke one on purpose. `R/make-broken-tucson.R` takes seven series from Mesa Verde for 1900 to 1963, writes them as a Tucson file, and then damages all but one series in a different way, each a mistake I have seen in files people sent me. Because I know what I did, we can check what the reader does with each one.
+
+```{r}
+#| label: tuc-make
+source("R/make-broken-tucson.R")
+planted <- make.broken.tucson()
+planted
+```
+
+The file is `data/co021broken.rwl`. Open it in a text editor alongside this aside, and see how many of the defects you can find by eye before the reader finds them.
+
+```{r}
+#| label: tuc-read
+#| warning: true
+broken <- read.tucson("data/co021broken.rwl")
+```
+
+That's a lot of output for a 50-line file. The reader is noisy on purpose. Every one of those warnings is also kept in the read record, so you don't have to catch them as they scroll past.
+
+```{r}
+#| label: tuc-events
+brokenRecord <- attr(broken, "dplR.provenance")
+brokenRecord$events[, c("event", "series", "n")]
+brokenRecord$renames
+names(broken)
+```
+
+How did the reader do against the table of what I planted?
+
+- The repeated 1930s line in 641143 is an exact copy of the line above it. The reader removed it and said so (`DUPLICATE_LINE`). A copy that differed in even one value would be a different problem, two values for the same year, and the reader would report that as a clash.
+- Two cores labelled 642114 cover the same years. The reader can't know which is which, so it kept both and renamed the second one 642114X (`ID_RENAMED`), and the renames table says so. Which core was really 642121 is something only the field notes can tell you.
+- The letter O typed for a zero in 642143 isn't a number. The reader left that year as `NA` and said where (`NON_NUMERIC`), which makes it a gap in the middle of the series.
+- The nine-character ID cost the most. MV641132X runs into column 9, so the year field holds "X190" and the last digit of the last value on each full line lands in column 73. The reader couldn't make sense of the lines and discarded all seven of them (`BAD_YEAR`, `PAST_COL72`), so 641132 isn't in the result at all. It is not quietly misread, though. The warning prints every line it dropped.
+
+That's four out of five. The fifth is 641121, the series that lost its -9999, and it is the hard one. The reader noticed that the series ends without a stop marker and said so (`NO_STOP_MARKER`), but noticing is all it can do. The marker was the only place the file said the series was in thousandths, so with it gone the reader fell back on hundredths, and the warning tells you that's what it assumed. Up to `dplR` 1.8.0 it made the same assumption and said nothing.
+
+```{r}
+#| label: tuc-scale
+brokenRecord$precision
+round(colMeans(broken, na.rm = TRUE), 2)
+```
+
+Every series is recorded at 0.01 mm, and 641121's mean ring is `r format(round(mean(broken[["641121"]], na.rm = TRUE), 2), nsmall = 2)` mm against about `r round(mean(colMeans(broken[, names(broken) != "641121"], na.rm = TRUE)), 2)` for the others. Ten times too wide. And the crossdating statistics won't save you here, because a series ten times too large has exactly the same correlation with the others as the series itself. Of the defects in the file, this is the one the reader can't fix, because the file no longer holds the answer.
+
+So which is it, a series in the wrong units or a fast-growing tree? The scale says. `rwl.check` compares each series' median ring with the median of the others, and warns when one is five times off or more.
+
+```{r}
+#| label: tuc-scale-check
+brokenCheck <- as.data.frame(rwl.check(broken))
+brokenCheck[brokenCheck$check == "RWL_SERIES_SCALE", c("series", "value")]
+cat(strwrap(brokenCheck$message[brokenCheck$check == "RWL_SERIES_SCALE"]), sep = "\n")
+```
+
+Why five, when the error is ten? Because a lost stop marker multiplies whatever the series was, and a slow tree that was half the width of its neighbours comes back only five times wider. Trees that grow five times faster or slower than the rest of their stand are rare, though not unheard of, so a series flagged at five is a series to look at, and one near ten deserves a hard look at its units. When I ran the check over the ITRDB's ring-width files, a few hundred series in about 2 percent of files were five times off or more, and a handful of files had series ten times off. Before 1.8.1, nothing in `dplR` flagged any of them.
+
+In this file there is a second clue in the editor, since every value of 641121 ends in a zero. That's because I made it from data measured to the hundredth, and a series measured to the thousandth won't give you that clue.
+
+## When a File Reads Strangely
+
+Open it in a text editor before you blame the reader. Count columns. Look at the end of each series for its stop marker, and at the start of each line for an ID that's too long or a year that's in the wrong place. Most of what goes wrong in a Tucson file is a column out of place, and you can see that faster than any program can describe it.

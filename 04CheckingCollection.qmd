@@ -1,7 +1,7 @@
 # Checking a Collection
 
 :::{.callout-note title="Partly written"}
-Draft, 2026-10-19. Moved from `ca533` to `co021` and `wa082`, read from the files in `data/`. The report and series statistics are written. The rest is an outline. Filling the 1900 gap moved to 08 Detrending on 2026-10-19. Open questions are in the backlog.
+First draft, 2026-10-21. Reads `co021` and `wa082` from the files in `data/`. Every number in the text is computed when the book builds. Filling the 1900 gap moved to 08 Detrending on 2026-10-19. Open questions are in the backlog.
 :::
 
 ## Big Idea
@@ -32,7 +32,9 @@ These are the files from the previous chapter, read the same way. That matters f
 rwl.report(co021)
 ```
 
-Most of that page is the absent rings. `co021` has `r sum(co021 == 0, na.rm = TRUE)` of them, `r round(100 * mean(co021 == 0, na.rm = TRUE), 1)` percent of all the measurements, and the report lists every one by series. Look down that list and some years keep coming back. In 1585, `r sum(co021["1585", ] == 0, na.rm = TRUE)` of the `r sum(!is.na(co021["1585", ]))` series have no ring at all, and `r sum(co021["1584", ] == 0 & co021["1585", ] == 0, na.rm = TRUE)` of them are missing both 1584 and 1585. Absent rings that line up across trees are dating evidence, and the crossdating chapters use them. Why Mesa Verde has so many is a question I have not checked, so I won't guess.
+Most of that page is the absent rings. `co021` has `r sum(co021 == 0, na.rm = TRUE)` of them, `r round(100 * mean(co021 == 0, na.rm = TRUE), 1)` percent of all the measurements, and the report lists every one by series. Look down that list and some years keep coming back. In 1585, `r sum(co021["1585", ] == 0, na.rm = TRUE)` of the `r sum(!is.na(co021["1585", ]))` series have no ring at all, and `r sum(co021["1584", ] == 0 & co021["1585", ] == 0, na.rm = TRUE)` of them are missing both 1584 and 1585. Absent rings that line up across trees are dating evidence, and the crossdating chapters use them.
+
+Is that a lot? St. George and colleagues counted the absent rings in 2,359 Northern Hemisphere ring-width records from the ITRDB [@StGeorge2013]. Over all of them there was one absent ring for every 240 present, and 0.6 percent of Douglas-fir rings were absent. Mesa Verde has one for every `r round(sum(co021 > 0, na.rm = TRUE) / sum(co021 == 0, na.rm = TRUE))`. More than half of their records had no absent rings at all, and the ones with more than 2 percent were all in the American Southwest. Where many records in the Southwest lost a ring in the same year, the year was a severe drought. I haven't checked Mesa Verde's absent years against a drought record, so that's as far as I'll go here.
 
 Hurricane Ridge is a much shorter page.
 
@@ -83,27 +85,136 @@ The Gini sentence cites Biondi and Qeadan (2008) from memory of the dplR help pa
 
 ## Seeing the Collection
 
-- Segment plot, `plot(co021, plot.type = "seg")` and the same for `wa082`. Read off what the report can't show: the staircase of start years, and how few series reach back.
-- Sample depth as its own figure, both collections, with a ggplot of `rowSums(!is.na(x))`. Point ahead to SSS in 09 and 10, which asks how much depth is enough.
-- Spaghetti plot, `plot(x, plot.type = "spag")`, mostly to show why nobody can see anything in one. Keep it short.
-- Possibly a ggplot of each series as a line segment coloured by tree, if the dplR segment plot reads poorly. Show options before choosing.
+The report gives each series' span as two numbers. A segment plot draws them.
+
+```{r}
+#| label: check-seg-co021
+#| fig-height: 6
+#| fig-cap: "The span of each series in `co021`, sorted by first year."
+plot(co021, plot.type = "seg")
+```
+
+One bar per series, sorted by the year it starts. The staircase is the collection getting deeper as you come forward in time. The oldest series, 646118, starts in `r co021Stats$first[co021Stats$series == "646118"]` and stops in `r co021Stats$last[co021Stats$series == "646118"]`, and for its first `r min(co021Stats$first[co021Stats$series != "646118"]) - min(co021Stats$first)` years it is the only series there is. Two others stop early too: 645232 in `r co021Stats$last[co021Stats$series == "645232"]` and 646107 in `r co021Stats$last[co021Stats$series == "646107"]`. The other `r sum(co021Stats$last >= 1962)` run to `r max(co021Stats$last) - 1` or `r max(co021Stats$last)`. Is a bar that stops in 1400 a problem? Not by itself. The core might come from a snag, or the measurable wood might end at a rot pocket, and only the field notes can say which. The plot tells you which cores to ask about.
+
+```{r}
+#| label: check-seg-wa082
+#| fig-height: 4.5
+#| fig-cap: "The span of each series in `wa082`, sorted by first year."
+plot(wa082, plot.type = "seg")
+```
+
+Hurricane Ridge is a shorter staircase. Its last series to start, 712072, begins in `r max(wa082Stats$first)`, `r max(wa082Stats$first) - min(wa082Stats$first)` years after the first. One series, `r wa082Stats$series[wa082Stats$last < 1983]`, stops in `r min(wa082Stats$last)`, and the rest run to 1983. Where is the gap in 712011? At this scale a single year doesn't show. The report told you about 1900, and this plot never would have. Watch for it in the next figure.
+
+Count the series in each year and you have sample depth, the staircase turned into a number.
+
+```{r}
+#| label: check-depth
+#| fig-height: 3.5
+#| fig-cap: "Sample depth, the number of series measured in each year."
+depth <- data.frame(
+  site = rep(c("co021", "wa082"), c(nrow(co021), nrow(wa082))),
+  year = c(time(co021), time(wa082)),
+  n = c(rowSums(!is.na(co021)), rowSums(!is.na(wa082)))
+)
+ggplot(depth, aes(x = year, y = n, linetype = site)) +
+  geom_line() +
+  labs(x = "Year", y = "Number of series", linetype = NULL) +
+  theme_minimal()
+```
+
+```{r}
+#| label: check-depth-numbers
+#| include: false
+coDepth <- depth[depth$site == "co021", ]
+waDepth <- depth[depth$site == "wa082", ]
+firstWith <- function(d, k) min(d$year[d$n >= k])
+```
+
+Mesa Verde has 5 series by `r firstWith(coDepth, 5)` and 10 by `r firstWith(coDepth, 10)`. It peaks at `r max(coDepth$n)` series from `r min(coDepth$year[coDepth$n == max(coDepth$n)])` to `r max(coDepth$year[coDepth$n == max(coDepth$n)])`, and it never has all `r ncol(co021)` at once, because 646118 had stopped long before the youngest series began. Hurricane Ridge has 10 series by `r firstWith(waDepth, 10)`, and all `r ncol(wa082)` only from `r min(waDepth$year[waDepth$n == ncol(wa082)])` to `r max(waDepth$year[waDepth$n == ncol(wa082)])`, except in 1900, when it has `r waDepth$n[waDepth$year == 1900]`. That one-year notch in the dashed line is 712011's gap. Sample depth counts measurements, so a year nobody measured comes off the count.
+
+How many series is enough? That depends on how well they agree, which is why there is no single number. [Chronology Statistics](09ChronologyStats.qmd) works it out with the subsample signal strength, and [Chronology Building](10Chronologies.qmd) uses that to decide where a chronology should start. For now the figure says where the record is thin: the thirteenth century at Mesa Verde and most of the eighteenth at Hurricane Ridge.
+
+There is one more of `dplR`'s plots to meet, the spaghetti plot.
+
+```{r}
+#| label: check-spag
+#| fig-height: 6
+#| fig-cap: "Every series in `co021`, each on its own baseline."
+plot(co021, plot.type = "spag")
+```
+
+Every series, each drawn on its own baseline. Nobody crossdates from this. At 35 series and nearly 800 years the year-to-year detail is a blur. One thing does show: many series start wide and narrow as they go. `r round(100 * mean(sapply(co021, function(s) { s <- s[!is.na(s)]; mean(s[1:30]) > mean(s[-(1:30)]) })))` percent of Mesa Verde's series have wider rings in their first 30 years than in the rest, and `r round(100 * mean(sapply(wa082, function(s) { s <- s[!is.na(s)]; mean(s[1:30]) > mean(s[-(1:30)]) })))` percent at Hurricane Ridge. That is the age trend, and [Detrending](08Detrending.qmd) is about taking it out. I look at a spaghetti plot once and move on.
 
 ## Looking for Trouble
 
-- `rwl.check` on both. Explain the three severities (error, warning, note) and `rwl.check.catalogue` as the list of everything it looks for.
-- `co021`: no errors or warnings. The notes are the runs of two or three absent rings (1584 to 1585 in most series) and the first 24 years resting on one series. Say what a note asks of you, which is to know about it.
-- `wa082`: the warning on 712011's gap, and the note that the series can't be checked against the others until the gap is closed. Read the warning's text, which names the functions that will stop.
-- One sentence that `rwl.check` also runs a first crossdating pass, and the crossdating chapters do that properly.
+`rwl.check` reads through a collection looking for anything that will cause trouble later. It runs `r nrow(rwl.check.catalogue())` checks in `r length(unique(rwl.check.catalogue()$group))` groups, and `rwl.check.catalogue()` lists them all with a line on each. Every finding has a severity. An error means the data can't be right as they stand: two series with identical measurements, a year in the future, a series that looks a year or more off. A warning means something will change a result or stop a function, and you have to decide what to do about it. A note is something you should know.
+
+```{r}
+#| label: check-rwlcheck-co021
+co021Check <- rwl.check(co021)
+co021Check
+```
+
+```{r}
+#| label: check-rwlcheck-co021-numbers
+#| include: false
+co021Findings <- as.data.frame(co021Check)
+coRuns <- co021Findings[co021Findings$check == "RWL_CONSECUTIVE_ZERO", ]
+```
+
+No errors and no warnings. The `r nrow(co021Findings)` notes are of three kinds. `RWL_ZERO_RING` counts the absent rings you met in the report. `RWL_LOW_DEPTH` says the years before 1200 rest on fewer than two series, which is 646118 on its own. `RWL_CONSECUTIVE_ZERO` lists every place a series is missing more than one ring in a row, `r nrow(coRuns)` of them, `r sum(coRuns$year.from == 1584 & coRuns$year.to == 1585)` at 1584 and 1585 alone. The printout shows the first ten; `as.data.frame(co021Check)` gives all of them as a table, one row per finding.
+
+So what does a note ask of you? To know it. The same two years missing in `r sum(coRuns$year.to == 1585)` series is dating evidence, and the crossdating chapters use it. The longest run at Mesa Verde is `r max(coRuns$n)` rings. Ten or more in a row would be a warning, `RWL_ZERO_RUN`, because a run that long is more likely a gap somebody filled with zeros than years the tree grew no ring at that core.
+
+```{r}
+#| label: check-rwlcheck-wa082
+wa082Check <- rwl.check(wa082)
+wa082Check
+```
+
+One warning and one note, both about 712011. Read the warning through. It says the gap is not a fault in the file, names the five functions that will fail on it, and says how to close it. The note follows from the warning. The crossdating group in `rwl.check` correlates each series with a master built from all the others, after a 32-year spline takes out the slow trend, and looks for a better correlation at a lag of up to five years. A series with a hole in it can't be splined, so 712011 wasn't checked at all, and the clean result for the other series says nothing about it.
+
+Every other series at both sites passed that crossdating pass. It is a first look at the whole series, and the crossdating chapters do the job properly, segment by segment. It is also the slow part of `rwl.check`; `checks` lets you leave it out when you are sweeping through many files.
 
 ## The Gap in 712011
 
-- One short paragraph, no code. The gap stays open through crossdating, on purpose. A fill that borrows from the other trees agrees with them by construction, so it has no place in a dating check. `xdate.report` leaves 712011 out and says why, and `corr.rwl.seg` skips the segments that include 1900. The crossdating chapters run on `co021`, so little is lost. `detrend` is the first function that refuses the gap, so the fill comes at the start of [Detrending](08Detrending.qmd).
+So what do you do about 712011? For now, nothing. The gap stays open through crossdating, on purpose. Every fill borrows its value from somewhere. A zero claims the tree grew no ring, and the fills in `fill.internal.NA` borrow from the series' own neighbours or from the other trees. A value borrowed from the other trees agrees with them by construction, and a dating check that a series passes because you wrote part of the answer into it is no check at all. `xdate.report` leaves 712011 out and says why, and `corr.rwl.seg` skips the segments that include 1900. The crossdating chapters run on `co021`, so little is lost. The first function that refuses the gap outright is `detrend`, so the fill comes at the start of [Detrending](08Detrending.qmd).
 
 ## Trimming
 
-- `window` to cut a collection to a span. `window(wa082, start = 1800)` drops the eighteenth century, and any series left empty is dropped with a message.
-- `subset` to pick series, which keeps class `rwl`.
-- `[` keeps empty columns on purpose. One sentence and a pointer to the classes aside.
+Sometimes you want less of a collection: one stretch of years, or a few of the series. `window` cuts a collection to a span.
+
+```{r}
+#| label: check-window
+#| message: true
+co021Recent <- window(co021, start = 1900, end = 1950)
+dim(co021Recent)
+```
+
+Two series have no rings between 1900 and 1950, and `window` drops them and names them. That leaves `r ncol(co021Recent)` series over `r nrow(co021Recent)` years. Why drop them? A column with nothing in it is a trap for later. Some functions skip it, and some stop with a message that doesn't point anywhere near the cause.
+
+`subset` picks series. Here are the two cores from tree 1 at Hurricane Ridge.
+
+```{r}
+#| label: check-subset
+wa082Tree1 <- subset(wa082, select = c("712011", "712012"))
+class(wa082Tree1)
+range(time(wa082Tree1))
+```
+
+The result is still class `rwl`, and the years shrink to fit the series you kept. Tree 1's older core starts in `r min(time(wa082Tree1))`, so the years before that are gone.
+
+Square brackets work too, since an `rwl` object is a data frame underneath, and they behave differently on purpose.
+
+```{r}
+#| label: check-bracket
+#| error: true
+co021Early <- co021[time(co021) <= 1300, ]
+sum(colSums(!is.na(co021Early)) == 0)
+summary(co021Early)
+```
+
+`[` keeps all `r ncol(co021Early)` columns, `r sum(colSums(!is.na(co021Early)) == 0)` of them empty, so that `x[i, j]` always gives back the columns `j` names and stays lined up with anything else indexed the same way, like a table of tree IDs. And then `summary` stops with a message about a `ts` object. That's the trap. If you index with brackets, the empty columns are yours to clean up. Use `window` and `subset` and they're taken care of. The [aside on classes and generics](04xAsideClassesGenerics.qmd) says more about why an `rwl` object behaves like a data frame most of the time and not all of it.
 
 ## Wrapping Up
 
@@ -117,5 +228,7 @@ None of these checks tells you whether the rings are dated correctly. Shift part
 
 ## Further Reading
 
+- @Wigley1984 is the paper behind "how many series is enough?" Their Figure 2 is a sample-depth plot much like the one in this chapter, for three English chronologies, and pages 206 and 207 work out how far back each one still stands in for the full collection. The answer runs from 4 cores at one site to 8 at another, depending on how well the cores agree, and they offer their 0.85 cutoff "only as a guide". [Chronology Statistics](09ChronologyStats.qmd) takes it up properly.
+- @StGeorge2013 is five pages on where absent rings turn up across the Northern Hemisphere, by genus, latitude and year. They counted the zeros in 2,359 files, after checking that it made no difference to count measurements of 0.001 mm as well, for investigators who mark an absent ring with the smallest value the format allows.
 - To add: Biondi and Qeadan (2008) on the Gini coefficient, once checked.
-- The `rwl.check` help page, which describes every check. Help pages are the reference, so say so in one line and move on.
+- The `rwl.check` help page describes every check and the control values that tune them, including why the crossdating checks compare a series with its own collection instead of a fixed correlation.

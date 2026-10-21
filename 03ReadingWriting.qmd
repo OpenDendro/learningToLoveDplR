@@ -1,67 +1,236 @@
 # Reading and Writing Data
 
-:::{.callout-note title="Outline"}
-Outline, 2026-10-19. Each section below says what it will do and with what data. Nothing in this chapter needs dev dplR: the one reader change since 1.8.0 (a stop marker past column 72) touches no ITRDB file, and only the Tucson aside's broken file would use it. Open questions are in the backlog.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-20, from the outline of 2026-10-19. Every number in the text is computed when the book builds. Only the rounding warning in Writing needs dev dplR 1.8.1. Open questions are in the backlog.
 :::
 
 ## Big Idea
 
-- A ring-width file is somebody's measurements plus their decisions about how to write them down. A reader has to decide what the file meant, and sometimes it guesses.
-- Open on the one year in the book's two files where that guess matters: tree 1 at Hurricane Ridge, 1900. The file holds `-999`. Is that a ring of zero width or a year nobody measured? The answer changes what every later chapter does with the series.
-- Promise: by the end you can read a file, see what the reader decided for you, and write the data back out without losing anything.
+A ring-width file is somebody's measurements plus their decisions about how to write them down. Most of those decisions are invisible once the file is read. The reader has to work out what the file meant, and now and then it has to guess.
+
+Here is the one place in the book's two collections where the guess matters. The Hurricane Ridge file has a value of `-999` for the first core of tree 1 in 1900. Is that a ring of zero width, or a year nobody measured? The two answers lead to different series, and every later chapter would treat them differently. A ring of zero width is an absent ring, something that happened to the tree, and crossdating leans on it. A year with no measurement is a hole.
+
+By the end of this chapter you can read a file, see what the reader decided for you, and write the data back out without losing anything on the way.
 
 ## Packages
 
-- `dplR` only. The files are `data/co021.rwl` and `data/wa082.rwl`, as the ITRDB serves them (A2 has the download).
+```{r}
+#| label: read-setup
+#| message: false
+library(dplR)
+```
+
+That's all. The files are the two in the book's `data/` folder, `co021.rwl` and `wa082.rwl`, exactly as the International Tree-Ring Data Bank (ITRDB) serves them. The [Data Sources](A2DataSources.qmd) appendix has the download and says where they came from.
 
 ## Reading a File
 
-- `read.rwl` on both files, messages shown. It guesses the format, then hands off to `read.tucson`. Say that naming the format (`format = "tucson"`) is better in a script, since a guess can change when a file does.
-- What comes back: a data frame with years as row names and one column per series, `NA` before a series starts and after it ends. One short look (`dim`, `head` of a few columns, `time`). Point to the classes aside (04x) for what class `rwl` buys you.
-- The printed summary line (series, span, precision) and where precision comes from. One sentence, then the aside.
+`read.rwl` is the front door. Give it a file name and it works out the format.
+
+```{r}
+#| label: read-co021
+co021 <- read.rwl("data/co021.rwl")
+```
+
+It looked at the file, decided it was Tucson format, and handed it to `read.tucson`, which printed one line: `r ncol(co021)` series from `r min(time(co021))` to `r max(time(co021))`, measured to 0.01 mm. In a script I name the format. A guess that works today can go another way after somebody edits the file, and I'd rather the script stopped than read the file as something it isn't.
+
+```{r}
+#| label: read-wa082
+wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
+```
+
+Hurricane Ridge has more to say, and the next few sections are about that message. First, what came back?
+
+```{r}
+#| label: read-look
+class(wa082)
+dim(wa082)
+wa082[c("1809", "1810", "1811", "1812"), 1:3]
+```
+
+A data frame with one row per year and one column per series. The years are the row names, and `time(wa082)` gives them back as numbers. A series is `NA` before its first ring and after its last, so 712011 is `NA` until 1811 and 712021 hasn't started yet. The class `rwl` on top of `data.frame` tells the rest of `dplR` that these are ring widths. The [aside on classes](04xAsideClassesGenerics.qmd) after the next chapter explains why.
+
+Where did the 0.01 mm come from? The file says so, though not in words. A Tucson file marks the end of each series with a stop code, and the stop code sets the precision of every value in that series. The [aside on the Tucson format](03xAsideTucsonFormat.qmd) goes through the layout column by column.
 
 ## The Read Record
 
-- The reader keeps notes: `attr(x, "dplR.provenance")`. Walk through it on `wa082`: the file name and reader, the three header lines (site, species, elevation, Schweingruber), precision by series, renames, gaps and events.
-- `co021` has no header, so its record has nothing to say about the site. Show that too, briefly, and tie it to A2's caution about tree structure.
-- Opinion for Andy: keep the record with the data and look at it before trusting the numbers. It is the only place the file's oddities survive the read.
+A reader makes decisions, so `read.tucson` writes them down. The notes travel with the data as an attribute.
+
+```{r}
+#| label: read-record
+waRecord <- attr(wa082, "dplR.provenance")
+names(waRecord)
+waRecord$header
+```
+
+The first three lines of the file are a header in the ITRDB's layout, and the reader keeps them word for word. They hold things the ring widths can't: a site name, the species code (ABAM, Pacific silver fir), an elevation of 1560 m, the span, and who collected it. The rest of the record is the precision of each series, any series the reader renamed, any events it noticed while reading, and the gaps.
+
+```{r}
+#| label: read-record-parts
+table(waRecord$precision$precision)
+nrow(waRecord$renames)
+nrow(waRecord$events)
+waRecord$gaps
+```
+
+All `r nrow(waRecord$precision)` series are at 0.01 mm. Nothing was renamed and nothing odd turned up, except one gap.
+
+Mesa Verde's record is shorter.
+
+```{r}
+#| label: read-record-co021
+coRecord <- attr(co021, "dplR.provenance")
+coRecord$header
+```
+
+No header at all. The file is ring widths and nothing else, so it can't tell you where the trees grew or which cores came from which tree. You have to get that from somewhere else, and the Data Sources appendix says what I could and couldn't check.
+
+My advice is to keep the record with the data and read it before you trust any numbers. It is where the file's oddities end up after the read, and some of them never make it into a printed message.
 
 ## A Gap Is Not a Zero
 
-- The center of the chapter. Read `wa082.rwl` three ways: `read.tucson` (gap returned as `NA`, with the message), `read.tucson(fill.internal.NA = 0)` and `read.tucson.legacy` (both give 0). Small table of 1898 to 1902 for series 712011.
-- Run `rwl.check` on the file as read and on the on-board `wa082`, which holds the legacy zero. The file gets a warning naming the gap and the functions it will stop. The on-board copy gets only a note that one ring has zero width. Once a gap becomes a zero, nothing downstream can tell it from an absent ring, and detrending treats it as a year of no growth.
-- Contrast with `co021`, whose 716 zeros are absent rings recorded on purpose. Same number, opposite meaning, and only the file's author knew which was which.
-- What to do about the gap belongs to the next chapter (`fill.internal.NA`). Here the point is to see it.
+Back to tree 1 in 1900. The file holds `-999` there, and the reader returned `NA`, with a message that says why. The file records no measurement for that year, and no measurement is not the same thing as a ring of zero width.
+
+That is the reader's default. You can ask for zeros instead, and the older reader, `read.tucson.legacy`, gives zeros without being asked.
+
+```{r}
+#| label: read-three-ways
+#| message: false
+waZero <- read.tucson("data/wa082.rwl", fill.internal.NA = 0)
+waLegacy <- read.tucson.legacy("data/wa082.rwl", verbose = FALSE)
+waOnBoard <- local({
+  data(wa082, package = "dplR", envir = environment())
+  wa082
+})
+yrs <- as.character(1898:1902)
+data.frame(
+  year = yrs,
+  default = wa082[yrs, "712011"],
+  zero = waZero[yrs, "712011"],
+  legacy = waLegacy[yrs, "712011"],
+  onBoard = waOnBoard[yrs, "712011"]
+)
+```
+
+The last column is the copy of Hurricane Ridge that ships with `dplR`, which was read the old way and holds a zero. Its own record says so (`attr(wa082, "dplR.provenance")$fill.internal.NA` on the on-board data is `r attr(waOnBoard, "dplR.provenance")$fill.internal.NA`).
+
+Does it matter? One ring in one series out of `r ncol(wa082)`? Ask `rwl.check`, which looks for defects in a collection and is the subject of the next chapter.
+
+```{r}
+#| label: read-check-gap
+#| message: false
+rwl.check(wa082)
+```
+
+With the gap left as `NA`, you get a warning that names the year, says the file recorded nothing there, and lists the functions that will refuse the series until you deal with it. Now the same check on the copy holding a zero.
+
+```{r}
+#| label: read-check-zero
+rwl.check(waOnBoard)
+```
+
+One note: a ring of zero width. Nothing about a gap. Once the hole is a zero, nothing downstream can tell it from an absent ring, and every method in the book will treat 1900 as a year in which that tree put on no wood at all. The read record still knows the zero was a gap. `rwl.check` reads the record for the reader's warnings about the file, but not for that.
+
+Compare Mesa Verde, which has `r sum(co021 == 0, na.rm = TRUE)` zeros. Those are absent rings, recorded on purpose by people who looked for them in the wood. In an `rwl` object they look exactly like the zero in 1900 at Hurricane Ridge, and only the person who measured the cores knew which was which. That's why the reader returns `NA` by default and prints a message about it. What 1900 becomes is your call, and the message makes sure you know there is a call to make.
+
+What to do about the gap is a choice, and it comes later in the book. The short version: it stays a gap through crossdating, and gets filled at the start of [Detrending](08Detrending.qmd), where `detrend` first refuses it.
 
 ## Trees and Cores
 
-- Series names often carry the tree and the core. `read.ids` and `autoread.ids` on `wa082`: 12 trees, 11 with two cores. On `co021` it works with a warning, and A2 shows the evidence for the grouping.
-- `read.ids` with an explicit `stc` (site, tree, core widths) for when the guess is wrong. Chapter 2 already used `autoread.ids` on the simulation, so keep this short.
+Series names usually carry more than a label. At Hurricane Ridge, 712011 is site 712, tree 01, core 1. `autoread.ids` works that out from the names.
+
+```{r}
+#| label: read-ids
+waIds <- autoread.ids(wa082)
+head(waIds)
+table(table(waIds$tree))
+```
+
+`r length(unique(waIds$tree))` trees, `r sum(table(waIds$tree) == 2)` with two cores and `r sum(table(waIds$tree) == 1)` with one. You met the same function on the simulated collection in [chapter 2](02CoresToRecord.qmd), and it matters for the same reason: several statistics later in the book compare cores within a tree to cores between trees, and they need to know which is which.
+
+The names at Mesa Verde are less obliging.
+
+```{r}
+#| label: read-ids-co021
+coIds <- autoread.ids(co021)
+table(table(coIds$tree))
+```
+
+It settles on `r length(unique(coIds$tree))` trees with one to four cores each, but it warns that it is unsure. When the guess is wrong, or when you know the scheme, say it with `read.ids` and the number of characters for the site, the tree and the core.
+
+```{r}
+#| label: read-ids-stc
+head(read.ids(wa082, stc = c(3, 2, 1)))
+```
+
+Here that agrees with the guess. For Mesa Verde I trust the guess only as far as the correlations back it up, and the Data Sources appendix shows them.
 
 ## Other Formats
 
-- Spreadsheets: `read.sheet` for csv and Excel, one column per series with a year column. Show it by writing `co021` out with `write.sheet` to a temporary file and reading it back, so no new file is needed.
-- Heidelberg: `read.fh`, a sentence on where you meet it (TSAP and European labs).
-- Compact and TRiDaS: one sentence that they exist and are read by `read.compact` and `read.tridas`. They see little use and get no example.
+Most ring widths you will meet are in Tucson format, because the ITRDB is. Most of the rest come out of a spreadsheet, with a column of years and a column for each series. `read.sheet` reads those from a text file separated by commas, tabs, semicolons or pipes. COFECHA never read spreadsheets, and you had to convert them with another program first [@GrissinoMayer2001]. To show it without adding a file to the book, I write Mesa Verde out as a spreadsheet and read it back.
+
+```{r}
+#| label: read-sheet
+sheetFile <- tempfile(fileext = ".csv")
+invisible(write.sheet(co021, sheetFile))
+readLines(sheetFile, n = 2)
+co021Sheet <- read.sheet(sheetFile)
+all.equal(co021, co021Sheet, check.attributes = FALSE)
+```
+
+Same `r ncol(co021Sheet)` series, same values. A spreadsheet has no stop codes, so there is nothing in the file to say what precision the measurements were taken at. The reader works it out from the values.
+
+The Heidelberg format, which TSAP writes, is common in European labs, and `read.fh` reads it. There are also readers for the compact format (`read.compact`) and TRiDaS (`read.tridas`). I've seen very little data in either, and they get no example here.
+
+`read.rwl` sits in front of all of these and passes the file to the right one.
 
 ## Writing
 
-- `write.tucson`, `write.sheet`, and `write.rwl` as the switchboard. Round trip `wa082` as read, gap and all, through `write.tucson` and back, and check it with `all.equal`. The gap goes out as `-999` and comes back as `NA`.
-- Precision on the way out: `prec = 0.01` against `0.001`, and what happens to widths that need the finer one. Check what `write.tucson` does with a value it can't represent before saying anything.
-- Header: `write.tucson(header = ...)` with a short list, to show what an ITRDB submission wants.
-- Chronologies: `read.crn` and `write.crn` get one paragraph and a pointer forward to Chronology Building. Open: whether they belong here or in 10.
+The writers mirror the readers: `write.tucson`, `write.sheet`, `write.compact`, `write.tridas`, and `write.rwl` in front of them. What I want from a writer is that what goes out comes back unchanged. Does Hurricane Ridge survive the trip, gap and all?
+
+```{r}
+#| label: read-write-tucson
+tucsonFile <- tempfile(fileext = ".rwl")
+invisible(write.tucson(wa082, tucsonFile))
+grep("^712011  1900", readLines(tucsonFile), value = TRUE)
+waBack <- read.tucson(tucsonFile)
+all.equal(wa082, waBack, check.attributes = FALSE)
+```
+
+The gap goes out as `-999`, the first value on 712011's line for the 1900s, and comes back as `NA`. Everything else matches.
+
+The one place a writer can lose something is precision. `write.tucson` writes at 0.01 mm unless you tell it otherwise, and it rounds whatever you give it to fit. Put a width measured to the thousandth in a series and write it at the default.
+
+```{r}
+#| label: read-write-prec
+#| warning: true
+waFine <- wa082
+waFine["1698", "712122"] <- 0.123
+fineFile <- tempfile(fileext = ".rwl")
+invisible(write.tucson(waFine, fineFile))
+read.tucson(fineFile, verbose = FALSE)["1698", "712122"]
+invisible(write.tucson(waFine, fineFile, prec = 0.001))
+read.tucson(fineFile, verbose = FALSE)["1698", "712122"]
+```
+
+At the default the 0.123 comes back as 0.12. The warning says how many values were rounded, by how much, and in which series. Up to `dplR` 1.8.0 the rounding happened without a word, so a lab that measured to the thousandth and forgot `prec` lost the third decimal place in every ring and had no way to know. At `prec = 0.001` the value survives, and the warning goes away. If your lab measures to the thousandth, write to the thousandth.
+
+`write.tucson` can also write an ITRDB header from a list (`header =`), and the help page shows one. The help page also says not to use it for a submission to the ITRDB. The header standard is loose, and the ITRDB takes the metadata through its website. I agree with the help page.
+
+Chronologies have their own readers and writers, `read.crn` and `write.crn`. They come up in [Chronology Building](10Chronologies.qmd), once there is a chronology to write.
 
 ## Wrapping Up
 
-- What reading tells you: the shape of the data and what the file said about itself. What it can't: whether any of the years are right. The next chapter checks the collection; crossdating comes after that.
+Reading a file tells you the shape of the data and what the file said about itself, and the read record keeps the parts you'd otherwise lose: the header, the precision, and any gaps. It can't tell you whether any of the years are right. A file that reads cleanly can still have a missing ring in every core. Checking the collection is the [next chapter](04CheckingCollection.qmd), and crossdating comes after that.
 
 ## Exercises
 
-- Read `wa082.rwl` with `fill.internal.NA = 0` and run `rwl.check`. Which finding disappears, and what took its place?
-- Write `co021` with `write.sheet`, open the file in a spreadsheet, delete one value in the middle of a series, save, and read it back. What does the reader do with the hole, and where is that recorded?
-- Read the header lines from the `wa082` read record. What do they tell you that the ring widths can't?
+1. Read `data/wa082.rwl` with `fill.internal.NA = 0` and run `rwl.check` on it. Which finding disappears, and what took its place? Where in the object can you still find out that 1900 was a gap?
+2. Write `co021` with `write.sheet`, open the file in a spreadsheet, delete one value from the middle of a series, save it, and read it back with `read.sheet`. What does the reader do with the hole, and where is it recorded?
+3. Read the three header lines in the Hurricane Ridge read record. Which of them could you check against something else, and how?
+4. Write `wa082` with `write.tucson(prec = 0.001)` and open the file in a text editor. What changed in the numbers, and what changed at the end of each series?
 
 ## Further Reading
 
-- @GrissinoMayer2001 on the history and conventions of COFECHA input files, which is where most of the Tucson format's habits come from. Check the page range covering format before citing it for that.
-- To find: a citation for the Tucson format itself and for the ITRDB's submission rules. Leave out if nothing solid turns up.
+Grissino-Mayer [-@GrissinoMayer2001] is a manual and tutorial for COFECHA, and COFECHA is where a lot of people first meet the Tucson format. Its short section on data formats says what the DPL programs read and what they couldn't, and the rest is worth reading before the crossdating chapters.
+
+The `read.tucson` help page describes the new reader, what it does with gaps and odd layouts, and how it differs from `read.tucson.legacy`. Help pages are the reference, and this one is worth reading once.
