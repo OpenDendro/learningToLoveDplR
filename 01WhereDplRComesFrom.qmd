@@ -6,7 +6,7 @@ First draft, 2026-10-19. Replaces the 2022 Welcome; the setup material moved to 
 
 ## Big Idea
 
-Every number a tree-ring program hands you rests on choices somebody made. How stiff a spline to fit. Whether to take logs. Which kind of correlation, which kind of mean, how long a segment. For about forty years most of those choices lived inside Fortran programs written by a small number of people who knew the wood and knew the math. COFECHA and ARSTAN are the famous ones. They are where the field's methods were worked out, and `dplR` carries a great many of the same ideas. Its name, the Dendrochronology Program Library in R, is a nod to the library of programs Richard Holmes built.
+Every number a tree-ring program hands you rests on choices somebody made. For instance, wow stiff a spline should be fit to a series? Should the data be log transformed?  Which kind of correlation measure? And so on. For about forty years most of those choices were inside Fortran programs written by a small number of people who knew the ins and outs of tree cores and knew the math. COFECHA and ARSTAN are the famous ones. They are where the field's methods were worked out, and `dplR` carries a great many of the same ideas. Its name, the Dendrochronology Program Library in R, is a nod to the library of programs Richard Holmes built.
 
 The difference is where the choices sit. In COFECHA a choice was a prompt you answered or a constant in the source. In `dplR` it is an argument with a default, and you can see it, change it and write down what you changed. Most of the book is about those arguments: what each one does to your data, and when you'd want something other than the default.
 
@@ -28,7 +28,7 @@ I started `dplR` around 2006 [see @Bunn2008; @Bunn2010]. A lot of it began as an
 
 Every program has to decide what to ignore. Trees put on wide rings when they're young and narrow ones when they're old, and if you correlate raw ring widths, every series looks like it matches every other one. So COFECHA smooths away the slow changes in each series first and compares what's left. How much to smooth is a judgment call.
 
-In 1983 Holmes smoothed with a 20-year spline, a choice he made by testing collections from California [@Holmes1983]. By 2001 the default was 32 years, after experience with collections from many more places [@GrissinoMayer2001]. Same author, same program, a different answer. Both were reasonable. They came from different wood.
+In 1983 Holmes smoothed with a 20-year spline, a choice he made by testing collections from California [@Holmes1983]. By 2001 the default was 32 years, after experience with collections from many more places [@GrissinoMayer2001]. Each was a reasonable choice for the collections behind it, and the default changed as the collections did.
 
 The people who wrote these programs argued about the choices, too. Ed Cook told me he wanted COFECHA to stop taking logs of the ring widths by default before comparing them. Holmes kept the logs. Ed's verdict: "Not good in my opinion." Even the best disagree from time to time.
 

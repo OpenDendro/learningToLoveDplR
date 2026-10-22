@@ -9,13 +9,34 @@
   .art-svg .axl { font-family:'Source Code Pro',monospace; font-size:9px; fill:#8a9aaa; letter-spacing:0.5px; }
   .art-svg .lbl { font-family:'Source Code Pro',monospace; font-size:10px; font-weight:600; fill:#1a2535; letter-spacing:2px; text-transform:uppercase; }
 </style>
-<text class="lbl" x="30.0" y="16.0" text-anchor="start">A core</text>
+<text class="lbl" x="30.0" y="16.0" text-anchor="start">Series 645232</text>
 <rect x="30" y="28" width="480" height="32" rx="2" fill="#f3e6cc" stroke="#b08a52" stroke-width="1"/>
 <path class="ring" d="M32.3 29 V59 M36.0 29 V59 M39.4 29 V59 M44.9 29 V59 M49.4 29 V59 M50.3 29 V59 M51.8 29 V59 M52.4 29 V59 M54.3 29 V59 M55.9 29 V59 M58.5 29 V59 M62.1 29 V59 M65.6 29 V59 M67.4 29 V59 M68.4 29 V59 M70.3 29 V59 M73.0 29 V59 M75.1 29 V59 M78.2 29 V59 M81.6 29 V59 M85.3 29 V59 M86.8 29 V59 M89.5 29 V59 M92.4 29 V59 M96.7 29 V59 M104.3 29 V59 M108.7 29 V59 M111.6 29 V59 M114.4 29 V59 M114.6 29 V59 M116.1 29 V59 M117.7 29 V59 M122.4 29 V59 M124.6 29 V59 M124.8 29 V59 M126.0 29 V59 M128.1 29 V59 M130.4 29 V59 M133.5 29 V59 M135.0 29 V59 M135.6 29 V59 M137.3 29 V59 M139.8 29 V59 M145.1 29 V59 M146.8 29 V59 M150.1 29 V59 M154.5 29 V59 M158.7 29 V59 M163.3 29 V59 M165.4 29 V59 M166.2 29 V59 M167.5 29 V59 M168.3 29 V59 M170.4 29 V59 M174.0 29 V59 M176.6 29 V59 M177.9 29 V59 M180.0 29 V59 M182.7 29 V59 M186.8 29 V59 M193.9 29 V59 M201.4 29 V59 M205.4 29 V59 M208.7 29 V59 M213.4 29 V59 M216.8 29 V59 M217.1 29 V59 M219.9 29 V59 M223.1 29 V59 M225.7 29 V59 M231.9 29 V59 M239.2 29 V59 M243.1 29 V59 M247.5 29 V59 M252.5 29 V59 M257.8 29 V59 M258.3 29 V59 M263.8 29 V59 M266.3 29 V59 M269.2 29 V59 M271.9 29 V59 M273.9 29 V59 M276.3 29 V59 M279.3 29 V59 M286.1 29 V59 M289.0 29 V59 M295.7 29 V59 M301.6 29 V59 M303.8 29 V59 M309.0 29 V59 M316.8 29 V59 M323.6 29 V59 M327.9 29 V59 M331.1 29 V59 M334.9 29 V59 M336.3 29 V59 M338.2 29 V59 M341.6 29 V59 M345.6 29 V59 M349.9 29 V59 M352.2 29 V59 M353.8 29 V59 M358.3 29 V59 M360.7 29 V59 M366.1 29 V59 M369.4 29 V59 M372.6 29 V59 M373.9 29 V59 M374.9 29 V59 M377.2 29 V59 M379.5 29 V59 M381.7 29 V59 M383.1 29 V59 M383.3 29 V59 M383.6 29 V59 M385.2 29 V59 M386.0 29 V59 M386.2 29 V59 M386.4 29 V59 M386.4 29 V59 M387.6 29 V59 M388.1 29 V59 M389.4 29 V59 M390.2 29 V59 M390.3 29 V59 M391.1 29 V59 M391.7 29 V59 M392.3 29 V59 M394.0 29 V59 M395.5 29 V59 M396.9 29 V59 M398.0 29 V59 M399.0 29 V59 M400.9 29 V59 M401.4 29 V59 M403.4 29 V59 M405.0 29 V59 M405.9 29 V59 M407.3 29 V59 M410.1 29 V59 M413.3 29 V59 M414.7 29 V59 M418.8 29 V59 M421.8 29 V59 M426.0 29 V59 M428.8 29 V59 M430.3 29 V59 M433.5 29 V59 M435.5 29 V59 M437.7 29 V59 M440.1 29 V59 M444.2 29 V59 M448.2 29 V59 M450.1 29 V59 M453.3 29 V59 M457.1 29 V59 M459.7 29 V59 M460.7 29 V59 M461.6 29 V59 M462.6 29 V59 M462.9 29 V59 M464.3 29 V59 M465.1 29 V59 M466.4 29 V59 M468.0 29 V59 M470.0 29 V59 M470.4 29 V59 M472.2 29 V59 M473.6 29 V59 M475.5 29 V59 M475.9 29 V59 M476.6 29 V59 M477.6 29 V59 M478.2 29 V59 M479.7 29 V59 M481.3 29 V59 M482.6 29 V59 M484.2 29 V59 M484.8 29 V59 M485.8 29 V59 M487.6 29 V59 M490.2 29 V59 M491.0 29 V59 M492.5 29 V59 M494.9 29 V59 M497.8 29 V59 M498.9 29 V59 M501.7 29 V59 M501.9 29 V59 M504.1 29 V59 M506.4 29 V59 M507.8 29 V59 M508.5 29 V59"/>
-<circle cx="124.7" cy="44.0" r="1.6" fill="#1a3a5c"/>
-<circle cx="282.7" cy="44.0" r="1.6" fill="#1a3a5c"/>
-<circle cx="401.1" cy="44.0" r="1.6" fill="#1a3a5c"/>
-<circle cx="493.7" cy="44.0" r="1.6" fill="#1a3a5c"/>
+<circle cx="47.2" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="67.9" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="94.6" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="124.7" cy="39.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="124.7" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="124.7" cy="49.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="145.9" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="172.2" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="211.0" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="250.0" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="282.7" cy="41.5" r="1.4" fill="#1a3a5c"/>
+<circle cx="282.7" cy="46.5" r="1.4" fill="#1a3a5c"/>
+<circle cx="333.0" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="363.4" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="383.4" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="390.3" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="401.1" cy="39.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="401.1" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="401.1" cy="49.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="423.9" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="451.7" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="467.2" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="479.0" cy="44.0" r="1.4" fill="#1a3a5c"/>
+<circle cx="493.7" cy="41.5" r="1.4" fill="#1a3a5c"/>
+<circle cx="493.7" cy="46.5" r="1.4" fill="#1a3a5c"/>
 <text class="axl" x="30.0" y="73.0" text-anchor="start">1466</text>
 <text class="axl" x="510.0" y="73.0" text-anchor="end">1659</text>
 <text class="axl" x="270.0" y="73.0" text-anchor="middle">194 rings, 185 mm</text>

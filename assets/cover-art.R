@@ -33,17 +33,21 @@ crv <- fit$curves
 # ── panel 1: the core, pith side left, one line per ring boundary ──
 cTop <- 28; cBot <- 60
 edge <- x0 + cumsum(rw) / sum(rw) * (x1 - x0)
-decade <- yrs %% 50 == 0
+mid <- edge - rw / sum(rw) * (x1 - x0) / 2     # center of each ring
+# pinpricks as on a mounted core: one dot each decade, two at fifty years,
+# three on the century, stacked across the core
+decade <- yrs %% 10 == 0
+nDots <- ifelse(yrs %% 100 == 0, 3, ifelse(yrs %% 50 == 0, 2, 1))[decade]
+dotX <- rep(mid[decade], nDots)
+dotY <- (cTop + cBot) / 2 + unlist(lapply(nDots, function(n) (seq_len(n) - (n + 1) / 2) * 5))
 core <- c(
-  txt(x0, 16, "A core", "lbl"),
+  txt(x0, 16, "Series 645232", "lbl"),
   sprintf('<rect x="%d" y="%d" width="%d" height="%d" rx="2" fill="#f3e6cc" stroke="#b08a52" stroke-width="1"/>',
           x0, cTop, x1 - x0, cBot - cTop),
   sprintf('<path class="ring" d="%s"/>',
           paste0(sprintf("M%.1f %d V%d", edge[-length(edge)], cTop + 1, cBot - 1),
                  collapse = " ")),
-  # a pinprick every fifty years, as on a mounted core
-  sprintf('<circle cx="%.1f" cy="%.1f" r="1.6" fill="%s"/>',
-          edge[decade] - c(diff(c(x0, edge)))[decade] / 2, (cTop + cBot) / 2, ink),
+  sprintf('<circle cx="%.1f" cy="%.1f" r="1.4" fill="%s"/>', dotX, dotY, ink),
   txt(x0, cBot + 13, min(yrs)),
   txt(x1, cBot + 13, max(yrs), anchor = "end"),
   txt((x0 + x1) / 2, cBot + 13,

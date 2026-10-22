@@ -54,7 +54,7 @@ Every function knows what kind of series it wants. `detrend` wants widths. `rwi.
 
 ## Why Indices Aren't Widths
 
-An `rwi` object isn't an `rwl` object with something extra, on purpose. If it were, every function that wants widths would take indices without a word. Before 1.8.0 that's how it was: `rcs` and `cms` labelled their indices `rwl`, `detrend` returned a plain data frame, and nothing in `dplR` could tell indices from widths. Here is the mistake that made it matter.
+An `rwi` object isn't an `rwl` object with something extra, on purpose. If it were, every function that wants widths would take indices without a word. Before 1.8.0 that's how it was: `rcs` and `cms` labeled their indices `rwl`, `detrend` returned a plain data frame, and nothing in `dplR` could tell indices from widths. Here is the mistake that made it matter.
 
 ```{r}
 #| label: class-wrong-kind

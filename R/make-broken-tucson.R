@@ -35,7 +35,7 @@ make.broken.tucson <- function(out = "data/co021broken.rwl") {
   # 641143: the 1930s line pasted in twice.
   dup <- which(id == "641143" & substr(lines01, 9, 12) == "1930")
 
-  # 642121: labelled 642114, so two cores share an ID over the same years.
+  # 642121: labeled 642114, so two cores share an ID over the same years.
   i <- id == "642121"
   lines01[i] <- paste0("642114", substring(lines01[i], 7))
 
@@ -57,7 +57,7 @@ make.broken.tucson <- function(out = "data/co021broken.rwl") {
                "0.001 mm series with its -9999 stop marker missing",
                "nine-character ID (MV641132X) pushing the year out of columns 9-12",
                "1930s line repeated",
-               "labelled 642114, sharing an ID and years with another core",
+               "labeled 642114, sharing an ID and years with another core",
                paste0("letter O for zero in ", 1920 + hit - 1)),
     stringsAsFactors = FALSE
   )

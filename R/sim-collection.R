@@ -144,7 +144,7 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   }
 
   # ── competition: A as a stochastic process ──
-  # In a closed canopy, suppression and release by neighbours bend the age
+  # In a closed canopy, suppression and release by neighbors bend the age
   # trend into a shape no curve predicts (Cook 1990, p. 100). A slow,
   # smoothed AR(1) wander on the log scale, shared by the cores of a tree,
   # does that for

@@ -76,11 +76,11 @@ names(broken)
 How did the reader do against the table of what I planted?
 
 - The repeated 1930s line in 641143 is an exact copy of the line above it. The reader removed it and said so (`DUPLICATE_LINE`). A copy that differed in even one value would be a different problem, two values for the same year, and the reader would report that as a clash.
-- Two cores labelled 642114 cover the same years. The reader can't know which is which, so it kept both and renamed the second one 642114X (`ID_RENAMED`), and the renames table says so. Which core was really 642121 is something only the field notes can tell you.
+- Two cores labeled 642114 cover the same years. The reader can't know which is which, so it kept both and renamed the second one 642114X (`ID_RENAMED`), and the renames table says so. Which core was really 642121 is something only the field notes can tell you.
 - The letter O typed for a zero in 642143 isn't a number. The reader left that year as `NA` and said where (`NON_NUMERIC`), which makes it a gap in the middle of the series.
 - The nine-character ID cost the most. MV641132X runs into column 9, so the year field holds "X190" and the last digit of the last value on each full line lands in column 73. The reader couldn't make sense of the lines and discarded all seven of them (`BAD_YEAR`, `PAST_COL72`), so 641132 isn't in the result at all. It is not quietly misread, though. The warning prints every line it dropped.
 
-That's four out of five. The fifth is 641121, the series that lost its -9999, and it is the hard one. The reader noticed that the series ends without a stop marker and said so (`NO_STOP_MARKER`), but noticing is all it can do. The marker was the only place the file said the series was in thousandths, so with it gone the reader fell back on hundredths, and the warning tells you that's what it assumed. Up to `dplR` 1.8.0 it made the same assumption and said nothing.
+So the reader caught four of the five defects. The fifth is 641121, the series that lost its -9999, and it is the hard one. The reader noticed that the series ends without a stop marker and said so (`NO_STOP_MARKER`), but noticing is all it can do. The marker was the only place the file said the series was in thousandths, so with it gone the reader fell back on hundredths, and the warning tells you that's what it assumed. Up to `dplR` 1.8.0 it made the same assumption and said nothing.
 
 ```{r}
 #| label: tuc-scale
@@ -99,7 +99,7 @@ brokenCheck[brokenCheck$check == "RWL_SERIES_SCALE", c("series", "value")]
 cat(strwrap(brokenCheck$message[brokenCheck$check == "RWL_SERIES_SCALE"]), sep = "\n")
 ```
 
-Why five, when the error is ten? Because a lost stop marker multiplies whatever the series was, and a slow tree that was half the width of its neighbours comes back only five times wider. Trees that grow five times faster or slower than the rest of their stand are rare, though not unheard of, so a series flagged at five is a series to look at, and one near ten deserves a hard look at its units. When I ran the check over the ITRDB's ring-width files, a few hundred series in about 2 percent of files were five times off or more, and a handful of files had series ten times off. Before 1.8.1, nothing in `dplR` flagged any of them.
+Why five, when the error is ten? Because a lost stop marker multiplies whatever the series was, and a slow tree that was half the width of its neighbors comes back only five times wider. Trees that grow five times faster or slower than the rest of their stand are rare, though not unheard of, so a series flagged at five is a series to look at, and one near ten deserves a hard look at its units. When I ran the check over the ITRDB's ring-width files, a few hundred series in about 2 percent of files were five times off or more, and a handful of files had series ten times off. Before 1.8.1, nothing in `dplR` flagged any of them.
 
 In this file there is a second clue in the editor, since every value of 641121 ends in a zero. That's because I made it from data measured to the hundredth, and a series measured to the thousandth won't give you that clue.
 

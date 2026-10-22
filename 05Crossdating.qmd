@@ -1,220 +1,198 @@
 # Crossdating a Collection
 
-In this document we cover basic crossdating techniques in `dplR` by deliberately
-misdating one of the series in a well-dated set of ring widths and tracking
-down the dating error. As with any dating enterprise, statistical 
-crossdating is merely a tool and users should always rely on the wood to
-accurately date tree-ring data.
+:::{.callout-note title="Draft"}
+First draft of the rewrite, 2026-10-22. The 2022 walk-through of `corr.series.seg`, `ccf.series.rwl` and the skeleton plots moves to [Fixing Errors](06FixingErrors.qmd). Every number in the text is computed when the book builds. Needs dev dplR 1.8.1 for the ring-edit methods that plant the errors and for `rwl.check` inside the report. Open questions are in the backlog.
+:::
 
-## Introduction
+## Big Idea
 
-This gives an introduction of some of the crossdating functions in 
-dplR. This is essentially a rehashing of [@Bunn2010]. Please
-cite that paper if you use dplR for crossdating. There is more detailed 
-information on all these functions in the help files. 
+Every ring in a collection is a claim about a year. For a living tree the outermost ring is the year you cored it, and every ring inside it is a count back from there. Miss one ring, a locally absent one or one too narrow to see, and every ring inside it is labeled a year too late. Count a false ring as real and every ring inside it is a year too early. [Chapter 2](02CoresToRecord.qmd) showed what that does to a chronology. Crossdating is the method you use to find dating errors.
 
-## Using the xDater app
-Below I'll walk through using `dplR`'s crossdating functions on the command line. But I've also built a Shiny app for doing crossdating in an interactive graphical workflow that is one of the rare cases where an app and GUI are more useful than working in a script. This is definitely still in development and I plan on cleaning it up soon. It's meant to mimic a lot of the look and feel of COFECHA since that's what most folks are used to using. Here it is:
+Douglass did it by eye and with skeleton plots, and he was clear that no correlation formula should make a dating decision [@Douglass1941]. Richard Holmes's COFECHA added the statistics [@Holmes1983]. It cuts every series into overlapping segments, correlates each one with a master built from the other series, and flags the segments that fit badly or fit better somewhere else [@GrissinoMayer2001]. [Where dplR Comes From](01WhereDplRComesFrom.qmd) tells that story. For a generation of dendrochronologists COFECHA's output was what crossdating looked like on paper, and Grissino-Mayer's manual is how most of them learned to read it [@GrissinoMayer2001].
 
-[viz.datascience.arizona.edu/xDateR/](https://viz.datascience.arizona.edu/xDateR/){target="_blank"}
+In `dplR` that job belongs to `xdate.report`. It builds a crossdating report in COFECHA's layout, because that layout is what people know how to read, and it tells you where it does things differently. In this chapter we break a collection we trust in two places and see whether the report finds both. Holmes was as clear as Douglass about what the statistics are for. They say where to look. The wood says what happened.
 
-While the xDater app is cool, the [ringdater app](https://ringdater.shinyapps.io/launcher/){target="_blank"} from David Reynolds, David Edge & Bryan Black is also very handy Check that out too.
+## Try It Interactively First
 
-## Crossdating by hand in dplR
+A confession before any code: for crossdating, a script is often the harder way to work. You look at a flag, try a shift, look at the wood, insert a ring, and look again, and that loop is faster when you can click. That's what xDateR is for. It's a Shiny app that runs in a web browser, with nothing to install. It's built on `dplR`, `xdate.report` included, so its flags are the ones in this chapter. It has guided examples, and every report it writes includes R code that reproduces your edits from the original file. The [openDendro apps page](https://opendendro.org/apps/){target="_blank"} has the link to the live app, and the source is [on GitHub](https://github.com/OpenDendro/xDateR){target="_blank"}.
 
-Here is a walk through of using `dplR` for crossdating on the command line.
+So why a chapter on doing it in code? Because the app is `dplR` underneath, and knowing what it is doing makes you better at using it. And because a script is a record. When a reviewer asks how you dated a collection, "I clicked around" is a worse answer than a file.
 
-### Load dplR
-
-We will be using `dplR` in here. Load it:
+## Packages
 
 ```{r}
+#| label: xdate-setup
+#| message: false
 library(dplR)
+library(ggplot2)
+source("R/plant-dating-errors.R")
+source("R/sim-collection.R")
 ```
 
-## Ruining a Perfectly Good Data Set
+`R/plant-dating-errors.R` is a short script in the book's repository. It reads `co021` and misdates two of its series.
 
-Throughout this document we will use the on-board data set `co021` which gives the raw ring widths for Douglas fir *Pseudotsuga menziesii* at Mesa Verde in Colorado, USA. There are 35 series spanning 788 years. 
+## Two Planted Errors
 
-We will rename the `co021` object to `dat` because we are going to mess around with it and it seems like good practice to rename it. 
+Mesa Verde is the right collection to break. Its series agree with each other about as well as any collection in the ITRDB, so any trouble the report finds is trouble we put there.
 
 ```{r}
-data(co021)
-dat <- co021
-dat.sum <- summary(dat)
-mean(dat.sum$year)
-mean(dat.sum$stdev)
-mean(dat.sum$median)
-mean(dat.sum$ar1)
-mean(interseries.cor(dat)[, 1])
-plot(dat, plot.type="spag")
+#| label: xdate-plant
+co021Bad <- plant.dating.errors()
+planted <- attr(co021Bad, "planted")
+planted
 ```
-
-We can see that this is a beautifully sensitive collection with long segment lengths, high standard deviation (relative to ring widths), large first-order autocorrelation, and a high mean interseries correlation ($\mathrm{r}\approx 0.84$).
-
-To demonstrate how crossdating works in `dplR`, we will take this perfectly 
-lovely data set and corrupt the dating of one of the series. By doing so we 
-will be able to reenact one of the most common tasks of the dendrochronologist:
-tracking down a misdated core. Here we will take a random series and remove
-one of the years of growth. This simulates a missing ring in the series. We will 
-pick a random year in the core to give us a bit of a challenge in finding it.
 
 ```{r}
-set.seed(4576)
-i <- sample(x=nrow(dat), size=1)
-j <- sample(x=ncol(dat), size=1)
-tmp <- dat[, j]
-tmp <- c(NA, tmp[-i])
-dat[, j] <- tmp
+#| label: xdate-plant-numbers
+#| include: false
+co021 <- read.rwl("data/co021.rwl", format = "tucson")
+spans <- function(x, s) range(time(x)[!is.na(x[[s]])])
 ```
 
-We have now deleted the $i^{th}$ observation from the $j^{th}$ core while making sure that `dat` still has the appropriate numbers of rows. By sticking the NA at the
-start of the series it is as if we missed a ring while measuring.
+Series 645221 has lost its `r planted$year[1]` ring. The script deleted it with `delete.ring`, holding the outer ring at `r spans(co021Bad, "645221")[2]`, so every ring inside it slid a year later, and the series now starts in `r spans(co021Bad, "645221")[1]` where it used to start in `r spans(co021, "645221")[1]`. Series 643143 has its `r planted$year[2]` ring counted twice, and everything inside that slid a year earlier, to a start of `r spans(co021Bad, "643143")[1]`. Nothing else changed. These are the two mistakes a person makes counting rings, and [Fixing Errors](06FixingErrors.qmd) undoes them with the same two functions.
 
-## Series Correlation by Segment 
-The primary function for looking the crossdating of a tree-ring data set in 
-dplR is `corr.rwl.seg`. This function looks at the correlation between 
-each tree-ring series and a master chronology built from all the other series 
-in the rwl object (leave-one-out principle). These correlations are calculated
-on overlapping segments (e.g., 50-year segments would be overlapped by 
-25 years). By default, each of the series is filtered to remove low-frequency
-variation prior to the correlation analysis. The help file has abundant 
-details. Here we will look at overlapping 60 year segments. A plot is 
-produced by default with `corr.rwl.seg`.
-
-In the `corr.rwl.seg` plot, each segment of each series 
-is shown and colored by its correlation with the master. Each series is 
-represented by two courses of lines with the bottom course adhering to the 
-bottom axis timeline and the top course matching the upper axis timeline. 
-Segments are colored according to the strength of the correlation between 
-that segment and the master chronology. Blue correlates well (p-values less 
-or equal to the user-set critical value) while potential dating problems 
-are indicated by the red segments (p-values greater than the user-set 
-critical value). Green lines show segments that do not completely overlap 
-the time period and thus have no correlations calculated. Our modified data 
-set indicates one series with dating problems.
-```{r}
-rwl.60 <- corr.rwl.seg(dat, seg.length=60, pcrit=0.01)
-```
-
-In this figure, each 60-year segment of each series in the  modified Mesa 
-Verde data set is shown and colored by its correlation with the master.
-Our modified data set indicates one series with dating problems.
-
-## Individual Series Correlation
-
-The low correlation between series `643114` and the master indicates a dating 
-problem. Now that we suspect a dating problem, let us take a closer look at this problem child. The figure above shows that series `643114` begins to lose correlation with the master at the end of the 19th century.
+## The Report
 
 ```{r}
-seg.60 <- corr.series.seg(rwl=dat, series="643114",
-                          seg.length=60)
+#| label: xdate-report
+co021Report <- xdate.report(co021Bad, title = "co021 with two planted errors")
 ```
 
-Correlations between series `643114` and the master chronology are 
-shown with horizontal lines according (60-year segments lagged by 30 years). 
-A centered running correlation with a length of 60 years complements the 
-segment correlations. The critical level is shown with a dashed line.
-
-## Using Cross Correlation
-
-This figure strongly indicates that the dating in the series `643114`
-begins to deteriorate between 1850 and 1910. We can create a window (`win`) of years
-and subset `dat` to the window if years we want to look at. Then we can look more closely at this time period and compute a cross-correlation function to look at lagged correlations to see if we can spot the dating problem.
+The whole report is a few hundred lines, in COFECHA's layout: a summary, the correlation of every segment of every series, a list of flagged segments, descriptive statistics for each series, the findings of `rwl.check`, and notes on how the report was made. `print(co021Report)` shows it all, and `write.xdate.report` saves it to a file, as plain text or as a web page. Here is the summary at the top.
 
 ```{r}
-win <- 1800:1960
-dat.yrs <- time(dat)
-dat.win <- subset(dat,dat.yrs %in% win)
-ccf.30 <- ccf.series.rwl(rwl=dat.win, series="643114", 
-                         seg.length=30, bin.floor=50)
+#| label: xdate-report-head
+cat(head(format(co021Report), 19)[-(1:3)], sep = "\n")
 ```
-
-Cross-correlations between series `643114` and the master 
-chronology are shown for each segment (30-year segments lagged by 15 years). 
-The series correlates well at lag 0 until the 1865--1894 bin and then at 
-lag +1 prior to 1865.
-
-This figure shows that 1865 to 1894 is the misdated part of 
-this series. The lag of +1 over a lag of 0 indicates that the series
-`643114` is missing a ring as it better correlates to the master 
-chronology with a one-year offset.^[As of dplR version 1.60,
-the cross correlations in `ccf.series.rwl` are calculated calling
-`ccf(x=series, y=master, lag.max=lag.max, plot=FALSE)`. Note that
-prior to dplR version 1.60, the `master` was set as `x` and 
-the `series` as `y`. This was changed to be more in line with 
-user expectations so that a missing ring in a series produces a positive
-lag in the plot rather than a negative lag. This structure of this call
-does put the plots at odds with Figure 3 in [-@Bunn2010] which is 
-unfortunate.] 
-
-Using a smaller time window and shorter correlation segments we
-can try to further isolate the switch from correlation at lag 0 to lag +1.
-We will, of course, have to be very careful about using such short segments
-for correlation and be ready to adjust our expectations accordingly. 
-Fortunately, in this case the trees are so exquisitely sensitive that we can
-look at 20-year segments with some confidence.
 
 ```{r}
-win <- 1850:1900
-dat.win <- subset(dat,dat.yrs %in% win)
-ccf.20 <- ccf.series.rwl(rwl=dat.win, series="643114",
-                         seg.length=20, bin.floor=0)
+#| label: xdate-report-numbers
+#| include: false
+settings <- co021Report$settings
+flagged <- co021Report$flagged
+nSeg <- sum(co021Report$stats$n.seg)
 ```
 
-Cross-correlations between series `643114' and the master 
-chronology at 20-year segments lagged by 10 years over 1850--1900.
+What did it do? Every series was divided by a 32-year spline and then prewhitened with an autoregressive model, which leaves the year-to-year wiggles and takes out each tree's slow trend and its memory. Each series was cut into 50-year segments that overlap by 25 years, and each segment was correlated with a master built from all the other series. Then each segment was slid up to 10 years either way to see whether it fit better somewhere else. Those are COFECHA's defaults. Why a spline, why 32 years, and why prewhiten at all is a story for the [aside on the crossdating statistics](07xAsideCrossdatingStats.qmd).
 
-By 1879 the correlation between series `643114` and the master is solidly at 
-lag +1. The 1870 to 1889 correlation is marginal 
-while the dating at 1880--1899 seems accurate (lag 0). This suggests that 
-the dating error is between 1879 and 1889.
+Of the `r nSeg` segments tested, `r nrow(flagged)` are flagged. COFECHA's two flags are kept as Grissino-Mayer describes them [@GrissinoMayer2001, p. 212]. An A flag is a segment whose correlation with the master is below the critical value, `r sprintf("%.4f", qt(0.99, 48) / sqrt(48 + qt(0.99, 48)^2))` here, and that doesn't fit any better anywhere else. A B flag is a segment that correlates better with the master at some other position than where it is dated.
 
-At this point we could repeat the cross-correlation using even more carefuly to get even closer to the bad year if we wanted to. But at this point going and looking at the wood in that neighborhood would be the best option. Statistics only gets you so far.
+## Reading the Flags
 
-## Visual Crossdating
-
-We have strong inference now that series `643114` is misdated somewhere in a ten
-year period around 1885. One final tool that `dplR` has is the ability to combine 
-the visual style of crossdating using skeleton plots with the statistical 
-approach of cross-correlation analysis. The `skel.ccf.plot` function does 
-just this. Here we make a skeleton plot from the 40-year period around the 
-suspected dating error (1885):
+A picture first. Each series is a bar, cut into its segments.
 
 ```{r}
-xskel.ccf.plot(rwl=dat, series="643114",
-               win.start=1865, win.width=40)
+#| label: xdate-crs-plot
+#| fig-height: 7
+#| fig-cap: "Segment correlations for `co021` with two planted errors. Blue segments correlate well with the master where they are dated, purple ones correlate better at another position (B flags), and red ones are weak but best where they are (A flags). Green marks the ends of a series where a full segment can't be tested."
+plot(co021Report$crs)
 ```
 
-The top panel shows the normalized values for the master chronology
-(bottom half) and the series `643114` (top half) in green. The values are
-relative. Similarly, the black lines are a skeleton plot for the master and 
-series with the marker years annotated for the master on the bottom axis and 
-series `643114` on the top. The text at the top of the figure gives the
-correlation between the series and master (green bars) as well as the percentage 
-of agreement between the skeleton bars for the series and master. The bottom
-panels show cross correlations for the first half (left) and second half of 
-the time series. In this case, the early period (1865--1884) shows a mismatch
-of the skeleton plot by one year coupled with a strong lag +1 correlation.
+Two series have runs of purple, and nothing else does. The list of flagged segments says what each run means.
 
-At this point the analyst would go to the wood and take a good look at the 
-core and see what they could find out. There are more heroic efforts that 
-one could go to to figure out exactly where the dating problem might be 
-but nothing ever takes the place of looking at the sample!
-
-## Conclusion
-
-We have strong inference now that series `643114` is misdated somewhere in a ten
-year period around 1885. We have still not revealed whether this is correct
-or not. Let us look at the values for `i` and `j` and see how we did:
 ```{r}
-j
-colnames(co021)[j]
-i
-rownames(co021)[i]
+#| label: xdate-flagged
+flagShow <- flagged[, c("series", "from", "to", "flag", "r.dated", "best.lag", "r.lag")]
+flagShow$r.dated <- round(flagShow$r.dated, 2)
+flagShow$r.lag <- round(flagShow$r.lag, 2)
+flagShow
 ```
 
+```{r}
+#| label: xdate-flagged-numbers
+#| include: false
+f645 <- flagged[flagged$series == "645221", ]
+f643 <- flagged[flagged$series == "643143", ]
+```
 
-Our sleuthing indicated that our dating error was around the year 1885. In
-fact, `i` was the year 1884.
+Start with 645221. Every flagged segment, from `r min(f645$from)` to `r max(f645$to)`, correlates with the master at about `r sprintf("%.2f", median(f645$r.dated))` where it is dated and at about `r sprintf("%.2f", median(f645$r.lag))` one year over. The sign of the lag says which way. `dplR` follows COFECHA here: a negative lag means the series lines up with the master when it is moved a year earlier, so its rings are dated too late, so a ring is missing. After the run, the segments are fine. The error is where the misdating stops, in the last flagged segment, `r max(f645$from)` to `r max(f645$to)`. The ring we deleted was `r planted$year[1]`.
 
+Now 643143. Same pattern, opposite sign: lag `r unique(f643$best.lag)` from `r min(f643$from)` to `r max(f643$to)`, which means rings dated too early and a ring counted that isn't there. The last flagged segment is `r max(f643$from)` to `r max(f643$to)`. The duplicated ring was `r planted$year[2]`.
+
+The report found both errors and flagged nothing else. In both series the planted year falls in the last flagged segment. That's as far as a report can take you: it gives you fifty years to search. [Fixing Errors](06FixingErrors.qmd) narrows that down with finer tools, and then with the wood.
+
+Notice how big the gains are, too. A dated correlation near zero becomes one near 0.9 with a one-year shift. Gains like that are what a dating error looks like in a collection this strong. A flag where the shift gains only a few hundredths may be noise, and the next section is about where those come from.
+
+## Segments Find What a Whole Series Hides
+
+The report ends with the findings of `rwl.check`, which checks each series as a whole against the master. Here is what that found.
+
+```{r}
+#| label: xdate-whole-series
+checkFindings <- as.data.frame(co021Report$check)
+checkFindings[checkFindings$severity != "note", c("check", "severity", "series", "value")]
+```
+
+```{r}
+#| label: xdate-whole-series-numbers
+#| include: false
+seriesCor <- co021Report$check$series
+r643 <- seriesCor$r[seriesCor$series == "643143"]
+r645 <- seriesCor$r[seriesCor$series == "645221"]
+misdated643 <- sum(time(co021Bad) < planted$year[2] & !is.na(co021Bad[["643143"]]))
+```
+
+It catches 645221 and misses 643143. Why? Only the first `r misdated643` of 643143's `r sum(!is.na(co021Bad[["643143"]]))` rings are misdated, and averaged over the whole series the correctly dated part carries it: its correlation with the master is `r sprintf("%.2f", r643)`, lower than the collection's median of `r sprintf("%.2f", median(seriesCor$r, na.rm = TRUE))` but well clear of any alarm. 645221 is misdated over most of its length and falls to `r sprintf("%.2f", r645)`. That is the reason COFECHA cut series into segments in the first place. An error near the inner end of a long core barely moves a whole-series correlation, and a segment that contains it can't hide it.
+
+## When the Signal Is Weak
+
+Mesa Verde makes this look easy. Its series correlate with the master at `r sprintf("%.2f", weighted.mean(co021Report$stats$corr, co021Report$stats$n.years, na.rm = TRUE))` on average, and that is near the top of the ITRDB. Most collections are weaker, and a weaker collection can't find errors as reliably, and it raises flags on series that are dated correctly. How much weaker before the report stops being useful?
+
+That's a question for a collection where we know the answer. The simulated stand from [Chapter 2](02CoresToRecord.qmd) has one missing ring, in SIM03A at 1800, and I can turn its common signal down. Here it is at three strengths, twenty simulated stands each.
+
+```{r}
+#| label: xdate-weak
+weakRun <- function(rbar, seed) {
+  sim <- sim.collection(rbar.bt = rbar, rbar.wt = rbar + 0.2, seed = seed)
+  report <- suppressWarnings(xdate.report(sim$rwl))
+  f <- report$flagged
+  planted <- f$series == "SIM03A"
+  data.frame(rbar = rbar,
+             corr = weighted.mean(report$stats$corr, report$stats$n.years,
+                                  na.rm = TRUE),
+             found = any(planted & f$flag == "B" & f$best.lag == -1 & !f$weak),
+             falseB = sum(!planted & f$flag == "B" & !f$weak),
+             falseA = sum(!planted & f$flag == "A"),
+             segments = sum(report$stats$n.seg))
+}
+weak <- do.call(rbind, lapply(c(0.4, 0.2, 0.1), function(r) {
+  do.call(rbind, lapply(1:20, function(s) weakRun(r, s)))
+}))
+weakTable <- aggregate(cbind(corr, found, falseB, falseA, segments) ~ rbar,
+                       data = weak, FUN = mean)
+weakTable <- weakTable[order(-weakTable$rbar), ]
+round(weakTable, 2)
+```
+
+```{r}
+#| label: xdate-weak-numbers
+#| include: false
+wt <- function(r, col) weakTable[weakTable$rbar == r, col]
+wa082Report <- suppressWarnings(xdate.report(read.rwl("data/wa082.rwl", format = "tucson")))
+wa082Corr <- weighted.mean(wa082Report$stats$corr, wa082Report$stats$n.years, na.rm = TRUE)
+```
+
+`rbar` is the between-tree correlation I built in, `corr` the average correlation with the master that the report would print at the top, `found` the share of stands where SIM03A got a B flag at lag -1, and the last three columns the false flags and the number of segments tested, per stand. At the default strength the series correlate with the master at about `r sprintf("%.2f", wt(0.4, "corr"))`, against `r sprintf("%.2f", wa082Corr)` for Hurricane Ridge, and the missing ring is found every time, with fewer than one false B flag per stand among `r round(wt(0.4, "segments"))` segments. Halve the shared signal and the master correlation drops to `r sprintf("%.2f", wt(0.2, "corr"))`. The report still finds the missing ring in `r round(100 * wt(0.2, "found"))` percent of stands, and it now raises `r round(wt(0.2, "falseB"))` B flags and `r round(wt(0.2, "falseA"))` A flags on series that are dated correctly. At `r sprintf("%.2f", wt(0.1, "corr"))` it finds the error `r round(100 * wt(0.1, "found"))` percent of the time, under `r round(wt(0.1, "falseB"))` false B flags and `r round(wt(0.1, "falseA"))` false A flags per stand.
+
+So read a report with the collection's strength in mind. In a collection like Mesa Verde a B flag is very likely a dating problem. In a weak one most B flags are noise, and the size of the gain is a better guide than the letter. The report helps: a B flag whose best correlation is itself below the critical value is marked "weak at every lag", and I left those out of the counts above. [Fixing Errors](06FixingErrors.qmd) is about what to do with a flag once you have one.
+
+## Wrapping Up
+
+`xdate.report` cuts every series into segments, correlates each against a master built from the rest, and flags the segments that fit badly or fit better a few years away. On a strong collection it found both planted errors, gave the direction of each, and put each within half a century. It didn't find the rings themselves, and it can't tell you what happened in the wood. A locally absent ring that nobody marked and a ring the measurer skipped look exactly the same to it. It found the two errors because Mesa Verde's trees agree so well, and on a weaker collection the same flags mean less.
+
+The next chapter, [Fixing Errors](06FixingErrors.qmd), takes the two flagged series from half a century down to a year, puts the rings back, and runs the report again.
+
+## Exercises
+
+1. Plant your own error. Use `delete.ring` or `insert.ring` on a series of your choice in `co021`, near the inner end of a long series, and see whether `xdate.report` finds it. Does `rwl.check` on its own?
+2. Run `xdate.report` on `co021Bad` with `seg.length = 30` and again with `seg.length = 100`. How do the runs of flags change, and what do you gain and lose with each?
+3. Change `nyrs` to 20, the spline Holmes first used, and to 100. Do the same errors show up?
+4. Run `xdate.report` on `wa082`, read from `data/wa082.rwl`. Which series does it flag, at what lags, with what gains? Which would you take to the wood first, and why? Nobody has planted anything here, and nobody knows the answer.
+5. Open xDateR's example data in the app and find the errors planted there.
+
+## Further Reading
+
+- @Holmes1983 is COFECHA's first description. It is short, and it explains why the segments and the spline are there.
+- @GrissinoMayer2001 is the COFECHA manual, with a tutorial on reading every part of the output. Most of what `xdate.report` prints is described there.
+- @Douglass1941 is the founder of the field on what crossdating is and on why a correlation can't replace looking at the wood.
+- @Bunn2010 describes `dplR`'s crossdating functions as they were first written. Some defaults have changed since. Please cite it if you use `dplR` for crossdating.

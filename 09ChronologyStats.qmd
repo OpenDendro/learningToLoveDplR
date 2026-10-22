@@ -290,7 +290,7 @@ wa082Full[, c("start.year", "end.year", "n", "rbar.eff", "eps")]
 
 All `r wa082Stats$n.trees` trees are there from `r min(wa082Full$start.year)` on, and EPS still drops, from `r wa082Full$eps[1]` to `r wa082Full$eps[nrow(wa082Full)]`. Depth can't explain that. The effective rbar peaks at `r max(wa082Run$rbar.eff)` in the window centered on `r wa082Run$mid.year[which.max(wa082Run$rbar.eff)]` and is about half that by the end.
 
-Why? I don't know, and the statistic can't say. It could be the stand, the climate, the trees getting old, or the detrending. A falling rbar at full depth tells you where to look. It doesn't tell you what you will find.
+Why? I don't know, and the statistic can't say. It could be the stand, the climate, the trees getting old, or the detrending. What a falling rbar at full depth gives you is a stretch of years to go and investigate.
 
 ### How Noisy Is a Window?
 
@@ -298,7 +298,7 @@ The first Hurricane Ridge window rests on `r wa082Run$n.bt[1]` between-tree corr
 
 ```{r}
 #| label: fig-stats-windows
-#| fig-cap: "Running EPS for Hurricane Ridge with 30-year (dotted), 50-year (solid) and 100-year (dashed) windows. The grey line is 0.85."
+#| fig-cap: "Running EPS for Hurricane Ridge with 30-year (dotted), 50-year (solid) and 100-year (dashed) windows. The gray line is 0.85."
 runWindow <- function(len) {
   run <- rwi.stats.running(wa082Rwi, wa082Ids, window.length = len)
   data.frame(window = paste(len, "years"), year = run$mid.year, eps = run$eps)
@@ -365,7 +365,7 @@ ggplot(sssBoth, aes(x = year, y = sss)) +
 
 Because SSS uses one rbar, it has no windows and none of the noise that comes with them. It moves only when a tree joins or drops out. That makes it the better tool for the question people usually bring to running EPS, which is where the early part of a chronology stops being trustworthy.
 
-It has a catch, and it is easy to miss. SSS is relative to your own full sample. An SSS of one means the chronology is as good as these trees can make it. It doesn't mean the chronology is good.
+It has a catch, and it is easy to miss. SSS is relative to your own full sample. An SSS of one means the chronology is as good as these trees can make it. If the trees agree poorly, that can still be a poor chronology.
 
 ```{r}
 #| label: stats-sss-relative

@@ -138,7 +138,7 @@ At Hurricane Ridge the residual chronology sits at `r round(arsLag1["wa082", "re
 
 (The `ars` column depends on `dplR` 1.8.1 or later. Earlier versions put the pooled model back before the second whitening, and at a site like Hurricane Ridge the ARSTAN chronology came out negatively autocorrelated.)
 
-So which of the three do you use? It depends on what the chronology is for. If the question is about year-to-year response, the residual chronology removes a problem before it starts. If the slow variation is the point, the choice is between the standard chronology, which carries every tree's persistence into the mean, and the ARSTAN chronology, which carries only what the pooled model finds in common. Check the lag-one numbers either way. The names of the columns describe the method. They don't promise the result.
+So which of the three do you use? It depends on what the chronology is for. If the question is about year-to-year response, the residual chronology removes a problem before it starts. If the slow variation is the point, the choice is between the standard chronology, which carries every tree's persistence into the mean, and the ARSTAN chronology, which carries only what the pooled model finds in common. Check the lag-one numbers either way, because a column called `res` can still be autocorrelated, as Hurricane Ridge's is.
 
 ## Where Should It Start?
 
@@ -186,7 +186,7 @@ ggplot(earlyBoth, aes(x = year, y = std)) +
 
 Why do they disagree? The depth rule counts cores and knows nothing else. It gives the same answer for a stand where the trees agree at 0.8 and a stand where they agree at 0.2, and it counts two cores from one tree as two. SSS counts trees and uses rbar. At Mesa Verde `r bothCutoffs["co021", "treesAtSss85"]` trees are already a good stand-in for all `r length(unique(co021Ids$tree))`. At Hurricane Ridge it takes `r bothCutoffs["wa082", "treesAtSss85"]`.
 
-I use SSS, because a rule that ignores how well the trees agree is ignoring the thing that matters most. Remember what the last chapter said about it, though. SSS is relative to your own full sample, and 0.85 is a convention. If the answer to your research question depends on whether the chronology starts in `r bothCutoffs["wa082", "fiveSeries"]` or `r bothCutoffs["wa082", "sss85"]`, the cutoff is not your problem. The trees are.
+I use SSS, because a rule that ignores how well the trees agree is ignoring the thing that matters most. As the last chapter showed, SSS is relative to your own full sample, and 0.85 is a convention. If the answer to your research question depends on whether the chronology starts in `r bothCutoffs["wa082", "fiveSeries"]` or `r bothCutoffs["wa082", "sss85"]`, no cutoff will settle it. The trouble is in those years themselves: too few trees, agreeing too weakly.
 
 ### Cut Before or After Detrending?
 
@@ -235,7 +235,7 @@ ggplot(ciPlot, aes(x = year)) +
   theme_minimal()
 ```
 
-Before you put that figure in a paper, be clear about what the band is. It is uncertainty in the mean of these series in each year. If you went back to Hurricane Ridge and cored a different set of trees, the band says roughly where their mean would fall. It is not the uncertainty of a climate reconstruction. A reconstruction has its own error, from the fit between the chronology and the climate record, and that error is usually a good deal larger. A narrow band here says the trees agree. It says nothing about what they agree on.
+Before you put that figure in a paper, be clear about what the band is. It is uncertainty in the mean of these series in each year. If you went back to Hurricane Ridge and cored a different set of trees, the band says roughly where their mean would fall. It is not the uncertainty of a climate reconstruction. A reconstruction has its own error, from the fit between the chronology and the climate record, and that error is usually a good deal larger.
 
 ### Cores Are Still Not Trees
 
@@ -339,7 +339,7 @@ round(stabBlocks, 2)
 
 ```{r}
 #| label: fig-crn-stabilized
-#| fig-cap: "The Hurricane Ridge chronology before (grey) and after (black) variance stabilization with chron.stabilized."
+#| fig-cap: "The Hurricane Ridge chronology before (gray) and after (black) variance stabilization with chron.stabilized."
 stabPlot <- data.frame(year = time(wa082Crn),
                        standard = wa082Crn$std,
                        stabilized = wa082Stab$vsc)

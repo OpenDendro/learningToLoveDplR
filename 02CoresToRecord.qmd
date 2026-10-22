@@ -178,7 +178,7 @@ filtAt <- function(k) lagTable$r[lagTable$data == "Filtered" & lagTable$shift ==
 rawAt <- function(k) sapply(k, function(j) lagTable$r[lagTable$data == "Raw widths" & lagTable$shift == j])
 ```
 
-On the raw widths every shift correlates positively, from `r round(min(rawAt(shifts)), 2)` to `r round(max(rawAt(shifts)), 2)`. The best of them is a year off, but the dated position at `r round(rawAt(0), 2)` doesn't stand out from its neighbours, and if you only ever looked at the dated position you would pass it. After filtering, the dated position drops to `r round(filtAt(0), 2)` and a shift of one year gives `r round(filtAt(1), 2)`. The rings before `r simTruth$errors$year` line up when they are moved one year earlier, which is exactly what a missing ring does to them.
+On the raw widths every shift correlates positively, from `r round(min(rawAt(shifts)), 2)` to `r round(max(rawAt(shifts)), 2)`. The best of them is a year off, but the dated position at `r round(rawAt(0), 2)` doesn't stand out from its neighbors, and if you only ever looked at the dated position you would pass it. After filtering, the dated position drops to `r round(filtAt(0), 2)` and a shift of one year gives `r round(filtAt(1), 2)`. The rings before `r simTruth$errors$year` line up when they are moved one year earlier, which is exactly what a missing ring does to them.
 
 You won't do this by hand in practice. `xdate.report` runs that check for every series against every other, in overlapping segments, and flags the ones that line up better somewhere else. It is COFECHA's design: 50-year segments overlapping by 25, each series left out of the master it is compared with.
 
@@ -215,7 +215,7 @@ How good is that estimate? With a field collection you can only argue about it. 
 ```{r}
 #| label: cores-detrend
 #| fig-height: 6
-#| fig-cap: "Ring widths (grey), the true age trend (thick line), and two fitted curves for an open-grown tree (SIM05A) and a crowded one (SIM06A). Both curves get the open-grown tree right. Neither can follow the crowded tree's competition history."
+#| fig-cap: "Ring widths (gray), the true age trend (thick line), and two fitted curves for an open-grown tree (SIM05A) and a crowded one (SIM06A). Both curves get the open-grown tree right. Neither can follow the crowded tree's competition history."
 curveFor <- function(series, method) {
   x <- simFixed[[series]]
   ok <- !is.na(x)
@@ -255,7 +255,7 @@ For the open-grown tree, both curves correlate with the true trend at `r round(m
 
 Cook saw this coming. The aggregate model assumes its parts don't covary, and he said plainly that the assumption fails when a disturbance lasts a long time compared with the series. Then the trend you fit is partly the disturbance, and no method can pull the two apart without assuming a shape for $A_t$ in advance [@Cook1987]. The crowded tree is that case.
 
-Is that bad? It depends on what you want, and that is the theme of the [Standardization and Chronologies](08Detrending.qmd) part. The spline here is the same tool as the 32-year spline in the dating section, used from the other side. For dating it takes out what you don't want to compare. For detrending it decides what you keep.
+Is that bad? It depends on what you want, and that is the theme of the [Standardization and Chronologies](08Detrending.qmd) part. The spline here is the same tool as the 32-year spline in the dating section, used from the other side. In dating, the spline removes slow changes so they don't swamp the comparison. In detrending, the same removal decides how much slow variation the chronology keeps.
 
 ## The Stand Event
 
@@ -319,7 +319,7 @@ They track each other, and that is no accident. EPS is defined as a squared corr
 
 Notice the condition hiding in that paragraph. EPS tracks the climate here because I made climate the main thing the trees share. EPS measures agreement, and agreement is $C_t$ plus $D2_t$.
 
-Douglass's first principle of interpretation was that when many independent trees over a wide area and a long time vary together, the cause is climate, because climate is the one factor they all share [@Douglass1941]. It is a good rule. Look at the conditions on it, though. Many trees, a wide area, a long time. A single stand in a single decade meets none of them. Here is the event in `r simTruth$event$year`.
+Douglass's first principle of interpretation was that when many independent trees over a wide area and a long time vary together, the cause is climate, because climate is the one factor they all share [@Douglass1941]. The rule comes with conditions: many trees, a wide area and a long time. A single stand in a single decade meets none of them. Here is the event in `r simTruth$event$year`.
 
 ```{r}
 #| label: cores-event
@@ -407,7 +407,7 @@ gap <- function(span) {
 c(before = gap(1940:1949), after = gap(1950:1959))
 ```
 
-Tree 10 runs `r abs(round(gap(1940:1949), 2))` below the chronology in the 1940s and `r round(gap(1950:1959), 2)` above it in the 1950s. In the chronology that release is a small wobble, diluted by the other trees. In the tree it is the whole story.
+Tree 10 runs `r abs(round(gap(1940:1949), 2))` below the chronology in the 1940s and `r round(gap(1950:1959), 2)` above it in the 1950s. In the chronology the release shrinks to a small wobble, because the other trees dilute it. If you're studying how trees respond to a release, that wobble is the thing you came for.
 
 So a record is solid only for a purpose. A chronology that is good for climate can be blind to the forest's history, and a stand-wide event can pass itself off as climate in a chronology that otherwise looks excellent. The [Trees and Disturbance](15BasalArea.qmd) part takes the ecologist's side, and the [Time Series](13SmoothingFiltering.qmd) part looks at what a finished chronology contains.
 
@@ -475,7 +475,7 @@ The model is too simple to fit, but it tells you what each method is trying to e
 
 - @Cook1987 is the aggregate model in full, with ring-width series from open and closed stands showing what each part looks like in wood. It is a scan, but the first eight pages are the ones to read. @Cook1990model is the six-page version in the Cook Book. Read one now and again after the detrending chapters.
 - @cook1985 is the dissertation behind both, and behind much of how `dplR` standardizes ring widths.
-- @Schulman1941 is three pages on the principles of selection, crossdating and sensitivity as practised in Tucson, followed by a set of propositions on false and absent rings. Short, and it has aged well.
+- @Schulman1941 is three pages on the principles of selection, crossdating and sensitivity as practiced in Tucson, followed by a set of propositions on false and absent rings. Short, and it has aged well.
 - @Douglass1941 is Douglass answering a skeptic in the *Journal of Forestry*, with photographs of ring patterns matched across trees. It is the source of the rule that the wood decides the dating.
 - @Fritts1966 explains the biology behind $A_t$ and $C_t$ in seven pages of *Science*, including why trees at the dry forest border record climate best. @Fritts2001 is the long version.
 - @Holmes1983 introduces COFECHA. Nearly every crossdating program since, `xdate.report` included, follows its design.

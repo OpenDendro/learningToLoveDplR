@@ -177,7 +177,7 @@ co021Sheet <- read.sheet(sheetFile)
 all.equal(co021, co021Sheet, check.attributes = FALSE)
 ```
 
-Same `r ncol(co021Sheet)` series, same values. A spreadsheet has no stop codes, so there is nothing in the file to say what precision the measurements were taken at. The reader works it out from the values.
+The round trip gives back the same `r ncol(co021Sheet)` series with the same values. A spreadsheet has no stop codes, so there is nothing in the file to say what precision the measurements were taken at. The reader works it out from the values.
 
 The Heidelberg format, which TSAP writes, is common in European labs, and `read.fh` reads it. There are also readers for the compact format (`read.compact`) and TRiDaS (`read.tridas`). I've seen very little data in either, and they get no example here.
 

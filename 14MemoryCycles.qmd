@@ -86,7 +86,7 @@ acf(residuals(dat.arima))
 ```
 
 
-This is clearly an incredibly shallow look at a deep topic. Hopefully these will get you started with different tools to characterize temporal structure in data. There are many more resources available and techniques we haven't covered (e.g., GARCH modelling). 
+This is clearly an incredibly shallow look at a deep topic. Hopefully these will get you started with different tools to characterize temporal structure in data. There are many more resources available and techniques we haven't covered (e.g., GARCH modeling). 
 
 ## Frequency Domain
 
