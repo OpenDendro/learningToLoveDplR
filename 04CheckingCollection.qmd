@@ -23,29 +23,46 @@ wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
 
 These are the files from the previous chapter, read the same way. That matters for `wa082`. The on-board copy holds a zero in 1900 where the file has no measurement, and this chapter is partly about that gap.
 
-## The Report
+## Checking Mesa Verde
 
-`rwl.report` gives a page about a collection.
-
-```{r}
-#| label: check-report-co021
-rwl.report(co021)
-```
-
-Most of that page is the absent rings. `co021` has `r sum(co021 == 0, na.rm = TRUE)` of them, `r round(100 * mean(co021 == 0, na.rm = TRUE), 1)` percent of all the measurements, and the report lists every one by series. Look down that list and some years keep coming back. In 1585, `r sum(co021["1585", ] == 0, na.rm = TRUE)` of the `r sum(!is.na(co021["1585", ]))` series have no ring at all, and `r sum(co021["1584", ] == 0 & co021["1585", ] == 0, na.rm = TRUE)` of them are missing both 1584 and 1585. Absent rings that line up across trees are dating evidence, and the crossdating chapters use them.
-
-Is that a lot? St. George and colleagues counted the absent rings in 2,359 Northern Hemisphere ring-width records from the ITRDB [@StGeorge2013]. Over all of them there was one absent ring for every 240 present, and 0.6 percent of Douglas-fir rings were absent. Mesa Verde has one for every `r round(sum(co021 > 0, na.rm = TRUE) / sum(co021 == 0, na.rm = TRUE))`. More than half of their records had no absent rings at all, and the ones with more than 2 percent were all in the American Southwest. Where many records in the Southwest lost a ring in the same year, the year was a severe drought. I haven't checked Mesa Verde's absent years against a drought record, so that's as far as I'll go here.
-
-Hurricane Ridge is a much shorter page.
+`rwl.check` does two jobs. It describes a collection, and it reads through it looking for anything that will cause trouble later.
 
 ```{r}
-#| label: check-report-wa082
-rwl.report(wa082)
+#| label: check-rwlcheck-co021
+co021Check <- rwl.check(co021)
+co021Check
 ```
 
-No absent rings, and one internal `NA`: series 712011 in 1900. The warning about internal `NA` values is the report's way of saying that a lot of `dplR` will refuse this series until you decide what to do with that year.
+```{r}
+#| label: check-rwlcheck-co021-numbers
+#| include: false
+co021Findings <- as.data.frame(co021Check)
+coRuns <- co021Findings[co021Findings$check == "RWL_CONSECUTIVE_ZERO", ]
+```
 
-Two numbers in the reports are worth reading side by side. The mean interseries correlation is `r round(mean(interseries.cor(co021)[, 1]), 2)` at Mesa Verde and `r round(mean(interseries.cor(wa082)[, 1]), 2)` at Hurricane Ridge. That is the gap between a collection where everything agrees and an ordinary one, and A2 puts both against the rest of the ITRDB. The series at Hurricane Ridge average `r round(mean(colSums(!is.na(wa082))))` years. At Mesa Verde they average `r round(mean(colSums(!is.na(co021))))`.
+The top of the printout is the description. Mesa Verde's file has no header, so there is no site name or species to show, only the precision. The series average `r round(co021Check$meta$mean.length)` rings. The mean lag-one autocorrelation comes back in the next section. The last line of the description says the most. It is each series' correlation with a master built from all the other series, after a 32-year spline takes out the slow trend. At Mesa Verde that averages `r round(co021Check$meta$mean.cor, 2)`, with a standard deviation of `r round(co021Check$meta$sd.cor, 2)`, so every series agrees with the rest, and about equally well.
+
+Below the description are the findings. `rwl.check` runs `r nrow(rwl.check.catalogue())` checks in `r length(unique(rwl.check.catalogue()$group))` groups, and `rwl.check.catalogue()` lists them all with a line on each. Every finding has a severity. An error means the data can't be right as they stand: two series with identical measurements, a year in the future, a series that looks a year or more off. A warning means something will change a result or stop a function, and you have to decide what to do about it. A note is something you should know.
+
+Mesa Verde has no errors and no warnings. The `r nrow(co021Findings)` notes are of three kinds. `RWL_LOW_DEPTH` says the years before 1200 rest on fewer than two series, which is one core, 646118, on its own. `RWL_ZERO_RING` counts the absent rings: `r sum(co021 == 0, na.rm = TRUE)` of them, `r round(100 * mean(co021 == 0, na.rm = TRUE), 1)` percent of all the measurements. `RWL_CONSECUTIVE_ZERO` lists every place a series is missing more than one ring in a row, `r nrow(coRuns)` of them. The printout shows the first ten, and `as.data.frame(co021Check)` gives all of them as a table, one row per finding.
+
+Look at where the absent rings fall and some years keep coming back. In 1585, `r sum(co021["1585", ] == 0, na.rm = TRUE)` of the `r sum(!is.na(co021["1585", ]))` series have no ring at all, and `r sum(co021["1584", ] == 0 & co021["1585", ] == 0, na.rm = TRUE)` of them are missing both 1584 and 1585. So what does a note ask of you? To know it. Absent rings that line up across trees are dating evidence, and the crossdating chapters use them. The longest run at Mesa Verde is `r max(coRuns$n)` rings. Ten or more in a row would be a warning, `RWL_ZERO_RUN`, because a run that long is more likely a gap somebody filled with zeros than years the tree grew no ring at that core.
+
+Is `r round(100 * mean(co021 == 0, na.rm = TRUE), 1)` percent a lot? St. George and colleagues counted the absent rings in 2,359 Northern Hemisphere ring-width records from the ITRDB [@StGeorge2013]. Over all of them there was one absent ring for every 240 present, and 0.6 percent of Douglas-fir rings were absent. Mesa Verde has one for every `r round(sum(co021 > 0, na.rm = TRUE) / sum(co021 == 0, na.rm = TRUE))`. More than half of their records had no absent rings at all, and the ones with more than 2 percent were all in the American Southwest. Where many records in the Southwest lost a ring in the same year, the year was a severe drought. I haven't checked Mesa Verde's absent years against a drought record, so that's as far as I'll go here.
+
+## Checking Hurricane Ridge
+
+```{r}
+#| label: check-rwlcheck-wa082
+wa082Check <- rwl.check(wa082)
+wa082Check
+```
+
+This file has a header, and the description reads it: the site, the species, the elevation and location as the file writes them, and who collected the cores. The series average `r round(wa082Check$meta$mean.length)` rings, about a third of Mesa Verde's. The mean correlation with the master is `r round(wa082Check$meta$mean.cor, 2)`, against `r round(co021Check$meta$mean.cor, 2)` at Mesa Verde. That is the gap between a collection where everything agrees and an ordinary one. [Data Sources](A2DataSources.qmd) ranks both against the rest of the ITRDB on a close cousin of this number, the interseries correlation from `xdate.report`.
+
+That correlation is over `r wa082Check$meta$n.cor` of the `r wa082Check$meta$n.series` series, and the findings say why. One warning and one note, both about 712011. Read the warning through. It says the gap is not a fault in the file, names the five functions that will fail on it, and says how to close it. The note follows from the warning. The master correlation and the crossdating checks behind it need each series splined first, and a series with a hole in it can't be splined. So 712011 wasn't checked at all, and the clean result for the other series says nothing about it.
+
+The crossdating checks also look for a better correlation at a lag of up to five years, and every other series at both sites passed. That is a first look at the whole series, and the crossdating chapters do the job properly, segment by segment. It is also the slow part of `rwl.check`; `checks` lets you leave it out when you are sweeping through many files.
 
 ## Series Statistics
 
@@ -85,7 +102,7 @@ The Gini sentence cites Biondi and Qeadan (2008) from memory of the dplR help pa
 
 ## Seeing the Collection
 
-The report gives each series' span as two numbers. A segment plot draws them.
+`summary` gives each series' first and last year. A segment plot draws them.
 
 ```{r}
 #| label: check-seg-co021
@@ -103,7 +120,7 @@ One bar per series, sorted by the year it starts. The staircase is the collectio
 plot(wa082, plot.type = "seg")
 ```
 
-Hurricane Ridge is a shorter staircase. Its last series to start, 712072, begins in `r max(wa082Stats$first)`, `r max(wa082Stats$first) - min(wa082Stats$first)` years after the first. One series, `r wa082Stats$series[wa082Stats$last < 1983]`, stops in `r min(wa082Stats$last)`, and the rest run to 1983. Where is the gap in 712011? At this scale a single year doesn't show. The report told you about 1900, and this plot never would have. Watch for it in the next figure.
+Hurricane Ridge is a shorter staircase. Its last series to start, 712072, begins in `r max(wa082Stats$first)`, `r max(wa082Stats$first) - min(wa082Stats$first)` years after the first. One series, `r wa082Stats$series[wa082Stats$last < 1983]`, stops in `r min(wa082Stats$last)`, and the rest run to 1983. Where is the gap in 712011? At this scale a single year doesn't show. `rwl.check` told you about 1900, and this plot never would have. Watch for it in the next figure.
 
 Count the series in each year and you have sample depth, the staircase turned into a number.
 
@@ -144,37 +161,6 @@ plot(co021, plot.type = "spag")
 ```
 
 Every series, each drawn on its own baseline. Nobody crossdates from this. At 35 series and nearly 800 years the year-to-year detail is a blur. One thing does show: many series start wide and narrow as they go. `r round(100 * mean(sapply(co021, function(s) { s <- s[!is.na(s)]; mean(s[1:30]) > mean(s[-(1:30)]) })))` percent of Mesa Verde's series have wider rings in their first 30 years than in the rest, and `r round(100 * mean(sapply(wa082, function(s) { s <- s[!is.na(s)]; mean(s[1:30]) > mean(s[-(1:30)]) })))` percent at Hurricane Ridge. That is the age trend, and [Detrending](08Detrending.qmd) is about taking it out. I look at a spaghetti plot once and move on.
-
-## Looking for Trouble
-
-`rwl.check` reads through a collection looking for anything that will cause trouble later. It runs `r nrow(rwl.check.catalogue())` checks in `r length(unique(rwl.check.catalogue()$group))` groups, and `rwl.check.catalogue()` lists them all with a line on each. Every finding has a severity. An error means the data can't be right as they stand: two series with identical measurements, a year in the future, a series that looks a year or more off. A warning means something will change a result or stop a function, and you have to decide what to do about it. A note is something you should know.
-
-```{r}
-#| label: check-rwlcheck-co021
-co021Check <- rwl.check(co021)
-co021Check
-```
-
-```{r}
-#| label: check-rwlcheck-co021-numbers
-#| include: false
-co021Findings <- as.data.frame(co021Check)
-coRuns <- co021Findings[co021Findings$check == "RWL_CONSECUTIVE_ZERO", ]
-```
-
-No errors and no warnings. The `r nrow(co021Findings)` notes are of three kinds. `RWL_ZERO_RING` counts the absent rings you met in the report. `RWL_LOW_DEPTH` says the years before 1200 rest on fewer than two series, which is 646118 on its own. `RWL_CONSECUTIVE_ZERO` lists every place a series is missing more than one ring in a row, `r nrow(coRuns)` of them, `r sum(coRuns$year.from == 1584 & coRuns$year.to == 1585)` at 1584 and 1585 alone. The printout shows the first ten; `as.data.frame(co021Check)` gives all of them as a table, one row per finding.
-
-So what does a note ask of you? To know it. The same two years missing in `r sum(coRuns$year.to == 1585)` series is dating evidence, and the crossdating chapters use it. The longest run at Mesa Verde is `r max(coRuns$n)` rings. Ten or more in a row would be a warning, `RWL_ZERO_RUN`, because a run that long is more likely a gap somebody filled with zeros than years the tree grew no ring at that core.
-
-```{r}
-#| label: check-rwlcheck-wa082
-wa082Check <- rwl.check(wa082)
-wa082Check
-```
-
-One warning and one note, both about 712011. Read the warning through. It says the gap is not a fault in the file, names the five functions that will fail on it, and says how to close it. The note follows from the warning. The crossdating group in `rwl.check` correlates each series with a master built from all the others, after a 32-year spline takes out the slow trend, and looks for a better correlation at a lag of up to five years. A series with a hole in it can't be splined, so 712011 wasn't checked at all, and the clean result for the other series says nothing about it.
-
-Every other series at both sites passed that crossdating pass. It is a first look at the whole series, and the crossdating chapters do the job properly, segment by segment. It is also the slow part of `rwl.check`; `checks` lets you leave it out when you are sweeping through many files.
 
 ## The Gap in 712011
 

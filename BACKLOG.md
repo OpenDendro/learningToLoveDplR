@@ -6,6 +6,20 @@ Working notes for the rewrite. Not part of the book.
 
 State of the repo: the Quarto conversion, the restructure into parts, the stubs and the dataset work are on the `quarto-rewrite` branch. `main` is still the 2024 bookdown version. The folder moved from `workshopMaterials/dplR-workshop` to `openDendro/learningToLoveDplR`; the GitHub repo was renamed from `OpenDendro/dplR-workshop` to `OpenDendro/learningToLoveDplR` on 2026-10-13, and the old name no longer resolves. The writing spec is a local file and is not in the repo.
 
+### 04x Classes and Generics, first draft 2026-10-22 (uncommitted)
+
+- Sections: A Label on a Data Frame (S3 in a paragraph, `methods(class = "rwl")`, `summary` dispatching to `rwl.stats`); Four Kinds of Series (table of `rwl`, `rwi`, `bai`, `crn`, what each holds and what makes it); Why Indices Aren't Widths (`rwi.stats(co021)` warns and gives rbar.eff 0.60 against 0.74 from Spline indices; the reverse warning from `detrend`; the coercion warning on a plain data frame; `as.rwl`/`as.rwi`/`as.bai` to relabel, with ARSTAN indices read from a file as the common case); The Data Frame Underneath (`[` keeps the read record and `dplR.detrend`, trims years when series are dropped, takes the class off with a warning when rows skip years, keeps empty columns; ties back to 04's Trimming); Leaving dplR (tibbles drop the row-name years; `data.frame(year = time(x), x, check.names = FALSE)`).
+- Renders alone on dev dplR. Two chunks show warnings (`warning: true`).
+- Checked against dplR source: `rwi` and `bai` inherit from neither `rwl` nor each other (comments in `as.rwi.R`, `as.bai.R`); the warning texts in `helpers.R`; NEWS says readers return indices as `rwl` and to label them with `as.rwi`. "Before 1.8.0 ... `rcs` and `cms` labelled their indices `rwl`, `detrend` returned a plain data frame" is from the `as.rwi.R` comment.
+- `bai` is in the table only; no example, since `co021` and `wa082` have no pith distances or diameters. 15 Basal Area can show it with `gp.rwl`.
+- Not covered: `crn` methods beyond the table, `summary` on `rwi` (collection statistics), `insert.ring`/`delete.ring` (06 Fixing Errors is the place).
+
+### 02 stand-event figure, two panels, 2026-10-21 (uncommitted)
+
+- `cores-event` is now two panels (Andy liked both mockups): A, chronologies of the cores the event hit and missed (standing in 1880, 12 and 14) with the climate as the chronology shows it; B, the whole chronology minus the climate prediction, with the event as built (mean of exp(disturbance) - 1 over standing cores). The climate scaling is a regression of the standard chronology on the true climate over 1800-1879; the old version rescaled by a window SD that included the dip. Stacked with `cowplot::plot_grid` (already in `DESCRIPTION`).
+- Text rewritten around it: hit 1.17 to 0.65, missed 0.96 to 0.94; B -0.19 against -0.19 as built in 1880-1884. New paragraph on the 1870s: hit cores 1.11 against 0.93 because the spline bends down into the dip and lifts the years before it. Checked by dividing by the true age trend (not in the chapter): hit and missed then average 0.94 each in 1850-1869 and 1.01 against 0.95 in the 1870s, so most of the gap, not all, is the spline. The text says "most". Pointer to 08, which should show this properly; B is a natural figure for it.
+- Not explained: panel B's mid-1890s sit about 0.1 below the built curve.
+
 ### 04 Checking a Collection, first draft 2026-10-21 (uncommitted)
 
 - The outlined sections are written: Seeing the Collection (dplR segment plots for both, a ggplot of sample depth for both, the `co021` spaghetti plot), Looking for Trouble (`rwl.check` on both, severities, the catalogue), The Gap in 712011 (one paragraph, no code), Trimming (`window`, `subset`, `[`). Renders alone on installed dplR 1.8.1; nothing in it needs the uncommitted `RWL_SERIES_SCALE` change. Not rendered as part of the whole book. Every number is inline.
@@ -18,6 +32,7 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - The Report now has a paragraph from St George: 1 absent per 240 present over 2,359 NH records, Pseudotsuga 0.6%, over half the records with none, >2% only in the Southwest, widespread Southwest absent years coincide with severe drought. `co021` is 1 in 27 (inline). The old "I won't guess" line is replaced by: Mesa Verde's absent years not checked against a drought record. Possible exercise or 05 material: compare `co021`'s absent years with a drought reconstruction. St George's Fig. 4 lists 1580 among the most widespread years; `co021`'s is 1584-1585, not checked against their data.
 - St George also bears on 03 and 03x: the Tucson standard marks absent rings with zero, some investigators use the smallest nonzero value, and counting 0.001 mm as absent made no difference in their results.
 - Still open from before: the Gini attribution to Biondi and Qeadan (2008).
+- Reworked 2026-10-21 for the `rwl.report` deprecation (dplR 1.8.1 dev, commit 4666e8f): The Report and Looking for Trouble are replaced by Checking Mesa Verde and Checking Hurricane Ridge, one `rwl.check` call per collection, printed once. The text reads the new description (no header for `co021`; site, species, investigator for `wa082`; mean length; correlation with the master 0.89 against 0.54, over 22 of 23 series at `wa082`), then the findings. The comparison now uses `rwl.check`'s master correlation in place of `interseries.cor`, and says A2 ranks on a close cousin (`xdate.report`'s interseries correlation). Section order: checks, Series Statistics, Seeing the Collection, the gap, Trimming. 04 now needs dev dplR (installed from the local checkout 2026-10-21) for the new description.
 
 ### 03x The Tucson Format, first draft 2026-10-21 (uncommitted)
 
@@ -59,7 +74,7 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 ### Chapter 1 and the name-conflicts aside, 2026-10-19 (uncommitted)
 
 - Andy is happy with chapter 2 as the intro and roadmap. Chapter 1 (2022 Welcome) and the name-conflicts aside don't fit in front of it.
-- `01xAsideNameConflicts.qmd` is out of `_quarto.yml` until later; the file is kept. Its two links are gone: the pointer sentence in 01Welcome, and the link in the 13SmoothingFiltering footnote (the footnote still says `signal` masks `hanning`). 13 is a likely home if it comes back, since that is where a mask first bites.
+- `01xAsideNameConflicts.qmd` was taken out of `_quarto.yml` on 2026-10-19 and deleted on 2026-10-22 (Andy, `git rm`): general R knowledge, the book doesn't hit the tidyverse `filter` clash, and 04x now covers what dplR's classes do on the way through other packages. The prose is in git history. Its only live concern is the `signal`/`hanning` mask in 13 (see Planned revisions).
 - What chapter 1 is for: decided 2026-10-19, the lineage chapter. First draft written the same day (see the next item).
 
 ### 01 Where dplR Comes From, first draft 2026-10-19 (uncommitted)
@@ -236,7 +251,7 @@ Puts together the crossdating reorder, the concepts chapter and the climate part
 | | Preface | none | 2022 text plus the dating-first paragraph, which the reorder removes |
 | **Foundations** (was Getting Going, renamed 2026-10-19) ||||
 | 1 | Welcome | none | 2022 text |
-| 1x | Aside: Name Conflicts | none | carried over |
+| 1x | Aside: Name Conflicts | none | deleted 2026-10-22 |
 | 2 | From Cores to a Record (new, replaces A First Pass) | simulated 20 trees × 2 cores, ending beside `wa082` | not started |
 | **Ring Widths** ||||
 | 3 | Reading and Writing | `co021.rwl`, `wa082.rwl` in `data/` | stub |
@@ -358,7 +373,7 @@ Before either goes to CI: 10 needs 1.8.1 dev, which CI installs from GitHub (see
 ## Planned revisions to carried-over chapters
 
 - 05Crossdating: the chapter never mentions `xdate.report` or `write.xdate.report`.
-- 13SmoothingFiltering: lead with `pass.filt` and fold the manual `signal` padding code.
+- 13SmoothingFiltering: lead with `pass.filt` and fold the manual `signal` padding code. If 13 still loads `signal` after that, its footnote should say `hanning` now means `signal`'s and `dplR::hanning` gets dplR's back. That is all that is left of the name-conflicts aside.
 ## Known problems in carried-over chapters
 
 - 10Chronologies: `strip.rwl()` stops with an error in CRAN dplR 1.8.0 and works in 1.8.1 dev. The stripping section was rewritten on 2026-10-13 around the dependence on detrending. It uses `nyrs`, stripping of indices and the `dplR.strip` attribute, all added to 1.8.1 dev that day (pushed by 2026-10-15), and its inline numbers stop the render without them. `error: true` is off. Install dev dplR before rendering; the rest of the chapter is still the old text.

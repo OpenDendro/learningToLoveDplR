@@ -323,30 +323,68 @@ Douglass's first principle of interpretation was that when many independent tree
 
 ```{r}
 #| label: cores-event
-#| fig-cap: "The standard chronology (line) and the true climate (points, rescaled to the chronology), 1860-1910. The dip after 1880 is the stand event. The climate didn't do it."
+#| fig-height: 7
+#| fig-cap: "The stand event of 1880. (A) Chronologies from the cores of trees the event hit (solid) and the trees it missed (dashed), with the true climate (points) as the chronology would show it. (B) The whole chronology minus what the climate predicts (points), and the average departure the event put into the cores (dashed)."
 simStd <- chron(simIndicesFixed)
+eventYear <- simTruth$event$year
 eventYears <- as.character(1860:1910)
-climateScaled <- 1 + trueClimate[eventYears] / sd(trueClimate) *
-  sd(simStd[eventYears, "std"])
-eventData <- data.frame(year = as.numeric(eventYears),
-                        chronology = simStd[eventYears, "std"],
-                        climate = climateScaled)
-ggplot(eventData, aes(x = year)) +
-  geom_point(aes(y = climate), shape = 1) +
-  geom_line(aes(y = chronology)) +
-  geom_vline(xintercept = simTruth$event$year, linetype = "dashed") +
-  labs(x = "Year", y = "Index") +
+
+# which cores were standing in 1880, and which of those the event hit
+standing <- !is.na(simFixed[as.character(eventYear), ])
+hitCore <- simIds[names(simFixed), "tree"] %in% simTruth$event$trees
+hitChron <- chron(simIndicesFixed[, standing & hitCore])
+missedChron <- chron(simIndicesFixed[, standing & !hitCore])
+
+# the climate as the chronology shows it, from a regression on the years
+# before the event
+calYears <- as.character(1800:(eventYear - 1))
+climFit <- lm(simStd[calYears, "std"] ~ trueClimate[calYears])
+climPred <- coef(climFit)[1] + coef(climFit)[2] * trueClimate[eventYears]
+
+# what the event put into the standing cores, on the index scale
+eventBuilt <- rowMeans(exp(as.matrix(simTruth$disturbance)[eventYears, standing]),
+                       na.rm = TRUE) - 1
+
+panelA <- data.frame(
+  year = as.numeric(eventYears),
+  index = c(hitChron[eventYears, "std"], missedChron[eventYears, "std"]),
+  cores = rep(c("Hit", "Missed"), each = length(eventYears))
+)
+plotA <- ggplot(panelA, aes(x = year)) +
+  geom_vline(xintercept = eventYear, colour = "grey60") +
+  geom_point(data = data.frame(year = as.numeric(eventYears), climate = climPred),
+             aes(y = climate), shape = 1) +
+  geom_line(aes(y = index, linetype = cores)) +
+  labs(x = NULL, y = "Index", linetype = NULL) +
+  theme_minimal() +
+  theme(legend.position = "top")
+
+panelB <- data.frame(year = as.numeric(eventYears),
+                     left = simStd[eventYears, "std"] - climPred,
+                     built = eventBuilt)
+plotB <- ggplot(panelB, aes(x = year)) +
+  geom_hline(yintercept = 0, colour = "grey60") +
+  geom_point(aes(y = left)) +
+  geom_line(aes(y = built), linetype = "dashed") +
+  labs(x = "Year", y = "Chronology minus climate") +
   theme_minimal()
+
+cowplot::plot_grid(plotA, plotB, ncol = 1, align = "v", labels = c("A", "B"))
 ```
 
 ```{r}
 #| label: cores-event-values
 #| echo: false
-before <- as.character(simTruth$event$year - 5:1)
-after <- as.character(simTruth$event$year + 0:4)
+before <- as.character(eventYear - 5:1)
+after <- as.character(eventYear + 0:4)
+seventies <- as.character(1870:1879)
 ```
 
-The chronology averages `r round(mean(simStd[before, "std"]), 2)` in the five years before the event and `r round(mean(simStd[after, "std"]), 2)` in the five years after. The climate barely moves over the same ten years. A stand-wide disturbance hits many trees at once, so to a chronology it looks just like a run of bad years. Nothing in the averaging can tell the difference. Only knowing the stand can. Cook's example of $D2_t$ is three hemlocks from one stand that all took off together after the forest around them was logged in the early 1900s [@Cook1987]. Averaged into a chronology, that would read as a run of good years.
+Panel A splits the stand by what happened to it. The `r sum(standing & hitCore)` cores from trees the event hit average `r round(mean(hitChron[before, "std"]), 2)` in the five years before `r eventYear` and `r round(mean(hitChron[after, "std"]), 2)` in the five years after. The `r sum(standing & !hitCore)` cores it missed go from `r round(mean(missedChron[before, "std"]), 2)` to `r round(mean(missedChron[after, "std"]), 2)` and keep following the climate. Panel B takes the climate out of the whole chronology. What's left drops in `r eventYear` and climbs back over the next decade, close to the curve I built into the trees: `r round(mean(panelB$left[panelB$year %in% after]), 2)` in the first five years against `r round(mean(eventBuilt[after]), 2)` as built.
+
+Now look at the 1870s, before anything has happened. The hit cores average `r round(mean(hitChron[seventies, "std"]), 2)` and the missed ones `r round(mean(missedChron[seventies, "std"]), 2)`, and in panel B most of that decade sits above zero. Most of that is the detrending. The spline that took out each core's age trend bent down into the dip, and that lifted the rings in the years before it. A spline can't tell a stand event from an age trend, so it takes a little of both, and [Detrending](08Detrending.qmd) comes back to it.
+
+A stand-wide disturbance hits many trees at once, so to a chronology it looks just like a run of bad years. Nothing in the averaging can tell the difference. Panel A needs you to know which trees were hit, and panel B needs the true climate, which you never have. Only knowing the stand can tell you. Cook's example of $D2_t$ is three hemlocks from one stand that all took off together after the forest around them was logged in the early 1900s [@Cook1987]. Averaged into a chronology, that would read as a run of good years.
 
 Wigley and his coauthors warned about exactly this when they introduced EPS. The strength of the common signal can't be read as climate alone, they wrote, because management, pests and disease, and pollution also make trees agree. They added that there is no obvious way to say how high EPS must be for a chronology to be fit for climate reconstruction [@Wigley1984, p. 206]. Both warnings got lost as EPS became a standard check, and Buras went back to the paper to point them out [@Buras2017].
 

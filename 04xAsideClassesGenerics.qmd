@@ -1,9 +1,132 @@
 # Aside: Classes and Generics {- .aside-chapter}
 
-:::{.callout-note title="Stub"}
-Not written yet.
-
-Planned: the `rwl`, `rwi`, `bai` and `crn` classes, and what the wrong-kind warnings mean.
-
-Source: new.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-22. Reads `co021` from the file in `data/`. Every number in the text is computed when the book builds. Open questions are in the backlog.
 :::
+
+[Reading and Writing](03ReadingWriting.qmd) said that the class `rwl` tells the rest of `dplR` that a data frame holds ring widths, and [Checking a Collection](04CheckingCollection.qmd) ended on square brackets keeping columns that `window` would have dropped. Both come down to the same small piece of R. This aside is about what the label does, why `dplR` has four of them, and what happens when a data frame goes in with the wrong one.
+
+```{r}
+#| label: class-setup
+#| message: false
+library(dplR)
+co021 <- read.rwl("data/co021.rwl", format = "tucson")
+```
+
+## A Label on a Data Frame
+
+```{r}
+#| label: class-rwl
+class(co021)
+```
+
+Two words. The second says `co021` is a data frame, and everything you can do to a data frame still works on it. The first is `dplR`'s label. R's simplest object system, S3, is little more than that: a class is a character vector stuck on an object, and a generic function like `summary` or `plot` looks at the first word and goes looking for a version written for it. `summary(co021)` finds `summary.rwl`, which is `rwl.stats`. A plain data frame would get `summary.data.frame`, the quartiles of every column, which is not much use for 35 tree-ring series.
+
+Here is everything written for the `rwl` class.
+
+```{r}
+#| label: class-methods
+methods(class = "rwl")
+```
+
+Not a long list. Most of `dplR` is ordinary functions that take an `rwl` object and check the label on the way in. The methods are the places where R's own generics needed to know about tree rings: `plot` and `summary`, `time` to read the years, `window` and `subset` to cut a collection down, and `[`, which comes up below.
+
+## Four Kinds of Series
+
+A collection of ring widths, a set of indices made from them, and a set of basal area increments all have the same shape. One column per series, one row per year, the years as row names. They hold different things in different units, and `dplR` labels each.
+
+| Class | Holds | Made by |
+|---|---|---|
+| `rwl` | ring widths, in mm | `read.rwl` and the other readers |
+| `rwi` | ring-width indices, around 1 | `detrend`, `rcs`, `cms` |
+| `bai` | basal area increment, in mm² | `bai.in`, `bai.out` |
+| `crn` | a chronology and its sample depth | `chron` and the other chronology builders |
+
+```{r}
+#| label: class-kinds
+co021Rwi <- detrend(co021, method = "Spline")
+co021Crn <- chron(co021Rwi)
+class(co021Rwi)
+class(co021Crn)
+```
+
+Every function knows what kind of series it wants. `detrend` wants widths. `rwi.stats` and `chron` want indices. So what happens when they get the other kind?
+
+## Why Indices Aren't Widths
+
+An `rwi` object isn't an `rwl` object with something extra, on purpose. If it were, every function that wants widths would take indices without a word. Before 1.8.0 that's how it was: `rcs` and `cms` labelled their indices `rwl`, `detrend` returned a plain data frame, and nothing in `dplR` could tell indices from widths. Here is the mistake that made it matter.
+
+```{r}
+#| label: class-wrong-kind
+#| warning: true
+widthStats <- rwi.stats(co021)
+```
+
+`rwi.stats` wants indices and got widths. It warns, and then it does the calculation anyway. Look at what came back next to the same statistics from the indices.
+
+```{r}
+#| label: class-wrong-kind-compare
+indexStats <- rwi.stats(co021Rwi)
+rbind(widths = widthStats[, c("rbar.eff", "eps")],
+      indices = indexStats[, c("rbar.eff", "eps")])
+```
+
+An effective rbar of `r sprintf("%.2f", widthStats$rbar.eff)` from the widths and `r sprintf("%.2f", indexStats$rbar.eff)` from the indices. Both look like numbers a collection could have, and that's the problem. The widths mix the common signal with every tree's age trend, and nothing about the answer says so. Without the class, the only thing standing between you and the wrong number would be remembering.
+
+The warning goes the other way too. Give `detrend` a set of indices and it says it is about to make indices of indices. Give any of these functions a plain data frame and you get a shorter warning, that it wasn't class `rwl` and was coerced. That one usually means you built the data frame yourself or it lost its label on the way through some other package, and it's harmless if the numbers are widths.
+
+What do you do about a warning? Read it, then decide which is wrong, the function or the label. If the label is wrong, fix it. `as.rwl`, `as.rwi` and `as.bai` put a label on a data frame without touching the numbers. The common case is indices you read from a file, say a set somebody detrended in ARSTAN. The readers can't tell indices from widths, so they come back as `rwl`, and `as.rwi` tells `dplR` what they are.
+
+## The Data Frame Underneath
+
+Most of the time you can forget the label. `colMeans(co021, na.rm = TRUE)` gives each series' mean width, `co021$"641114"` gives one series, and anything that wants a data frame takes one. The exception is square brackets, because `dplR` has its own `[` for these classes. It does three things a data frame's brackets don't.
+
+It keeps the read record. The notes `read.tucson` took on the file, the ones [Reading and Writing](03ReadingWriting.qmd) went through, are cut down to the series you kept and travel with them. Indices carry a second record, of how they were made.
+
+```{r}
+#| label: class-records
+names(attributes(co021Rwi))
+attr(co021Rwi, "dplR.detrend")$method
+```
+
+It trims the years when you drop series. Take three series and you get the years those three cover, with no empty rows left over from the series that went away.
+
+```{r}
+#| label: class-trim
+co021Three <- co021[, c("641114", "641121", "641132")]
+range(time(co021Three))
+```
+
+`co021` starts in `r min(time(co021))`, but none of these three does, so the result starts in `r min(time(co021Three))`.
+
+And it won't let the years break. Everything in `dplR` reads the years off the row names and assumes each row is the year after the one above it. Pick rows that skip years and that assumption is gone.
+
+```{r}
+#| label: class-broken-rows
+#| warning: true
+co021Skip <- co021[c(1, 5, 9), ]
+class(co021Skip)
+```
+
+The label comes off and the warning says why. What you get back is a plain data frame of three rows, which is what it is.
+
+The one thing `[` doesn't do is drop a column with nothing left in it, which is where [Checking a Collection](04CheckingCollection.qmd) left off. `x[i, j]` always gives back the columns `j` names, in that order, so it stays lined up with anything else you index the same way, like a table of tree IDs. `window` and `subset` are for cutting a collection down, and they drop the empty series and name them. `[` is for lining things up.
+
+## Leaving dplR
+
+The years live in the row names, and plenty of R outside `dplR` throws row names away. A tibble does.
+
+```{r}
+#| label: class-tibble
+head(row.names(tibble::as_tibble(co021)), 3)
+```
+
+The years are gone, replaced by row numbers, and nothing complains. Before you hand a collection to something else, move the years into a column of their own.
+
+```{r}
+#| label: class-year-column
+co021Df <- data.frame(year = time(co021), co021, check.names = FALSE)
+co021Df[co021Df$year %in% 1900:1902, 1:4]
+```
+
+`check.names = FALSE` keeps the series IDs as they are. Without it R puts an X in front of every ID that starts with a digit, which in a Tucson file is most of them. That data frame is no longer anything `dplR` recognizes, and that's fine. It's on its way somewhere else.
