@@ -38,7 +38,7 @@ There are two more special values. A zero is an absent ring, a year in which the
 
 ## The Header
 
-The ITRDB puts three header lines at the top of a file. Each starts with the site code and a line number (712, then 1, 2 or 3), and the rest holds the site name, the variable and species code, the country and species, the elevation, the coordinates, the span, and the person who collected the wood. At Hurricane Ridge, `4757-12328` is 47°57' N, 123°28' W, written as degrees and minutes run together.
+The ITRDB puts three header lines at the top of a file. Each starts with the site code and a line number (712, then 1, 2 or 3), and the rest holds the site name, the variable and species code, the country and species, the elevation, the coordinates, the span, and the person who collected the cores. At Hurricane Ridge, `4757-12328` is 47°57' N, 123°28' W, written as degrees and minutes run together.
 
 Nothing in the format marks a header as a header. The reader recognizes one because it doesn't parse as a decade line, and it keeps the three lines in the read record. Plenty of files have no header at all. Mesa Verde is one of them.
 

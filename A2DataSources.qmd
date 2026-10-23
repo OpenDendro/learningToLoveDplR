@@ -39,6 +39,9 @@ One caution. The file doesn't say which cores come from which tree. The series n
 #| label: a2-co021-trees
 co021Rwi <- detrend(co021, method = "Spline")
 r <- cor(co021Rwi, use = "pairwise.complete.obs")
+
+# The tree code is the third and fourth characters of each ID. sameTree is
+# TRUE where two series share one; upper.tri() counts each pair once.
 treeCode <- substr(names(co021), 3, 4)
 sameTree <- outer(treeCode, treeCode, "==")
 upper <- upper.tri(r)
@@ -62,6 +65,7 @@ Here are the two side by side, each detrended with a spline.
 
 ```{r}
 #| label: a2-compare
+# Detrend a collection with a spline and return its summary statistics
 compareStats <- function(rwl) {
   ids <- autoread.ids(rwl)
   rwi <- detrend(rwl, method = "Spline")
@@ -78,9 +82,10 @@ The two collections also disagree about where a chronology should start, and the
 
 ```{r}
 #| label: a2-cutoffs
+# The first year of a collection, and where each cutoff rule would start it
 firstYears <- function(rwl) {
   yrs <- time(rwl)
-  depth <- rowSums(!is.na(rwl))
+  depth <- rowSums(!is.na(rwl))   # series present in each year
   s <- sss(detrend(rwl, method = "Spline"), autoread.ids(rwl))
   c(firstYear = min(yrs),
     fiveSeries = min(yrs[depth >= 5]),

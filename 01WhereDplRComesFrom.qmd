@@ -73,4 +73,4 @@ None of this tells you which choice is right for your collection. That depends o
 - @GrissinoMayer2001 is the COFECHA manual most people learned from. It walks through every option and every part of the output, and it is the best guide to what `xdate.report` is imitating.
 - @CookBook is where ARSTAN's methods are written out at length: growth curves, the biweight mean and the AR model of a chronology. Chapter 3 is the one to have on your desk.
 - @cook1985 is Ed Cook's dissertation, the source of much of that chapter and of how `dplR` standardizes.
-- @Douglass1941 is Douglass on why the wood decides the dating.
+- @Douglass1941 is Douglass on why the dating is settled by looking at the samples themselves.

@@ -79,11 +79,14 @@ Start by comparing the series with their mean.
 
 ```{r}
 #| label: crn-lag1
+# Lag-one autocorrelation: each value against the one before it
 lag1 <- function(x) {
   x <- x[!is.na(x)]
   cor(x[-1], x[-length(x)])
 }
 co021Crn <- chron(co021Rwi)
+
+# The typical series (sapply runs lag1 on every series) against the chronology
 data.frame(
   site = c("co021", "wa082"),
   medianSeries = c(median(sapply(co021Rwi, lag1)), median(sapply(wa082Rwi, lag1))),
@@ -118,6 +121,7 @@ I start each collection where its SSS reaches 0.85, so that the years with one o
 
 ```{r}
 #| label: crn-ars
+# The first year in which SSS reaches the threshold
 startAt <- function(rwi, ids, threshold = 0.85) {
   min(time(rwi)[sss(rwi, ids) >= threshold])
 }
@@ -125,6 +129,8 @@ co021Cut <- window(co021Rwi, start = startAt(co021Rwi, co021Ids))
 wa082Cut <- window(wa082Rwi, start = startAt(wa082Rwi, wa082Ids))
 co021Ars <- chron.ars(co021Cut, verbose = FALSE)
 wa082Ars <- chron.ars(wa082Cut, verbose = FALSE)
+
+# lag1 on each of the three chronologies, one row per site
 arsLag1 <- rbind(co021 = sapply(co021Ars[, c("std", "res", "ars")], lag1),
                  wa082 = sapply(wa082Ars[, c("std", "res", "ars")], lag1))
 round(arsLag1, 2)
@@ -148,11 +154,13 @@ There are two common rules. One is a sample depth cutoff: keep the years with at
 
 ```{r}
 #| label: crn-cutoffs
+# Where each rule would start the chronology, and how many trees there are
+# in the first year that passes the SSS rule
 cutoffs <- function(rwi, ids) {
   yrs <- time(rwi)
-  depth <- rowSums(!is.na(rwi))
+  depth <- rowSums(!is.na(rwi))                  # series present each year
   sss85 <- startAt(rwi, ids)
-  present <- !is.na(rwi[as.character(sss85), ])
+  present <- !is.na(rwi[as.character(sss85), ])  # series present that year
   data.frame(firstYear = min(yrs),
              fiveSeries = min(yrs[depth >= 5]),
              sss85 = sss85,
@@ -169,12 +177,16 @@ The two rules disagree, and they disagree in opposite directions. At Mesa Verde 
 #| label: fig-crn-cutoffs
 #| fig-cap: "The first 150 years of each chronology. The dashed line is the first year with five series and the solid line is the first year with an SSS of 0.85."
 #| fig-height: 4
+# The first 150 years of one chronology, as a table ggplot can use
 earlyYears <- function(crn, site) {
   early <- crn[1:150, ]
   data.frame(site = site, year = time(early), std = early$std)
 }
 earlyBoth <- rbind(earlyYears(co021Crn, "co021"), earlyYears(wa082Crn, "wa082"))
+
+# The cutoff years, with a site column so each panel gets its own lines
 cutLines <- data.frame(site = rownames(bothCutoffs), bothCutoffs)
+
 ggplot(earlyBoth, aes(x = year, y = std)) +
   geom_line(colour = "grey40") +
   geom_vline(data = cutLines, aes(xintercept = fiveSeries), linetype = "dashed") +
@@ -266,12 +278,18 @@ How much more? The last chapter has what you need. For $n$ series with average c
 #| label: fig-crn-inflation
 #| fig-cap: "Expected standard deviation of the Hurricane Ridge chronology in each year, relative to a chronology with every series present, from sample depth alone."
 wa082Rbar <- rwi.stats(wa082Rwi)$rbar.tot
+
+# The standard deviation of a mean of n series that correlate at rbar,
+# relative to the standard deviation of one series
 sdFactor <- function(n, rbar) {
   sqrt((1 + (n - 1) * rbar) / n)
 }
+
+# Each year's factor, divided by the factor with every series present
 inflation <- data.frame(
   year = time(wa082Crn),
-  factor = sdFactor(wa082Crn$samp.depth, wa082Rbar) / sdFactor(ncol(wa082Rwi), wa082Rbar)
+  factor = sdFactor(wa082Crn$samp.depth, wa082Rbar) /
+    sdFactor(ncol(wa082Rwi), wa082Rbar)
 )
 ggplot(inflation, aes(x = year, y = factor)) +
   geom_hline(yintercept = 1, linetype = "dashed") +
@@ -284,6 +302,8 @@ With one series the chronology should swing `r round(sdFactor(1, wa082Rbar) / sd
 
 ```{r}
 #| label: crn-variance-blocks
+# Label each year with its half century, then use tapply() to summarize the
+# chronology within each label: mean depth and standard deviation
 halfCentury <- cut(time(wa082Crn), breaks = seq(1700, 2000, by = 50), dig.lab = 4)
 varianceBlocks <- data.frame(
   depth = tapply(wa082Crn$samp.depth, halfCentury, mean),
@@ -298,15 +318,23 @@ Go back to the formula. It has two things in it besides $n$: how variable the se
 
 ```{r}
 #| label: crn-variance-pieces
+# For one block of years: rbar among the series, and their typical standard
+# deviation. Series with fewer than 30 rings in the block are left out, since
+# a correlation from a handful of years means little.
 blockPieces <- function(rwi) {
   rwi <- rwi[, colSums(!is.na(rwi)) >= 30, drop = FALSE]
   r <- cor(rwi, use = "pairwise.complete.obs")
   c(rbar = mean(r[upper.tri(r)], na.rm = TRUE),
     seriesSd = mean(sapply(rwi, sd, na.rm = TRUE)))
 }
+
+# split() cuts the indices into the half-century blocks; sapply() runs
+# blockPieces on each; t() turns the result so blocks are rows
 pieces <- t(sapply(split(as.data.frame(wa082Rwi), halfCentury), blockPieces))
 varianceBlocks$rbar <- pieces[, "rbar"]
 varianceBlocks$seriesSd <- pieces[, "seriesSd"]
+
+# What the formula predicts from depth, agreement and series spread together
 varianceBlocks$predicted <- with(varianceBlocks, seriesSd * sdFactor(depth, rbar))
 round(varianceBlocks, 2)
 ```
@@ -324,8 +352,14 @@ That adjusts for two things at once, depth and agreement. To see them apart, her
 ```{r}
 #| label: crn-stabilized
 wa082Stab <- chron.stabilized(wa082Rwi, winLength = 101)
+
+# The depth-only adjustment by hand: shrink each year's departure from the
+# mean by the factor in the figure above
 crnMean <- mean(wa082Crn$std)
 depthOnly <- crnMean + (wa082Crn$std - crnMean) / inflation$factor
+
+# Standard deviation by half century: as it was, adjusted for depth only,
+# and from chron.stabilized
 stabBlocks <- data.frame(
   depth = varianceBlocks$depth,
   rbar = varianceBlocks$rbar,
@@ -386,6 +420,8 @@ So strip it three ways. The default. A 200-year spline, which was the other vers
 
 ```{r}
 #| label: crn-strip-compare
+# Run strip.rwl and keep only what it recorded: how many series it removed,
+# and EPS before and after. capture.output() swallows its progress messages.
 howMany <- function(x, ...) {
   capture.output(res <- strip.rwl(x, ids = wa082Ids, ...))
   rec <- attr(res, "dplR.strip")
@@ -393,6 +429,8 @@ howMany <- function(x, ...) {
              epsBefore = rec$stats$eps[1],
              epsAfter = rec$stats$eps[2])
 }
+
+# The default, a stiffer spline, and the indices from this chapter
 stripCompare <- rbind(howMany(wa082),
                       howMany(wa082, nyrs = 200),
                       howMany(wa082Rwi))
@@ -422,7 +460,7 @@ stripYears2 <- stripRecord2$years
 
 Then read the cost before you believe it. This time `r length(stripRecord2$removed)` series are gone and a whole tree with them: `r stripRecord2$stats$trees[1]` trees became `r stripRecord2$stats$trees[2]`. There are fewer trees in `r sum(stripYears2$n.after < stripYears2$n.before)` of the `r nrow(stripYears2)` years. All of that bought an EPS of `r stripRecord2$stats$eps[2]`, up from `r stripRecord2$stats$eps[1]`.
 
-Would I take that trade? I'd want to see the wood first. A series that lowers EPS is one that disagrees with its neighbors, and EPS has no idea why. It might be a badly measured core. It might be the one tree on the wet side of the plot, in which case it is telling you something about the stand that the other trees are not. The [Chronology Statistics](09ChronologyStats.qmd) chapter goes through what EPS can and can't say, and Buras [-@Buras2017] is the short version. Use `strip.rwl` to find the series worth a second look. Let the wood decide what happens to them.
+Would I take that trade? I'd want to look at those cores first. A series that lowers EPS is one that disagrees with its neighbors, and EPS has no idea why. It might be a badly measured core. It might be the one tree on the wet side of the plot, in which case it is telling you something about the stand that the other trees are not. The [Chronology Statistics](09ChronologyStats.qmd) chapter goes through what EPS can and can't say, and Buras [-@Buras2017] is the short version. Use `strip.rwl` to find the series worth a second look. Let a second look at the cores decide what happens to them.
 
 ## Wrapping Up
 

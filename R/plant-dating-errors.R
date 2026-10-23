@@ -27,3 +27,14 @@ plant.dating.errors <- function(file = "data/co021.rwl") {
   )
   x
 }
+
+# The same for Hurricane Ridge, an ordinary collection: 712031 loses its 1850
+# ring. As far as anyone knows wa082 is dated correctly, so this is its only
+# dating error; its other flags in xdate.report() are there without it.
+plant.wa082.error <- function(file = "data/wa082.rwl") {
+  x <- suppressMessages(dplR::read.rwl(file, format = "tucson"))
+  x <- dplR::delete.ring(x, series = "712031", year = 1850)
+  attr(x, "planted") <- data.frame(series = "712031", year = 1850,
+                                   error = "missing ring", expected.lag = -1)
+  x
+}

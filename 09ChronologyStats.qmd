@@ -86,9 +86,16 @@ set.seed(1984)
 nYears <- 2000
 nSeries <- 30
 rho <- 0.25
+
+# One shared signal, and independent noise for each series. Mixing them in
+# proportions sqrt(rho) and sqrt(1 - rho) makes any two series correlate at
+# about rho.
 signal <- rnorm(nYears)
 noise <- matrix(rnorm(nYears * nSeries), nrow = nYears)
 simSeries <- sqrt(rho) * signal + sqrt(1 - rho) * noise
+
+# rbar: the mean of the correlations between every pair of series. upper.tri()
+# picks each pair once and skips each series' correlation with itself.
 simCor <- cor(simSeries)
 mean(simCor[upper.tri(simCor)])
 ```
@@ -97,14 +104,18 @@ The rbar of the simulated series is close to the 0.25 I planted. Now build a chr
 
 ```{r}
 #| label: stats-sim-eps
+# EPS from the formula, for n series that correlate at rbar
 epsFormula <- function(n, rbar) {
   n * rbar / (1 + (n - 1) * rbar)
 }
-simEps <- data.frame(n = 1:nSeries)
-simEps$recovered <- sapply(simEps$n, function(n) {
+
+# Chronologies from the first series, then the first two, and so on. For each
+# one, how much of the planted signal it recovers (the squared correlation).
+simEps <- data.frame(n = 1:nSeries, recovered = NA)
+for (n in 1:nSeries) {
   simChron <- rowMeans(simSeries[, 1:n, drop = FALSE])
-  cor(simChron, signal)^2
-})
+  simEps$recovered[n] <- cor(simChron, signal)^2
+}
 simEps$formula <- epsFormula(simEps$n, rho)
 ```
 
@@ -125,6 +136,7 @@ Look at where the line crosses 0.85. Turn the formula around and you get the num
 
 ```{r}
 #| label: stats-n-needed
+# The EPS formula solved for n: how many series it takes to reach a given EPS
 nNeeded <- function(rbar, eps = 0.85) {
   eps * (1 - rbar) / (rbar * (1 - eps))
 }
@@ -187,10 +199,13 @@ So what is the EPS of Hurricane Ridge? I have been saying `r wa082Stats$eps`, bu
 
 ```{r}
 #| label: stats-choices
+# EPS for wa082 after one detrending method, with or without prewhitening
 epsFor <- function(method, prewhiten) {
   rwi <- detrend(wa082, method = method)
   rwi.stats(rwi, wa082Ids, prewhiten = prewhiten)$eps
 }
+
+# Every method both ways: sapply() runs epsFor once per method
 methods <- c("Mean", "ModNegExp", "AgeDepSpline", "Spline")
 wa082Choices <- data.frame(
   method = methods,
@@ -228,6 +243,8 @@ co021Run <- rwi.stats.running(co021Rwi, co021Ids, window.length = 50)
 #| label: fig-stats-running
 #| fig-cap: "Running EPS, effective rbar and number of trees in 50-year windows for Mesa Verde (co021) and Hurricane Ridge (wa082). The dashed line is an EPS of 0.85."
 #| fig-height: 6
+# Reshape one site's running statistics into a long table, one row per
+# window and statistic, which is what facet_grid() needs.
 runLong <- function(run, site) {
   data.frame(
     site = site,
@@ -239,7 +256,10 @@ runLong <- function(run, site) {
 statLevels <- c("EPS", "Effective rbar", "Trees")
 runBoth <- rbind(runLong(co021Run, "co021"), runLong(wa082Run, "wa082"))
 runBoth$stat <- factor(runBoth$stat, levels = statLevels)
+
+# The 0.85 line belongs only in the EPS panels, so it gets its own small table
 epsLine <- data.frame(stat = factor("EPS", levels = statLevels), value = 0.85)
+
 ggplot(runBoth, aes(x = year, y = value)) +
   geom_hline(data = epsLine, aes(yintercept = value), linetype = "dashed") +
   geom_line() +
@@ -299,13 +319,17 @@ The first Hurricane Ridge window rests on `r wa082Run$n.bt[1]` between-tree corr
 ```{r}
 #| label: fig-stats-windows
 #| fig-cap: "Running EPS for Hurricane Ridge with 30-year (dotted), 50-year (solid) and 100-year (dashed) windows. The gray line is 0.85."
+# Running EPS for wa082 with a window of `len` years, as a small table
 runWindow <- function(len) {
   run <- rwi.stats.running(wa082Rwi, wa082Ids, window.length = len)
   data.frame(window = paste(len, "years"), year = run$mid.year, eps = run$eps)
 }
+
+# Three window lengths stacked into one table, in a sensible order for the key
 wa082Windows <- rbind(runWindow(30), runWindow(50), runWindow(100))
 wa082Windows$window <- factor(wa082Windows$window,
                               levels = c("30 years", "50 years", "100 years"))
+
 ggplot(wa082Windows, aes(x = year, y = eps, linetype = window)) +
   geom_hline(yintercept = 0.85, colour = "grey60") +
   geom_line() +
@@ -351,6 +375,7 @@ wa082Sss[time(wa082) == 1750]
 ```{r}
 #| label: fig-stats-sss
 #| fig-cap: "Subsample signal strength by year for Mesa Verde (co021) and Hurricane Ridge (wa082). The dashed line is 0.85."
+# SSS for each year at both sites, stacked into one table for ggplot
 sssBoth <- rbind(
   data.frame(site = "co021", year = time(co021), sss = co021Sss),
   data.frame(site = "wa082", year = time(wa082), sss = wa082Sss)
@@ -393,6 +418,8 @@ Those are a good deal higher than the rbar values. Did the trees get better? No.
 
 ```{r}
 #| label: stats-interseries-approx
+# The approximation: the square root of rbar times the EPS of the other
+# n - 1 series, with rbar from prewhitened indices
 interApprox <- function(rwi) {
   rbar <- rwi.stats(rwi, prewhiten = TRUE)$rbar.tot
   sqrt(rbar * epsFormula(ncol(rwi) - 1, rbar))
@@ -411,10 +438,13 @@ The trouble is that it tells you nothing you didn't already have. For a series w
 ```{r}
 #| label: fig-stats-sens
 #| fig-cap: "Mean sensitivity of each detrended series against a value computed from its standard deviation and first-order autocorrelation alone."
+# For every series at one site: its mean sensitivity, and the value predicted
+# from its standard deviation and lag-one autocorrelation alone.
+# apply(rwi, 2, f) runs f on each column, that is, on each series.
 sensCompare <- function(rwi, site) {
   ar1 <- apply(rwi, 2, function(x) {
     x <- x[!is.na(x)]
-    cor(x[-1], x[-length(x)])
+    cor(x[-1], x[-length(x)])   # each ring against the one before it
   })
   data.frame(
     site = site,
@@ -423,6 +453,7 @@ sensCompare <- function(rwi, site) {
   )
 }
 sensBoth <- rbind(sensCompare(co021Rwi, "co021"), sensCompare(wa082Rwi, "wa082"))
+
 ggplot(sensBoth, aes(x = fromSdAr1, y = sens, shape = site)) +
   geom_point() +
   scale_shape_manual(values = c(1, 16)) +

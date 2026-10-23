@@ -14,7 +14,7 @@ In `dplR` that job belongs to `xdate.report`. It builds a crossdating report in 
 
 ## Try It Interactively First
 
-A confession before any code: for crossdating, a script is often the harder way to work. You look at a flag, try a shift, look at the wood, insert a ring, and look again, and that loop is faster when you can click. That's what xDateR is for. It's a Shiny app that runs in a web browser, with nothing to install. It's built on `dplR`, `xdate.report` included, so its flags are the ones in this chapter. It has guided examples, and every report it writes includes R code that reproduces your edits from the original file. The [openDendro apps page](https://opendendro.org/apps/){target="_blank"} has the link to the live app, and the source is [on GitHub](https://github.com/OpenDendro/xDateR){target="_blank"}.
+A confession before any code: for crossdating, a script is often the harder way to work. You look at a flag, try a shift, look at the core, insert a ring, and look again, and that loop is faster when you can click. That's what xDateR is for. It's a Shiny app that runs in a web browser, with nothing to install. It's built on `dplR`, `xdate.report` included, so its flags are the ones in this chapter. It has guided examples, and every report it writes includes R code that reproduces your edits from the original file. The [openDendro apps page](https://opendendro.org/apps/){target="_blank"} has the link to the live app, and the source is [on GitHub](https://github.com/OpenDendro/xDateR){target="_blank"}.
 
 So why a chapter on doing it in code? Because the app is `dplR` underneath, and knowing what it is doing makes you better at using it. And because a script is a record. When a reviewer asks how you dated a collection, "I clicked around" is a worse answer than a file.
 
@@ -62,7 +62,9 @@ The whole report is a few hundred lines, in COFECHA's layout: a summary, the cor
 
 ```{r}
 #| label: xdate-report-head
-cat(head(format(co021Report), 19)[-(1:3)], sep = "\n")
+# format() turns the report into lines of text. Lines 4 to 19 are the summary.
+reportLines <- format(co021Report)
+cat(reportLines[4:19], sep = "\n")
 ```
 
 ```{r}
@@ -92,6 +94,7 @@ Two series have runs of purple, and nothing else does. The list of flagged segme
 
 ```{r}
 #| label: xdate-flagged
+# The flagged segments, with the correlations rounded to two places
 flagShow <- flagged[, c("series", "from", "to", "flag", "r.dated", "best.lag", "r.lag")]
 flagShow$r.dated <- round(flagShow$r.dated, 2)
 flagShow$r.lag <- round(flagShow$r.lag, 2)
@@ -109,7 +112,7 @@ Start with 645221. Every flagged segment, from `r min(f645$from)` to `r max(f645
 
 Now 643143. Same pattern, opposite sign: lag `r unique(f643$best.lag)` from `r min(f643$from)` to `r max(f643$to)`, which means rings dated too early and a ring counted that isn't there. The last flagged segment is `r max(f643$from)` to `r max(f643$to)`. The duplicated ring was `r planted$year[2]`.
 
-The report found both errors and flagged nothing else. In both series the planted year falls in the last flagged segment. That's as far as a report can take you: it gives you fifty years to search. [Fixing Errors](06FixingErrors.qmd) narrows that down with finer tools, and then with the wood.
+The report found both errors and flagged nothing else. In both series the planted year falls in the last flagged segment. That's as far as a report can take you: it gives you fifty years to search. [Fixing Errors](06FixingErrors.qmd) narrows that down with finer tools, and then with the core itself.
 
 Notice how big the gains are, too. A dated correlation near zero becomes one near 0.9 with a one-year shift. Gains like that are what a dating error looks like in a collection this strong. A flag where the shift gains only a few hundredths may be noise, and the next section is about where those come from.
 
@@ -119,6 +122,8 @@ The report ends with the findings of `rwl.check`, which checks each series as a 
 
 ```{r}
 #| label: xdate-whole-series
+# The report keeps rwl.check()'s findings. Show the errors and warnings and
+# leave out the notes.
 checkFindings <- as.data.frame(co021Report$check)
 checkFindings[checkFindings$severity != "note", c("check", "severity", "series", "value")]
 ```
@@ -138,26 +143,42 @@ It catches 645221 and misses 643143. Why? Only the first `r misdated643` of 6431
 
 Mesa Verde makes this look easy. Its series correlate with the master at `r sprintf("%.2f", weighted.mean(co021Report$stats$corr, co021Report$stats$n.years, na.rm = TRUE))` on average, and that is near the top of the ITRDB. Most collections are weaker, and a weaker collection can't find errors as reliably, and it raises flags on series that are dated correctly. How much weaker before the report stops being useful?
 
-That's a question for a collection where we know the answer. The simulated stand from [Chapter 2](02CoresToRecord.qmd) has one missing ring, in SIM03A at 1800, and I can turn its common signal down. Here it is at three strengths, twenty simulated stands each.
+That's a question for a collection where we know the answer. The simulated stand from [Chapter 2](02CoresToRecord.qmd) has one missing ring, in SIM03A at 1800, and I can turn its common signal down. Here it is at three strengths, twenty simulated stands each. The code below handles one stand at a time in `weakRun`: build the stand, run `xdate.report` on it, and record whether SIM03A's missing ring was found and how many flags landed on series with nothing wrong. The loop runs it sixty times, and the last step averages each group of twenty.
 
 ```{r}
 #| label: xdate-weak
+# One simulated stand: build it, run the report on it, and count what the
+# report got right and what it flagged that isn't wrong.
 weakRun <- function(rbar, seed) {
+  # cores from one tree always agree more than cores from different trees,
+  # so rbar.wt moves up and down with rbar.bt
   sim <- sim.collection(rbar.bt = rbar, rbar.wt = rbar + 0.2, seed = seed)
   report <- suppressWarnings(xdate.report(sim$rwl))
   f <- report$flagged
-  planted <- f$series == "SIM03A"
-  data.frame(rbar = rbar,
-             corr = weighted.mean(report$stats$corr, report$stats$n.years,
-                                  na.rm = TRUE),
-             found = any(planted & f$flag == "B" & f$best.lag == -1 & !f$weak),
-             falseB = sum(!planted & f$flag == "B" & !f$weak),
-             falseA = sum(!planted & f$flag == "A"),
-             segments = sum(report$stats$n.seg))
+  planted <- f$series == "SIM03A"   # the one series with a real error
+  data.frame(
+    rbar = rbar,
+    # the correlation with the master that the report prints at the top
+    corr = weighted.mean(report$stats$corr, report$stats$n.years,
+                         na.rm = TRUE),
+    # did SIM03A get a B flag at lag -1 that isn't "weak at every lag"?
+    found = any(planted & f$flag == "B" & f$best.lag == -1 & !f$weak),
+    # flags on series that have nothing wrong with them
+    falseB = sum(!planted & f$flag == "B" & !f$weak),
+    falseA = sum(!planted & f$flag == "A"),
+    segments = sum(report$stats$n.seg)
+  )
 }
-weak <- do.call(rbind, lapply(c(0.4, 0.2, 0.1), function(r) {
-  do.call(rbind, lapply(1:20, function(s) weakRun(r, s)))
-}))
+
+# Twenty stands at each of three signal strengths, one row per stand.
+weak <- NULL
+for (rbar in c(0.4, 0.2, 0.1)) {
+  for (seed in 1:20) {
+    weak <- rbind(weak, weakRun(rbar, seed))
+  }
+}
+
+# Average the twenty stands at each strength, strongest first.
 weakTable <- aggregate(cbind(corr, found, falseB, falseA, segments) ~ rbar,
                        data = weak, FUN = mean)
 weakTable <- weakTable[order(-weakTable$rbar), ]
@@ -178,7 +199,7 @@ So read a report with the collection's strength in mind. In a collection like Me
 
 ## Wrapping Up
 
-`xdate.report` cuts every series into segments, correlates each against a master built from the rest, and flags the segments that fit badly or fit better a few years away. On a strong collection it found both planted errors, gave the direction of each, and put each within half a century. It didn't find the rings themselves, and it can't tell you what happened in the wood. A locally absent ring that nobody marked and a ring the measurer skipped look exactly the same to it. It found the two errors because Mesa Verde's trees agree so well, and on a weaker collection the same flags mean less.
+`xdate.report` cuts every series into segments, correlates each against a master built from the rest, and flags the segments that fit badly or fit better a few years away. On a strong collection it found both planted errors, gave the direction of each, and put each within half a century. It didn't find the rings themselves, and it can't tell you what happened in the tree. A locally absent ring that nobody marked and a ring the measurer skipped look exactly the same to it. It found the two errors because Mesa Verde's trees agree so well, and on a weaker collection the same flags mean less.
 
 The next chapter, [Fixing Errors](06FixingErrors.qmd), takes the two flagged series from half a century down to a year, puts the rings back, and runs the report again.
 
@@ -187,12 +208,12 @@ The next chapter, [Fixing Errors](06FixingErrors.qmd), takes the two flagged ser
 1. Plant your own error. Use `delete.ring` or `insert.ring` on a series of your choice in `co021`, near the inner end of a long series, and see whether `xdate.report` finds it. Does `rwl.check` on its own?
 2. Run `xdate.report` on `co021Bad` with `seg.length = 30` and again with `seg.length = 100`. How do the runs of flags change, and what do you gain and lose with each?
 3. Change `nyrs` to 20, the spline Holmes first used, and to 100. Do the same errors show up?
-4. Run `xdate.report` on `wa082`, read from `data/wa082.rwl`. Which series does it flag, at what lags, with what gains? Which would you take to the wood first, and why? Nobody has planted anything here, and nobody knows the answer.
+4. Run `xdate.report` on `wa082`, read from `data/wa082.rwl`. Which series does it flag, at what lags, with what gains? Which core would you pull out of the drawer first, and why? Nobody has planted anything here, and nobody knows the answer.
 5. Open xDateR's example data in the app and find the errors planted there.
 
 ## Further Reading
 
 - @Holmes1983 is COFECHA's first description. It is short, and it explains why the segments and the spline are there.
 - @GrissinoMayer2001 is the COFECHA manual, with a tutorial on reading every part of the output. Most of what `xdate.report` prints is described there.
-- @Douglass1941 is the founder of the field on what crossdating is and on why a correlation can't replace looking at the wood.
+- @Douglass1941 is the founder of the field on what crossdating is and on why a correlation can't replace looking at the samples.
 - @Bunn2010 describes `dplR`'s crossdating functions as they were first written. Some defaults have changed since. Please cite it if you use `dplR` for crossdating.

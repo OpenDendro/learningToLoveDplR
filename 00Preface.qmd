@@ -6,7 +6,7 @@ The book is being rewritten in 2026. Some chapters are finished drafts, some are
 
 This is a book about doing tree-ring analysis in R with `dplR`, the Dendrochronology Program Library in R. It covers the work in roughly the order you'd do it: reading ring widths, crossdating, detrending, building a chronology, and then asking what the record says about time or about the trees.
 
-I assume you know some dendrochronology, or are learning it alongside. You should know what a ring width is, why trees at a dry site might agree with each other, and what crossdating is for. If that's all new, start with a good primer like Fritts [-@Fritts2001] or the Cook Book [-@CookBook] and come back. The book won't teach you dendrochronology from the beginning. It will show you what the methods are doing, how to run them in R, and where they mislead.
+I assume you know some dendrochronology, or are learning it alongside. You should know what a ring width is, why trees at a dry site might agree with each other, and what crossdating is for. If that's all new, start with a good primer like Fritts [-@Fritts2001] or *Methods of Dendrochronology* [-@CookBook], the edited volume most of us call the Cook Book, and come back. The book won't teach you dendrochronology from the beginning. It will show you what the methods are doing, how to run them in R, and where they mislead.
 
 I also assume you can get around in R a little. The [Setup appendix](A1PackagesUsed.qmd) says what to install and points to a good place to start if you can't.
 

@@ -1,19 +1,251 @@
 # Dating a Floater
 
-:::{.callout-note title="Stub"}
-Not written yet.
-
-Planned: `xdate.floater`.
-
-Source: new.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-23, from the outline of 2026-10-22. Every number in the text is computed when the book builds, and the length test takes a couple of minutes. Needs dev dplR 1.8.1, whose `xdate.floater` defaults match `xdate.report`. Open questions are in the backlog.
 :::
 
 ## Big Idea
 
+In 1928 A. E. Douglass had two tree-ring chronologies for the American Southwest that didn't meet. One ran back from living trees to about 1260. The other came from the beams of ruins like Pueblo Bonito and Mesa Verde, 585 years long, and floated: its rings were in order, but nobody knew what years they belonged to. Then an expedition at Show Low, Arizona, turned up a charred beam, catalogued as HH-39, that began in 1237. That evening, by the light of a gasoline torch and with his skeleton plots spread out, Douglass found that the 551st ring of the floating chronology matched the ring for 1251 in HH-39. As he put it, there had been no gap to bridge at all, only one already closed without anyone knowing it [@Douglass1929, p. 767]. The overlap, about 25 years, had been hidden because the rings that covered it came from small fragments he'd never trusted, and because the drought years of the late 1200s made the pattern so extreme [@Robinson1990, p. 5]. About 40 ruins got calendar dates out of it.
+
+A floater is any series without an outer year: a beam, a stump, a piece of charcoal, a core whose bark end is gone. Its rings are in order but not in time. Dating it means sliding it along a dated master until the pattern fits. In [Fixing Errors](06FixingErrors.qmd) the question was whether a series was a year or two off. Here every position is possible, and a search over hundreds of positions changes how you read the answer.
+
 ## Packages
+
+```{r}
+#| label: floater-setup
+#| message: false
+library(dplR)
+source("R/sim-collection.R")
+co021 <- read.rwl("data/co021.rwl", format = "tucson")
+wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
+# xdate.floater can't use a master series with a gap in it, and 712011 has
+# one in 1900. Leave it out of every master in this chapter.
+wa082 <- wa082[, names(wa082) != "712011"]
+```
+
+## Making a Floater
+
+The easiest floater to learn on is one where you know the answer. Take 200 rings from a dated series, throw away their years, and take the whole series out of the collection so it can't match itself.
+
+```{r}
+#| label: floater-make
+piece <- co021[["643211"]][time(co021) %in% 1650:1849]   # grab 200 rings and drop years
+master <- co021[, names(co021) != "643211"]              # the collection without it
+str(piece)
+```
+
+`piece` is a plain vector of ring widths. Nothing in it says 1650.
+
+## Sliding It Along
+
+```{r}
+#| label: floater-search
+#| fig-height: 7
+#| fig-cap: "The floater from 643211 placed against Mesa Verde. Top: the collection, with the floater at its best position in green. Bottom: the correlation at every position the search tried, by the floater's last year. The dashed line is the 0.05 significance level and the blue band the typical correlation between series in the collection."
+fo <- xdate.floater(master, piece, series.name = "mystery")
+```
+
+`xdate.floater` builds a master from the collection, filters the master and the floater the same way `xdate.report` does (a 32-year spline, then prewhitening), and slides the floater along it. At every position with at least `min.overlap` years in common, 50 by default, it records the correlation. The highest correlation gives the dates.
+
+```{r}
+#| label: floater-table
+# Every position tried, sorted from the best correlation down
+positions <- fo$floaterCorStats
+positions <- positions[order(-positions$r), ]
+head(positions, 5)
+```
+
+```{r}
+#| label: floater-table-numbers
+#| include: false
+nTried <- nrow(fo$floaterCorStats)
+```
+
+The floater comes back at `r positions$first[1]` to `r positions$last[1]`, which is right, with a correlation of `r sprintf("%.2f", positions$r[1])`. The next best position, `r positions$first[2]` to `r positions$last[2]`, is centuries away at `r sprintf("%.2f", positions$r[2])`. In the plot that's the single spike standing out of a field of noise. `fo$rwlCombined` is the collection with the floater added at its new dates, ready for everything in the last two chapters.
+
+The search was `r nTried` positions long. That number matters for the next section.
+
+## Why the p-Value Won't Help
+
+The table has a p-value for every position, and it's tempting to read the best one as a test. Look at the noise in the plot instead. Plenty of it pokes above the dashed significance line.
+
+```{r}
+#| label: floater-pvalues
+# How many of the wrong positions would pass as "significant"?
+wrong <- fo$floaterCorStats$first != 1650
+sum(fo$floaterCorStats$p[wrong] < 0.01)
+```
+
+`r sum(fo$floaterCorStats$p[wrong] < 0.01)` wrong positions out of `r sum(wrong)` have p below 0.01. That's about what you'd expect from chance across `r nTried` tries: each p-value answers the question of whether this one position could be noise, and a search asks that question hundreds of times. Something will clear the bar.
+
+What to read instead is how far the best stands above the rest. At Mesa Verde the gap between the best and the runner-up is wide, `r sprintf("%.2f", positions$r[1])` against `r sprintf("%.2f", positions$r[2])`. Here is the same floater test on Hurricane Ridge.
+
+```{r}
+#| label: floater-wa082
+pieceWa <- wa082[["712092"]][time(wa082) %in% 1750:1949]
+masterWa <- wa082[, names(wa082) != "712092"]
+foWa <- xdate.floater(masterWa, pieceWa, make.plot = FALSE, verbose = FALSE)
+positionsWa <- foWa$floaterCorStats[order(-foWa$floaterCorStats$r), ]
+head(positionsWa, 3)
+```
+
+Right again, `r positionsWa$first[1]` to `r positionsWa$last[1]`, but at `r sprintf("%.2f", positionsWa$r[1])`, with the runner-up at `r sprintf("%.2f", positionsWa$r[2])`. Still a clear winner, by less. As floaters get shorter, the best correlation stays about where it is and the runner-up creeps up toward it, because a short series can match a wrong stretch by chance more easily. Eventually the two meet.
+
+## How Short Is Too Short?
+
+Pilcher's rule of thumb is that you shouldn't expect reliable crossdating from fewer than about 40 rings, and that every lab should work out its own minimum by cutting long dated series into shorter pieces and seeing where the dating breaks down [@Pilcher1990, p. 46-47]. With `xdate.floater` that's a short loop.
+
+The function below cuts one floater of a given length at random from a collection: it picks a series long enough, picks a starting ring, keeps the rings, and takes the whole series out of the master. Then it runs the search and reports whether the best position is the right one. The loop does that 20 times for each length in each collection.
+
+```{r}
+#| label: floater-lengths
+# One random floater of `len` rings from `rwl`: was it placed at the right year?
+placedRight <- function(rwl, len) {
+  yrs <- time(rwl)
+  longEnough <- names(rwl)[colSums(!is.na(rwl)) >= len]
+  s <- sample(longEnough, 1)
+  rings <- which(!is.na(rwl[[s]]))
+  start <- sample(min(rings):(max(rings) - len + 1), 1)
+  piece <- rwl[[s]][start:(start + len - 1)]
+  # min.overlap must be shorter than the floater after prewhitening takes a
+  # few rings off its start, so short floaters need a smaller one
+  res <- xdate.floater(rwl[, names(rwl) != s], piece,
+                       min.overlap = min(50, len - 10),
+                       make.plot = FALSE, verbose = FALSE, return.rwl = FALSE)
+  res$first[which.max(res$r)] == yrs[start]
+}
+
+# A weak stand: the simulation with its between-tree correlation at 0.2.
+# $truth$rwl is the version without the planted dating error.
+weakStand <- sim.collection(rbar.bt = 0.2, rbar.wt = 0.4, seed = 1)$truth$rwl
+
+collections <- list(co021 = co021, wa082 = wa082, weak = weakStand)
+lengths <- c(200, 100, 60, 40, 30)
+set.seed(2026)
+lengthTable <- data.frame(rings = lengths)
+for (site in names(collections)) {
+  lengthTable[[site]] <- NA
+  for (k in seq_along(lengths)) {
+    hits <- replicate(20, placedRight(collections[[site]], lengths[k]))
+    lengthTable[[site]][k] <- mean(hits)   # share placed at the right year
+  }
+}
+lengthTable
+```
+
+Each number is the share of 20 random floaters placed at the right year. Mesa Verde dates short pieces almost every time, which is the unrealistic-expectations problem from [Fixing Errors](06FixingErrors.qmd) again: those trees are about as good as tree rings get. Hurricane Ridge agrees with Pilcher. It's reliable down to 60 rings or so, and at `r lengthTable$rings[4]` rings it gets `r round(100 * lengthTable$wa082[4])` percent of them right, which is not a number to bet a date on. The weak stand can't be trusted even with 100 rings.
+
+So how short is too short? It depends on the collection, and that's Pilcher's point. Run this on your own collection before you trust a short floater.
+
+## A Floater With an Error in It
+
+A floater can carry its own dating error, and nothing outside it holds its rings in place. A dated core has its outer ring to anchor it, so an error shows up as a shift in part of the series. A floater with an error is two pieces glued together a year out of step, and the search has to place both at once.
+
+Here's a false ring planted halfway through each of the two floaters. `insert.ring` on a plain vector adds a copy of ring 100 next to it; `fix.length = FALSE` lets the floater grow by one ring, as a counted false ring would.
+
+```{r}
+#| label: floater-false-ring
+# Plant a false ring after ring 100: the floater gains one ring
+withFalseRing <- function(piece) {
+  insert.ring(piece, rw.vec.yrs = seq_along(piece), year = 100,
+              ring.value = piece[100], fix.length = FALSE)
+}
+badCo <- unname(withFalseRing(piece))
+badWa <- unname(withFalseRing(pieceWa))
+
+# The top two positions for each
+foBadCo <- xdate.floater(master, badCo, make.plot = FALSE, verbose = FALSE)
+foBadWa <- xdate.floater(masterWa, badWa, make.plot = FALSE, verbose = FALSE)
+topTwo <- function(fo) head(fo$floaterCorStats[order(-fo$floaterCorStats$r), ], 2)
+topTwo(foBadCo)
+topTwo(foBadWa)
+```
+
+```{r}
+#| label: floater-false-ring-numbers
+#| include: false
+tc <- topTwo(foBadCo)
+tw <- topTwo(foBadWa)
+```
+
+With the extra ring the floater is 201 rings long for 200 years, so no position can be right everywhere. Mesa Verde copes, more or less. The best position, `r tc$first[1]` to `r tc$last[1]`, puts the outer half in its true years and the inner half a year early, and its correlation has fallen to `r sprintf("%.2f", tc$r[1])`. The runner-up, `r tc$first[2]` to `r tc$last[2]`, is the other way round, at `r sprintf("%.2f", tc$r[2])`. Two positions a year apart that nearly tie mean part of the floater fits one and part fits the other.
+
+At Hurricane Ridge the search puts the floater in the wrong century. Its best position is `r tw$first[1]` to `r tw$last[1]`, `r abs(1750 - tw$first[1])` years from the truth, at `r sprintf("%.2f", tw$r[1])`. The runner-up is `r tw$first[2]` to `r tw$last[2]`, with the inner half in its true years, at `r sprintf("%.2f", tw$r[2])`. Without the answer key, the only warnings are a modest correlation and a near-tie between two positions that disagree by centuries.
+
+Pilcher's other suggestion catches this: split the series and date the halves on their own.
+
+```{r}
+#| label: floater-split
+# Date each half of a floater separately
+splitTest <- function(master, floater) {
+  half <- floor(length(floater) / 2)
+  pieces <- list(first = floater[1:half],
+                 second = floater[(half + 1):length(floater)])
+  out <- NULL
+  for (p in names(pieces)) {
+    res <- xdate.floater(master, pieces[[p]], make.plot = FALSE,
+                         verbose = FALSE, return.rwl = FALSE)
+    best <- res[which.max(res$r), ]
+    out <- rbind(out, data.frame(half = p, first = best$first,
+                                 last = best$last, r = round(best$r, 2)))
+  }
+  out
+}
+splitTest(master, badCo)
+splitTest(masterWa, badWa)
+```
+
+```{r}
+#| label: floater-split-numbers
+#| include: false
+sc <- splitTest(master, badCo)
+sw <- splitTest(masterWa, badWa)
+```
+
+At Hurricane Ridge the first half lands at `r sw$first[1]` to `r sw$last[1]` and the second at `r sw$first[2]` to `r sw$last[2]`. Both claim `r intersect(sw$first[1]:sw$last[1], sw$first[2]:sw$last[2])`. Two halves of one series that both claim the same year hold one ring more than the years they span, which is a false ring near the join. Mesa Verde's halves do the same, sharing `r intersect(sc$first[1]:sc$last[1], sc$first[2]:sc$last[2])`. A missing ring would leave a year between the halves that neither claims.
+
+Make the split a habit. It's two more searches, and it's the one check here that doesn't depend on the collection being strong.
+
+## Fitting It In
+
+Once a floater has a date you believe, `rwlCombined` puts it into the collection, and from there it's a series like any other. Run `xdate.report` on the combined collection and read it as in [Crossdating a Collection](05Crossdating.qmd).
+
+```{r}
+#| label: floater-combined
+combinedFlags <- xdate.report(foBadCo$rwlCombined)$flagged
+combinedFlags[combinedFlags$series == "Unknown",
+              c("series", "from", "to", "flag", "best.lag", "r.dated", "r.lag")]
+```
+
+```{r}
+#| label: floater-combined-numbers
+#| include: false
+cf <- combinedFlags[combinedFlags$series == "Unknown", ]
+```
+
+That's the Mesa Verde floater with the false ring, placed at its best position. The report flags its inner segments at lag `r sprintf("%+d", unique(cf$best.lag))`, the false-ring direction, from `r min(cf$from)` to `r max(cf$to)`, and from there the work is [Fixing Errors](06FixingErrors.qmd).
+
+xDateR's Floater panel does the same search interactively. It lists the candidate positions side by side so you can see a near-tie, and it lets you place a floater by hand at a position you have other evidence for. The [openDendro apps page](https://opendendro.org/apps/){target="_blank"} has the link.
+
+A floater's date is a hypothesis until something else backs it up: another sample from the same structure, a second chronology, the archaeology. HH-39 was checked the same way. More charcoal from Show Low and from Pinedale confirmed the join [@Robinson1990, p. 5].
 
 ## Wrapping Up
 
+`xdate.floater` always returns a best position, even for a floater that can't be dated. Whether to believe it depends on the correlation and its margin over the runner-up, the floater's length, the strength of the collection, and whether the halves agree when you split it. The p-value doesn't help. Mesa Verde will date almost anything you hand it. An ordinary collection like Hurricane Ridge dates long floaters reliably and short ones about as often as not, and it can place a floater with an error in it centuries from where it belongs.
+
+That's the end of the Crossdating part. Next is the Standardization part, starting with [Detrending](08Detrending.qmd).
+
 ## Exercises
 
+1. Make a floater from a `co021` series near the start of the collection, where only a few series reach. Does it still date?
+2. Rerun the length table for `wa082` with `nyrs = NULL` and `method = "spearman"`, the defaults before dplR 1.8.1. Does the spline help?
+3. Plant a missing ring in a floater with `delete.ring` and run `splitTest`. How do the halves disagree?
+4. xDateR's example data include three floaters. Load the example files from the app's GitHub repository and date them here.
+5. Repeat the length table with 40 floaters per cell instead of 20. How much do the shares move? What does that say about the table you just read?
+
 ## Further Reading
+
+- @Douglass1929 is Douglass's own account of HH-39 for a general audience, with the photographs. Long, and a pleasure.
+- @Robinson1990 is the short history of the floating chronologies and the gap, in *Methods of Dendrochronology*.
+- @Pilcher1990, in the same book, on short series and on splitting a series to find your own minimum.

@@ -97,10 +97,15 @@ That is the reader's default. You can ask for zeros instead, and the older reade
 #| message: false
 waZero <- read.tucson("data/wa082.rwl", fill.internal.NA = 0)
 waLegacy <- read.tucson.legacy("data/wa082.rwl", verbose = FALSE)
+
+# The copy that ships with dplR. data() would overwrite our own wa082, so load
+# it inside local() and keep only what comes back.
 waOnBoard <- local({
   data(wa082, package = "dplR", envir = environment())
   wa082
 })
+
+# Series 712011 around 1900, four ways
 yrs <- as.character(1898:1902)
 data.frame(
   year = yrs,
@@ -130,7 +135,7 @@ rwl.check(waOnBoard)
 
 One note: a ring of zero width. Nothing about a gap. Once the hole is a zero, nothing downstream can tell it from an absent ring, and every method in the book will treat 1900 as a year in which that tree put on no wood at all. The read record still knows the zero was a gap. `rwl.check` reads the record for the reader's warnings about the file, but not for that.
 
-Compare Mesa Verde, which has `r sum(co021 == 0, na.rm = TRUE)` zeros. Those are absent rings, recorded on purpose by people who looked for them in the wood. In an `rwl` object they look exactly like the zero in 1900 at Hurricane Ridge, and only the person who measured the cores knew which was which. That's why the reader returns `NA` by default and prints a message about it. What 1900 becomes is your call, and the message makes sure you know there is a call to make.
+Compare Mesa Verde, which has `r sum(co021 == 0, na.rm = TRUE)` zeros. Those are absent rings, recorded on purpose by people who looked for them on the cores. In an `rwl` object they look exactly like the zero in 1900 at Hurricane Ridge, and only the person who measured the cores knew which was which. That's why the reader returns `NA` by default and prints a message about it. What 1900 becomes is your call, and the message makes sure you know there is a call to make.
 
 What to do about the gap is a choice, and it comes later in the book. The short version: it stays a gap through crossdating, and gets filled at the start of [Detrending](08Detrending.qmd), where `detrend` first refuses it.
 
