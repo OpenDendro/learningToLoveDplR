@@ -2,18 +2,75 @@
 
 Working notes for the rewrite. Not part of the book.
 
-## Start here (left open 2026-10-13)
+## Start here (updated 2026-10-23)
 
-State of the repo: the Quarto conversion, the restructure into parts, the stubs and the dataset work are on the `quarto-rewrite` branch. `main` is still the 2024 bookdown version. The folder moved from `workshopMaterials/dplR-workshop` to `openDendro/learningToLoveDplR`; the GitHub repo was renamed from `OpenDendro/dplR-workshop` to `OpenDendro/learningToLoveDplR` on 2026-10-13, and the old name no longer resolves. The writing spec is a local file and is not in the repo.
+State of the repo: the rewrite is on the `quarto-rewrite` branch; `main` is still the 2024 bookdown version. Last commit 55e7dea (06, 07, code explained). Uncommitted: 05x, 07x, the `Visser2021` and other bib entries, small edits to 07, and this file. The writing spec (`CLAUDE.md`) is local and not in the repo. The book needs dplR 1.8.1 dev (installed from the local checkout); dplR dev has one uncommitted change, the `xdate.report(prewhiten = FALSE)` guard.
 
-### 07 Dating a Floater, first draft 2026-10-23 (uncommitted)
+The folder moved from `workshopMaterials/dplR-workshop` to `openDendro/learningToLoveDplR`; the GitHub repo was renamed from `OpenDendro/dplR-workshop` to `OpenDendro/learningToLoveDplR` on 2026-10-13, and the old name no longer resolves.
+
+### Where each chapter stands (2026-10-23)
+
+| File | Chapter | Status |
+|---|---|---|
+| 00 | Preface | rewritten 2026-10-19 |
+| 01 | Where dplR Comes From | first draft 2026-10-19 |
+| 02 | An Additive Model of Tree Growth | third draft 2026-10-19; two-panel stand-event figure 2026-10-21 |
+| 03, 03x | Reading and Writing; Tucson Format aside | first drafts 2026-10-20/21 |
+| 04, 04x | Checking a Collection; Classes and Generics aside | first drafts 2026-10-21/22; 04 uses `rwl.check` |
+| 05, 05x | Crossdating a Collection; Gleichläufigkeit aside | first drafts 2026-10-22/23 |
+| 06 | Finding and Fixing an Error | first draft 2026-10-22 |
+| 07, 07x | Dating a Floater; Crossdating Statistics aside | first drafts 2026-10-23 |
+| 08 | Detrending | 2022 text on `ca533`; "Closing the Gap" outline waiting; next big job |
+| 09, 10 | Chronology Statistics; Chronology Building | full drafts 2026-10-13, code explained 2026-10-22; still to be read against the spec |
+| 11 | Regional Curves | stub |
+| 12 | Signal-Free | 2024 text on `ca533`, nine chunks fail |
+| 13, 14 | Smoothing and Filtering; Memory and Cycles | 2022 text, to trim |
+| 15, 16 | Basal Area; Events | stubs |
+| 17, 18 | dplPy; Conclusion | stubs |
+| A1, A2, A3 | Setup and Packages; Data Sources; Acknowledgements | A1 rewritten 2026-10-19; A2 partly written; A3 as is |
+| new | Quick Reference appendix | decided 2026-10-15, not started |
+| new | Climate part (two chapters) | proposed 2026-10-13, undecided; check `co021` and `wa082` against PRISM first |
+
+Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. No chapter has been rendered as part of the whole book, only alone.
+
+### Next
+
+1. Commit 05x and 07x (and the dplR guard in dplR dev).
+2. 08 Detrending: rewrite on `co021` and `wa082`, with the 712011 fill ("Closing the Gap"), the spline bending into the 1880 stand event (from 02), the unexplained `Chron` fill value, and Cook and Peters (1997) on ratio bias.
+3. Read 09 and 10 against the spec.
+4. Render the whole book once.
+
+### Waiting on Andy
+
+- ILL: Buras and Wilmking (2015), Huber (1943), Eckstein and Bauch (1969). Check 05x's Buras and Wilmking sentence against the paper when it comes; don't cite the German papers directly.
+- `Douglass1929` volume (56), issue (6) and end page (770) are unchecked.
+- Lines written in Andy's voice and flagged in the chapter entries below (search "For Andy").
+
+### 05x Gleichläufigkeit and Synchronous Growth Changes, first draft 2026-10-23 (uncommitted)
+
+- Drafted from the outline (Andy: look up Buras and Wilmking and Visser, cite only what can be checked). Renders alone; every number inline. Sections: tie-back (Huber and the European measure-first tradition), Up or Down (a hand count of signs on 641114 and 641121, 1900-1910, which `glk` matches at 0.95, including one no-change year counted as half), No Detrending Needed (raw vs spline indices differ by at most 0.03 for any pair; glk vs prewhitened correlation across pairs 0.73 at co021, 0.59 at wa082), When Nothing Changes (`sgc`/`ssgc`, GLK = SGC + SSGC/2 checked: 0.787 + 0.052/2 = 0.813; zero changes 2.9% and 2.3%), Finding a Misdated Series (645221 0.83 to 0.51; 643143 0.80 to 0.73 against a typical 0.81; Baillie and Pilcher's sliding program), close.
+- Revised 2026-10-23 after reading Visser's paper in full (Andy added `Visser2020_sgc.pdf.pdf`). Key renamed `Visser2021` (the issue is 2021). Added from it, with pages: Huber counted Gegenläufigkeiten and the 1956 machine (p. 204); Gleichläufigkeit common in European crossdating, less in the US (p. 204); Huber's half-credit rule for a level curve, Schweingruber's 1983 definition, software following it until Buras and Wilmking, dplR corrected (p. 205); Visser's view that half credit was a by-hand convenience that inflates GLK; SSGC > 0.1 in a quarter of ITRDB comparisons (p. 209-210); ties come with narrow rings, 0.88 vs 1.14 mm (p. 210); expected SSGC about 1% for random series at 0.01 mm (p. 207); he left out series with missing rings (p. 209). Mesa Verde (rings average 0.37 mm) fits the narrow-ring story; Hurricane Ridge (0.96 mm) has as many ties anyway, unexplained, and the text says so. Huber's title spelling settled: "jahrringchronologischer" (Visser's reference list, as in dplR). Buras and Wilmking, Huber and Eckstein and Bauch requested through ILL by Andy. Andy, 2026-10-23: don't cite the German papers (Huber 1943, Eckstein and Bauch 1969) directly; they come in through Visser and the Cook Book. Their bib entries stay, unused.
+- What was checked, and how: Visser (2020) is open access (CC BY) but Wiley put up a human-verification page in the built-in browser, so I didn't read it there. The abstract and bibliographic record came from OpenAlex: GLK = SGC + SSGC/2, semi-synchronous = one series doesn't change, large SSGC can point to anomalies or errors, SGC better for similarity and best combined with parametric measures. Buras and Wilmking (2015) is closed and has no abstract in OpenAlex; cited only for its title (the correction exists) plus the bibliographic record. Huber (1943) and Eckstein and Bauch (1969): bibliographic records from OpenAlex (Buras and Wilmking's reference list), texts not read. Huber's history and the measure-first contrast are from Eckstein and Pilcher (Methods of Dendrochronology 1.3, p. 12) and Pilcher (p. 40, 46), checked in the OCR text.
+- New bib entries: `EcksteinPilcher1990`, `Huber1943`, `EcksteinBauch1969`, `BurasWilmking2015`, `Visser2020`. For Andy: Huber's title is "jahrringchronologischer" in dplR's help and "jahrringschronologischer" in OpenAlex; I used dplR's spelling, unchecked. Read Visser's full paper when you can (it's open) and Buras and Wilmking's if you have access.
+- dplR help, found 2026-10-23, not fixed: `glk` Details says "Huber 1942" (the reference is 1943) and "Schweingruber 1988" (Buras and Wilmking cite Schweingruber 1983, *Der Jahrring*). `glk()` warns "'x' is not class rwl" on indices. The help's global-glk example includes the diagonal.
+
+### 07x What the Crossdating Statistics Are Doing, first draft 2026-10-23 (uncommitted)
+
+- Drafted (Andy: "Do 07x"). An experiment in the chapter: `scoreReport` runs `xdate.report` with one setting changed and counts whether the planted error was found and the false A and B flags. 11 settings, 20 simulated stands each plus planted `co021` and `wa082`. About 40 s to render.
+- Results (20 stands): default finds 100%, 0.75 false B and 1.15 false A per stand; raw widths 95% with 13.7 B and 17 A (co021 4 false B, wa082 8 B and 18 A); spline only 2.65 B, 1.95 A; prewhitening only 1.4 B, 1.5 A; nyrs 10 to 100 all find everything, false flags within one per stand; 30-year segments 11.6 B and 21 A; 100-year segments find 40% and miss wa082's; Spearman 1.3 B, 1.95 A. The co021 column never has a false A.
+- Sections: The Experiment, Why Filter at All?, How Stiff a Spline?, How Long a Segment?, Pearson or Spearman?, The Defaults Don't All Agree (a `formals` table across `xdate.report`, `xdate.floater`, `corr.rwl.seg`, `corr.series.seg`, `ccf.series.rwl`, `xskel.ccf.plot`; the table parked from chapter 1 landed here). Ends on COFECHA's log transform and that dplR doesn't take logs.
+- dplR change made for it (uncommitted in dplR dev): `xdate.report(prewhiten = FALSE)` tested no segments, because the default `ar.order.max = 3` was refused with prewhitening off (the report said so in its notes). Same guard as `xdate.floater`: the cap steps aside. Test, NEWS, ChangeLog.
+- Not claimed: that COFECHA uses Pearson or caps the AR order at 3 (unchecked). The text credits COFECHA with the 32-year spline and the 99 percent level (Grissino-Mayer 2001, p. 209) only.
+- 05x (glk, sgc) is the last stub in the Crossdating part.
+
+### 07 Dating a Floater, first draft 2026-10-23
 
 - Drafted from the outline below. Renders alone on dev dplR (about 20 s); every number inline. Opens on HH-39 from Douglass (1929, p. 767: the evening under the gasoline torch, ring 551 of the floating chronology matching 1251, "not a gap to bridge") and Robinson (1990, p. 5). Sections: Making a Floater, Sliding It Along (the two-panel plot, top positions), Why the p-Value Won't Help (7 of 800 wrong positions at p < 0.01 for the co021 floater), How Short Is Too Short? (a commented loop, 20 random floaters per cell, co021, wa082 and the weak simulation), A Floater With an Error in It (false ring with `fix.length = FALSE`, so 201 rings; near-tie a year apart; `splitTest`), Fitting It In (`rwlCombined` then `xdate.report`; xDateR's Floater panel; HH-39 confirmed by more charcoal).
 - New bib entries: `Robinson1990` (pp. 1-8) and `Douglass1929`. For Andy: the Douglass volume (56), issue (6) and end page (770) are from memory, not in the PDF; the article starts on p. 736 and refers to p. 770. Check before the book goes public.
 - The length table is seeded (`set.seed(2026)`) and has 20 floaters per cell, so it is noisy: the weak simulation at 30 rings came out 0.10 here against 0.30 with 40 per cell. Exercise 5 asks the reader to see that. The prose describes the pattern without leaning on single cells, except Hurricane Ridge at 40 rings, which is inline.
 - With the false ring the floater has 201 rings for 200 years, so the Mesa Verde "best" is 1649-1849 (outer half right) and the runner-up 1650-1850 (inner half right). The text explains it. Hurricane Ridge: best 1557-1757 (193 years off), runner-up 1750-1950.
 
-### 07 Dating a Floater, outline 2026-10-22 (uncommitted)
+### 07 Dating a Floater, outline 2026-10-22 (superseded by the draft above; numbers rerun on new defaults)
 
 - Outline in `07Floaters.qmd`. Opens on HH-39 (Robinson, Methods of Dendrochronology 1.1, p. 5, checked in the OCR text; Mesa Verde a First Beam Expedition area, p. 3). Sections: Making a Floater, Sliding It Along, Why the p-Value Won't Help, How Short Is Too Short?, A Floater With an Error in It, Fitting It In.
 - Checked with `xdate.floater` (40 random floaters per cell, `min.overlap = min(50, L - 10)`): share placed at the right year for 200/100/60/40/30 rings: `co021` 1.00 throughout; `wa082` (712011 dropped) 1.00, 1.00, 0.92, 0.78, 0.58; default simulation 0.98, 1.00, 0.98, 0.82, 0.65; weak simulation (rbar.bt 0.2) 0.85, 0.70, 0.60, 0.30, 0.22. In 90-100% of searches some wrong position had p < 0.01, so the chapter reads best r against the runner-up instead.
@@ -22,7 +79,7 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - Rerun 2026-10-22 on the new `xdate.floater` defaults (match `xdate.report`; Andy). The outline now carries the new numbers; the figures above in this entry are the old ones. Length table, share placed right for 200/100/60/40/30 rings: `co021` 1.00, 1.00, 1.00, 1.00, 0.95; `wa082` 1.00, 1.00, 0.98, 0.75, 0.62; default simulation 1.00, 1.00, 0.95, 0.85, 0.68; weak simulation 0.98, 0.82, 0.52, 0.42, 0.30 (better than the old defaults at 200 and 100, worse at 60). False-ring floaters: `co021` still placed right (r 0.44, runner-up one year later at 0.36); `wa082` placed at 1558-1757 (r 0.29), runner-up 1751-1950 (0.27). Split halves: `co021` 1651-1750 / 1750-1849, `wa082` 1751-1850 / 1850-1949. New point for the chapter: two positions a year apart that nearly tie are the clue that a floater holds an error.
 - Needs: `Robinson1990` bib entry (pp. 1-8); Douglass (1929) National Geographic, "The Secret of the Southwest Solved by Talkative Tree Rings" (title checked), bib entry and a read before citing.
 
-### Code explained for the reader, 2026-10-22 (uncommitted)
+### Code explained for the reader, 2026-10-22
 
 - Andy: the trickier chunks were opaque to a reader who isn't a programmer (05's `weakRun`, 06's hidden `bestLag`), and this was missing across the book. New rules in the writing spec (Code and Figures): help the reader through any chunk beyond a call or two (comments, a lead-in or a walkthrough); no hidden helpers used by visible chunks; plain code over clever code.
 - Audited 02, 03, 03x, 04, 04x, 05, 06, 09, 10 and A2 with a script (visible chunks with helpers, loops, apply-family calls or ten-plus lines and no comments; functions defined in hidden chunks and called in visible ones). 36 chunks commented: 9 in 02, 1 in 03, 4 in 05, 1 in 06, 9 in 09, 9 in 10, 3 in A2. Comments say what each step is for.
@@ -30,14 +87,14 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - Checked: every printed output in 02, 03, 09, 10 and A2 matches the last commit's `_freeze`; 05's table matches its earlier render. All seven chapters render.
 - Not done: 08, 12, 13 and 14 (2022 text, rewritten later under the new rules). Inline `r` code in prose is not shown to readers and was left alone.
 
-### 06 Fixing Errors, first draft 2026-10-22 (uncommitted)
+### 06 Fixing Errors, first draft 2026-10-22
 
 - Drafted from the revised outline below. Renders alone on dev dplR; every number inline. Sections: Big Idea (Pilcher: a computer makes crossdating faster and easier, not better; Mesa Verde sets expectations too high), The Clean Case, Briefly (`corr.series.seg` plot for 645221, `ccf.series.rwl` bins for both co021 errors), An Ordinary Collection (`wa082` with 712031's 1850 ring removed: report, `ccf.series.rwl` plot, 30-year bins, `xskel.ccf.plot` with marker years 1836/1835 and 1841/1840 before 1850 and matching after, a paragraph on the core), Putting the Rings Back (`insert.ring` with zero, `delete.ring`; checks are `stopifnot` in a hidden chunk), Flags Nobody Planted (seed-1 simulation, then `wa082` as it comes), Wrapping Up, five exercises, Further Reading (Pilcher 1990, Grissino-Mayer 2001, Black 2016).
 - New: `plant.wa082.error()` in `R/plant-dating-errors.R`; `Pilcher1990` in `dplR.bib` (Cook and Kairiukstis 1990, pp. 40-51), with p. 45 cited for decade marks and miscounted decades, checked against the OCR text and the 2026-10-17 notes. The "faster and easier, not better" line is from section 2.3.5 and cited without a page.
 - `series.rwl.plot` left out; the three tools already cover it.
 - For Andy: the paragraph on what to look for on the core (micro or pinched-out ring near 1850, a density change for a false ring, the other core from the same tree first). "Which is exactly the kind of year a ring goes missing in" about the master's narrow 1850 ring rests on the general point that narrow rings go missing (Black et al. 2016 simulate it that way), not on anything known about this core.
 
-### 06 Fixing Errors, outline 2026-10-22
+### 06 Fixing Errors, outline 2026-10-22 (superseded by the draft above)
 
 - Outline in `06FixingErrors.qmd`, revised the same day (Andy): `co021` is about as good as correlations get and sets unrealistic expectations, so its two errors get a short "clean case" and the chapter centers on `wa082` (dated correctly as far as anyone knows) and the simulation.
 - New worked case: a missing ring planted in `wa082`, 712031 at 1850. Report: B at lag -1 in 1775-1824 and 1800-1849 (r 0.53, 0.62 at the lag), A in 1825-1874 (straddle), with `wa082`'s own six flags still present. `ccf.series.rwl` 20-year bins over 1790-1910: lag -1 at 0.42-0.75 through 1832-1851, a muddled 1842-1861 bin (lag -2 at 0.34), lag 0 at 0.71-0.82 from 1852-1871. Switch between 1842 and 1852. `R/plant-dating-errors.R` needs a function or argument for it; not written.
@@ -45,13 +102,13 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - False alarms: seed-1 simulation flags SIM08B (B, lag +7, gain 0.004, r 0.41 as dated, not marked weak), SIM10A (B, lag -9, weak) and SIM03A's straddling A in 1775-1824. `wa082` as it comes: four weak B flags at lags -9, -9, -8, +8; two A flags at r 0.306 and 0.305 against 0.328. Andy agrees none is a dating error.
 - Andy approved the paragraph on what to look for on the core, kept general, and Pilcher (Methods of Dendrochronology 2.3) for Further Reading; it needs a bib entry and a page check.
 
-### Wording passes, 2026-10-22 (uncommitted)
+### Wording passes, 2026-10-22
 
 - "The wood" was used about 25 times and read as dogmatic (Andy). Varied across 01, 02, 03, 03x, 05, 10 and the 06 outline (the core, the sample, a real collection, the tree, pull the core out of the drawer). Kept twice: Douglass's rule in 01 and the "statistics say where to look" line in 05's Big Idea. Spec updated.
 - "Cook Book" is the nickname, not the title. First mentions in 00 Preface, 01 and 02 now give *Methods of Dendrochronology* and say it's the nickname. Spec updated. Later mentions (01 exercise, 02 Further Reading) use the nickname.
 - Spec's Data section now says `co021` sets expectations too high and to show `wa082` or the simulation wherever signal strength matters.
 
-### 05 Crossdating a Collection, rewrite first draft 2026-10-22 (uncommitted)
+### 05 Crossdating a Collection, rewrite first draft 2026-10-22
 
 - Rewritten around `xdate.report`. Sections: Big Idea (Douglass, Holmes and COFECHA, Grissino-Mayer's manual, "statistics say where to look"); Try It Interactively First (xDateR is often the easier way; links to https://opendendro.org/apps/ and the GitHub repo, not the live app URL, per Andy); Two Planted Errors; The Report (header shown with `head(format(...))`, settings explained, A and B flags from Grissino-Mayer 2001 p. 212, checked against the page); Reading the Flags (`plot(report$crs)`, the flagged table, lag sign); Segments Find What a Whole Series Hides; When the Signal Is Weak (simulation); Wrapping Up; five exercises; Further Reading (Holmes 1983, Grissino-Mayer 2001, Douglass 1941, Bunn 2010).
 - Planted errors: new `R/plant-dating-errors.R`, built from `data/co021.rwl` with the dev rwl methods `delete.ring` and `insert.ring` (outer year fixed): 645221 missing 1797, 643143 false ring 1425 (xDateR's recipe, but all 35 series and co021's IDs; xDateR's example is anonymous, so no tie to the app). Report finds both and nothing else: 645221 B at lag -1 in 1500-1549 to 1750-1799; 643143 B at lag +1 in 1250-1299 to 1400-1449; 18 of 718 segments. The planted year is in the last flagged segment both times.
@@ -61,7 +118,7 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - For Andy: "Holmes was as clear as Douglass about what the statistics are for" rests on the 02 notes on Holmes (1983) (not a substitute for crossdating on the wood); worth a look at the page. "A confession ... a script is often the harder way to work" is written in your voice. `wa082`'s flags (exercise 4) are B at lags -9, -8 and +8 on 712022, 712041, 712122 and A on 712061 and 712071; nobody has looked at them.
 - Not done: the parked `formals` table from chapter 1 (xdate.report vs corr.rwl.seg defaults) is not in 05; 07x is its home. 05x (glk, sgc) still a stub.
 
-### 04x Classes and Generics, first draft 2026-10-22 (uncommitted)
+### 04x Classes and Generics, first draft 2026-10-22
 
 - Sections: A Label on a Data Frame (S3 in a paragraph, `methods(class = "rwl")`, `summary` dispatching to `rwl.stats`); Four Kinds of Series (table of `rwl`, `rwi`, `bai`, `crn`, what each holds and what makes it); Why Indices Aren't Widths (`rwi.stats(co021)` warns and gives rbar.eff 0.60 against 0.74 from Spline indices; the reverse warning from `detrend`; the coercion warning on a plain data frame; `as.rwl`/`as.rwi`/`as.bai` to relabel, with ARSTAN indices read from a file as the common case); The Data Frame Underneath (`[` keeps the read record and `dplR.detrend`, trims years when series are dropped, takes the class off with a warning when rows skip years, keeps empty columns; ties back to 04's Trimming); Leaving dplR (tibbles drop the row-name years; `data.frame(year = time(x), x, check.names = FALSE)`).
 - Renders alone on dev dplR. Two chunks show warnings (`warning: true`).
@@ -69,13 +126,13 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - `bai` is in the table only; no example, since `co021` and `wa082` have no pith distances or diameters. 15 Basal Area can show it with `gp.rwl`.
 - Not covered: `crn` methods beyond the table, `summary` on `rwi` (collection statistics), `insert.ring`/`delete.ring` (06 Fixing Errors is the place).
 
-### 02 stand-event figure, two panels, 2026-10-21 (uncommitted)
+### 02 stand-event figure, two panels, 2026-10-21
 
 - `cores-event` is now two panels (Andy liked both mockups): A, chronologies of the cores the event hit and missed (standing in 1880, 12 and 14) with the climate as the chronology shows it; B, the whole chronology minus the climate prediction, with the event as built (mean of exp(disturbance) - 1 over standing cores). The climate scaling is a regression of the standard chronology on the true climate over 1800-1879; the old version rescaled by a window SD that included the dip. Stacked with `cowplot::plot_grid` (already in `DESCRIPTION`).
 - Text rewritten around it: hit 1.17 to 0.65, missed 0.96 to 0.94; B -0.19 against -0.19 as built in 1880-1884. New paragraph on the 1870s: hit cores 1.11 against 0.93 because the spline bends down into the dip and lifts the years before it. Checked by dividing by the true age trend (not in the chapter): hit and missed then average 0.94 each in 1850-1869 and 1.01 against 0.95 in the 1870s, so most of the gap, not all, is the spline. The text says "most". Pointer to 08, which should show this properly; B is a natural figure for it.
 - Not explained: panel B's mid-1890s sit about 0.1 below the built curve.
 
-### 04 Checking a Collection, first draft 2026-10-21 (uncommitted)
+### 04 Checking a Collection, first draft 2026-10-21
 
 - The outlined sections are written: Seeing the Collection (dplR segment plots for both, a ggplot of sample depth for both, the `co021` spaghetti plot), Looking for Trouble (`rwl.check` on both, severities, the catalogue), The Gap in 712011 (one paragraph, no code), Trimming (`window`, `subset`, `[`). Renders alone on installed dplR 1.8.1; nothing in it needs the uncommitted `RWL_SERIES_SCALE` change. Not rendered as part of the whole book. Every number is inline.
 - The dplR segment plot reads fine, so the ggplot segment alternative in the outline was not made.
@@ -89,7 +146,7 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - Still open from before: the Gini attribution to Biondi and Qeadan (2008).
 - Reworked 2026-10-21 for the `rwl.report` deprecation (dplR 1.8.1 dev, commit 4666e8f): The Report and Looking for Trouble are replaced by Checking Mesa Verde and Checking Hurricane Ridge, one `rwl.check` call per collection, printed once. The text reads the new description (no header for `co021`; site, species, investigator for `wa082`; mean length; correlation with the master 0.89 against 0.54, over 22 of 23 series at `wa082`), then the findings. The comparison now uses `rwl.check`'s master correlation in place of `interseries.cor`, and says A2 ranks on a close cousin (`xdate.report`'s interseries correlation). Section order: checks, Series Statistics, Seeing the Collection, the gap, Trimming. 04 now needs dev dplR (installed from the local checkout 2026-10-21) for the new description.
 
-### 03x The Tucson Format, first draft 2026-10-21 (uncommitted)
+### 03x The Tucson Format, first draft 2026-10-21
 
 - Drafted. Renders alone. Needs dev dplR for the `NO_STOP_MARKER` warning in `tuc-read` and for `tuc-scale-check` (both added 2026-10-21).
 - The broken file: `R/make-broken-tucson.R` (new) writes `data/co021broken.rwl` (new, 50 lines, CRLF) from seven `co021` series, 1900 to 1963, and returns a table of what it planted. The aside's `tuc-make` chunk rebuilds the file on every render, so the file in `data/` is always what the code makes. Defects: 641114 control; 641121 written at 0.001 mm with its -9999 removed; 641132 relabelled MV641132X (nine characters); 641143 with the 1930s line repeated; 642121 relabelled 642114; 642143 with the letter O for a zero in 1920.
@@ -97,13 +154,13 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - Written for Andy: "each a mistake I have seen in files people sent me". Keep only if true.
 - The aside cites GrissinoMayer2001's Data Formats section for the "Tucson" or "Decadal" name, both precisions and measuring programs writing the format. No history of the 80-column layout; nothing checked to support one.
 - dplR ideas, not done:
-  - Done 2026-10-21 in dplR dev (uncommitted): `rwl.check` gains `RWL_SERIES_SCALE` (values group, warning) and `scale.ratio` in `rwl.check.control()` (default 5, `NA` turns it off). It compares each series' median positive ring with the median of the other series' medians. Tests in `test-rwl.check.R`; NEWS, ChangeLog and `rwl.check.Rd` updated. ITRDB sweep (6,776 ring-width files): >= 5x flags 282 series in 161 files, >= 10x 19 series in 11, including cana269 (about a third of series at a tenth of the rest), mi021 PLK18A (13x), az608 SMU02A (10.7x). Not looked at by hand: whether those are lost stop markers. Silent on co021, wa082, ca533, gp.rwl. The aside now ends its 641121 section with the check (chunk `tuc-scale-check`, 12.1x), so 03x needs dev dplR for that chunk. Open: whether the reader should raise the same event at read time.
-  - Done 2026-10-21 in dplR dev (uncommitted): `read.tucson` warns when a series ends without a stop marker, naming it and saying it assumed 0.01 mm (and when other series are at 0.001 mm). Event `NO_STOP_MARKER`, reported by `rwl.check` as `RWL_NO_STOP_MARKER`; `strict = TRUE` refuses. dplPy's reader (origin/main, 2026-10-20) already warned about this ("no stop marker; assuming the file's dominant precision"); dplPy's `check.py` has no scale check. A 999 followed by a negative pad counts as a marker (az030's 134201 ends "999    -8"). ITRDB sweep (6,807 ring-width files): one hit, chil012's AGU261X, a stray 1940 line after AGU261's stop marker. Test in `test-read.tucson.R`, NEWS and ChangeLog entries. The aside's 641121 paragraph now says the reader noticed and could only guess. Open: dplPy port of `RWL_SERIES_SCALE`.
+  - Done 2026-10-21 in dplR dev (since committed): `rwl.check` gains `RWL_SERIES_SCALE` (values group, warning) and `scale.ratio` in `rwl.check.control()` (default 5, `NA` turns it off). It compares each series' median positive ring with the median of the other series' medians. Tests in `test-rwl.check.R`; NEWS, ChangeLog and `rwl.check.Rd` updated. ITRDB sweep (6,776 ring-width files): >= 5x flags 282 series in 161 files, >= 10x 19 series in 11, including cana269 (about a third of series at a tenth of the rest), mi021 PLK18A (13x), az608 SMU02A (10.7x). Not looked at by hand: whether those are lost stop markers. Silent on co021, wa082, ca533, gp.rwl. The aside now ends its 641121 section with the check (chunk `tuc-scale-check`, 12.1x), so 03x needs dev dplR for that chunk. Open: whether the reader should raise the same event at read time.
+  - Done 2026-10-21 in dplR dev (since committed): `read.tucson` warns when a series ends without a stop marker, naming it and saying it assumed 0.01 mm (and when other series are at 0.001 mm). Event `NO_STOP_MARKER`, reported by `rwl.check` as `RWL_NO_STOP_MARKER`; `strict = TRUE` refuses. dplPy's reader (origin/main, 2026-10-20) already warned about this ("no stop marker; assuming the file's dominant precision"); dplPy's `check.py` has no scale check. A 999 followed by a negative pad counts as a marker (az030's 134201 ends "999    -8"). ITRDB sweep (6,807 ring-width files): one hit, chil012's AGU261X, a stray 1940 line after AGU261's stop marker. Test in `test-read.tucson.R`, NEWS and ChangeLog entries. The aside's 641121 paragraph now says the reader noticed and could only guess. Open: dplPy port of `RWL_SERIES_SCALE`.
   - The nine-character ID case: `YEAR_MISPLACED` recovers an ID too wide only when a space separates it from the year. "MV641132X1900" is ambiguous in general, but every line of the series fails the same way, which might be enough to recover it or at least to name the series in the warning.
   - The interior-gap message for the letter O reads "file holds no value in the file".
 - Corrected in 03 on 2026-10-21: it said `rwl.check` doesn't consult the read record. It reads the reader's events from it, but not `fill.internal.NA` or the gaps. The 2026-10-20 dplR note below is right about the fill.
 
-### 03 Reading and Writing, first draft 2026-10-20 (uncommitted)
+### 03 Reading and Writing, first draft 2026-10-20
 
 - Drafted from the 2026-10-19 outline. Renders alone; not rendered as part of the whole book. Every number is inline. Only the rounding warning in Writing needs dev dplR (added 2026-10-21).
 - Sections: Reading a File, The Read Record, A Gap Is Not a Zero (four-way table for 712011 in 1898 to 1902: default `NA`, `fill.internal.NA = 0`, `read.tucson.legacy`, on-board; then `rwl.check` on the file against the on-board copy), Trees and Cores, Other Formats (`write.sheet` then `read.sheet` round trip on `co021`), Writing (`write.tucson` round trip of `wa082` with the gap; the precision demonstration).
@@ -112,11 +169,11 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - For Andy to check: "The Heidelberg format, which TSAP writes, is common in European labs" (from general knowledge, not checked). The GrissinoMayer2001 sentences are checked against the PDF's Data Formats section (COFECHA reads Tucson formats at 0.01 or 0.001 mm and cannot read spreadsheets, which FMT converts).
 - The chunks wrap the writers in `invisible()` so temporary file paths don't print. Ugly; assigning the result would also do.
 - dplR, found 2026-10-20, not fixed:
-  - Fixed 2026-10-21 in dplR dev (uncommitted): `write.tucson` now warns when values are finer than `prec` and get rounded (counts, largest change, first five series). Test in `test-write.tucson.R`, NEWS and ChangeLog entries. The warning caught an existing test in `test-rwl.check.R` writing 0.001 mm data at 0.01; that test now writes at `prec = 0.001`. Chapter 03's precision chunk shows the warning (`warning: true`, since the book turns warnings off globally) and says 1.8.0 rounded silently, so that chunk needs dev dplR.
+  - Fixed 2026-10-21 in dplR dev (since committed): `write.tucson` now warns when values are finer than `prec` and get rounded (counts, largest change, first five series). Test in `test-write.tucson.R`, NEWS and ChangeLog entries. The warning caught an existing test in `test-rwl.check.R` writing 0.001 mm data at 0.01; that test now writes at `prec = 0.001`. Chapter 03's precision chunk shows the warning (`warning: true`, since the book turns warnings off globally) and says 1.8.0 rounded silently, so that chunk needs dev dplR.
   - `rwl.check` doesn't read the fill from the read record (it does read the reader's events). On `wa082` read with `fill.internal.NA = 0` (or the on-board copy) it gives only `RWL_ZERO_RING`, though the record says the zero was a filled gap. The chapter says so. A check that consults `dplR.provenance$gaps` and `$fill.internal.NA` could warn.
   - `write.tucson` help example header for `co021` has `first.yr = 1400`; the data start in 1176.
 
-### Ring Widths outlines, 2026-10-19 (uncommitted)
+### Ring Widths outlines, 2026-10-19
 
 - `03ReadingWriting.qmd` (drafted 2026-10-20, see above) and `03xAsideTucsonFormat.qmd` were outlines, section by section. 03 is built around the `wa082` 1900 gap: file holds `-999`, `read.tucson` gives `NA`, `fill.internal.NA = 0` and `read.tucson.legacy` give 0. Checked 2026-10-19: `rwl.check` on the file warns (`RWL_INTERNAL_NA`) and notes 712011 is uncheckable; on the on-board `wa082` (legacy zero) it gives only `RWL_ZERO_RING`, so the gap is invisible once it is a zero.
 - `04CheckingCollection.qmd` moved off `ca533`. It reads `data/co021.rwl` and `data/wa082.rwl` (so `wa082` has the `NA`). The report and series statistics sections are written to the spec with inline numbers; the base-R boxplot is replaced by one ggplot of `ar1` for both collections. The rest (segment and depth plots, `rwl.check`, trimming) is an outline.
@@ -126,13 +183,13 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - For Andy to check: Biondi and Qeadan (2008) for the Gini coefficient, from memory of the help page, not in `dplR.bib`. Further Reading for 03 has no Tucson-format citation yet.
 - dplR, found 2026-10-19, not fixed: after `fill.internal.NA(fill = "Chron")` on `wa082`, `rwl.check` reports precision as 0.002 mm (it infers precision from the filled value; the file is 0.01 mm). And the read record on the filled object still lists the gap as holding `-999` with `fill.internal.NA` NULL, so nothing records that the year was filled or how.
 
-### Chapter 1 and the name-conflicts aside, 2026-10-19 (uncommitted)
+### Chapter 1 and the name-conflicts aside, 2026-10-19
 
 - Andy is happy with chapter 2 as the intro and roadmap. Chapter 1 (2022 Welcome) and the name-conflicts aside don't fit in front of it.
 - `01xAsideNameConflicts.qmd` was taken out of `_quarto.yml` on 2026-10-19 and deleted on 2026-10-22 (Andy, `git rm`): general R knowledge, the book doesn't hit the tidyverse `filter` clash, and 04x now covers what dplR's classes do on the way through other packages. The prose is in git history. Its only live concern is the `signal`/`hanning` mask in 13 (see Planned revisions).
 - What chapter 1 is for: decided 2026-10-19, the lineage chapter. First draft written the same day (see the next item).
 
-### 01 Where dplR Comes From, first draft 2026-10-19 (uncommitted)
+### 01 Where dplR Comes From, first draft 2026-10-19
 
 - `01Welcome.qmd` is now "Where dplR Comes From": COFECHA, ARSTAN and the DPL; the 20 to 32-year spline story; a table, computed from `formals`, showing that `xdate.report` (32-year spline, Pearson) and `corr.rwl.seg` (divide by the mean, Spearman) have different defaults; scripture and not a target; other R packages; citing dplR (the "idle rich" paragraph kept). Renamed to `01WhereDplRComesFrom.qmd` with `git mv` (staged, `_freeze` folder too) on 2026-10-19.
 - Setup moved to A1, now "Setup, Packages and References": R and an editor, YaRrr, installing dplR (CRAN and the dev version), the package list read from `DESCRIPTION`, `sessionInfo()`. The Preface is rewritten to spec: who the book is for, what it assumes, a pointer to A1, the draft warning.
@@ -142,7 +199,7 @@ State of the repo: the Quarto conversion, the restructure into parts, the stubs 
 - 2026-10-19, Andy: "A Default Is a Judgment Call" was too inside baseball. Rewritten plain: why COFECHA smooths, 20 years in 1983 and 32 by 2001, Ed on the log transform (Andy's sentence kept), and that dplR makes these arguments. Cut and parked for 05Crossdating or 07x: the `formals` table showing `xdate.report` (32-year spline, Pearson) and `corr.rwl.seg` (divide by the mean, Spearman) default differently; the AR step and the Spearman option Ed says he talked Holmes into; the 1983 paper's lack of AR modeling against the 2002 source. Exercises cut to three (help page `nyrs`, `?detrend` `nyrs`, `citation`); the `wa082` spline and Pearson/Spearman exercises go with the table.
 - For 07xAsideCrossdatingStats, not checked carefully: a missing ring planted mid-series in each `wa082` core longer than 200 rings was found at every spline setting, but false flags on other cores averaged 0 with a 10-year spline or with the mean, 0.2 at 20 years, 1.9 at 32, 1.8 at 64 and 1.0 at 100. Some of that is the two series `wa082` flags anyway at 32 years. On `co021` every setting found the ring with no false flags. Worth a proper run before the aside says anything about the 32-year default.
 
-### Crossdating reorder, done 2026-10-15 (uncommitted)
+### Crossdating reorder, done 2026-10-15
 
 - Crossdating now comes right after Ring Widths. Renamed with `git mv`, `_freeze` folders included: 10Crossdating to 05Crossdating, 10xAsideSignAgreement to 05xAsideSignAgreement, 11FixingErrors to 06FixingErrors, 12Floaters to 07Floaters, 12xAsideCrossdatingStats to 07xAsideCrossdatingStats, 05Detrending to 08Detrending, 06ChronologyStats to 09ChronologyStats, 07Chronologies to 10Chronologies, 08RegionalCurves to 11RegionalCurves, 09SignalFree to 12SignalFree. 01 to 04 and 13 to 18 kept their numbers. Section ids don't use file names, so only the `.qmd` links changed.
 - Parts reordered in `_quarto.yml`. Cross-links fixed in 02, 04, 09 and 10.
@@ -169,13 +226,13 @@ Kevin sent a folder of classic papers, now in `workspace/references/`; `notes/fo
 - Climate part: the Cook, Briffa and Jones NATO report (published as Cook et al. 1994, IJC 14) defines CE; Cook et al. (1999) uses RE and CE; Fritts et al. (1971) for response functions; Meko et al. (1993) found the weakest drought signal in the Pacific Northwest, worth knowing before the `wa082` climate check.
 - Cook and Peters (1981) added by Andy 2026-10-18 (`CookPeters1981_spline.pdf`). Still missing: Frank et al. (2006 TRACE), Holmes (1983), Grissino-Mayer (2001), Wigley et al. (1987), Black et al. (2016), Zang and Biondi (2015, Ecography, not Dendrochronologia), Schweingruber et al. (1990), Becker et al. (1994), Nowacki and Abrams (1997).
 
-### 02 An Additive Model of Tree Growth, third draft 2026-10-19 (uncommitted)
+### 02 An Additive Model of Tree Growth, third draft 2026-10-19
 
 Decided with Andy 2026-10-19: the chapter is about the aggregate model (a ring width is several parts, never seen separately, and each method estimates one and can mistake one for another). It is not a quick tour of dplR functions; that job stays with the planned quick-reference appendix. Retitled "An Additive Model of Tree Growth"; the file is still `02CoresToRecord.qmd`, so links and `_freeze` names are unchanged.
 
 New structure: Big Idea (the claim, then the 40 simulated series and what is hidden in them); A Ring Width in Parts (Cook, the method-to-part paragraph, the parts figure, a "Who Shares What" subsection with the within- and between-tree correlations); The Missing Ring; The Crowded Trees; The Stand Event (sample depth, recovery by century, EPS, then the 1880 event); The Released Tree (the Cook signal/noise quote moved here); What the Simulation Leaves Out (Schulman's selection point folded into the site bullet); Wrapping Up with a method / part / what it mistakes / where-in-the-book table and the project-order paragraph. The six coring-trip questions are no longer headings. Cut: the pith-offset summary (belongs in 11 Regional Curves), the naming-scheme aside, and the body text and hidden chunk on the between-tree rbar shortfall (now only exercise 1). Exercises reordered to follow the sections. Computed numbers unchanged.
 
-### 02 From Cores to a Record, second draft 2026-10-19 (uncommitted)
+### 02 From Cores to a Record, second draft 2026-10-19
 
 Prose reworked against the papers in `workspace/references/`; code, figures and computed numbers unchanged from the first draft (re-rendered fresh, same values). New citations, each checked against the PDF:
 - Cook (1987) pp. 38-45 (scan, read as page images): the model and its terms, the signal/noise quote (p. 38, the chapter's one direct quote), open vs closed-canopy A (p. 40, Fig. 1), D2 example of logged hemlocks (Fig. 3), heteroscedasticity r = 0.67 in lodgepole pine (p. 43), and the no-covariance caveat (p. 43), now used for the crowded tree.
@@ -190,7 +247,7 @@ New bib entries: `Cook1987`, `Schulman1941`, `Douglass1941`, `Fritts1966`, `Holm
 New exercise 6 (spline stiffness in `xdate.report`, Holmes's trade-off), not run.
 For Andy: `GrissinoMayer2001_softwareReview.pdf` (was `Grissino 2001.pdf`) in the references folder is a 2001 software review of a dendrology CD, not the COFECHA manual.
 
-### 02 From Cores to a Record, first draft 2026-10-17 (uncommitted)
+### 02 From Cores to a Record, first draft 2026-10-17
 
 `02FirstPass.qmd` renamed with `git mv` to `02CoresToRecord.qmd` and rewritten; `_freeze/02FirstPass` removed, the new chapter renders on its own and in the full book. The old TL;DR code walk-through is gone from the chapter; it belongs in the quick-reference appendix, still not started.
 
@@ -225,7 +282,7 @@ What it settled or found for this book:
 - Climate part: chapter 4 defines RE (eq. 4.39, p. 181) but not CE, which needs another source. 5.6 (Briffa and Cook) on response functions, including Cropper (1982) using simulated data with known climate to show misleading results, a precedent for the planned check.
 - 16: `pointer` uses the Becker algorithm (per `man/pointer.Rd`), not Schweingruber's visual method in 5.10.
 
-### Simulated collection, first version 2026-10-15 (uncommitted)
+### Simulated collection, first version 2026-10-15
 
 Decided 2026-10-15: the simulation lives in the book for now and may move to dplR as `sim.rwl` later. It is in `R/sim-collection.R`, and chapters load it with `source("R/sim-collection.R")` and `sim.collection(seed = 1)`. It returns `rwl` (with the planted errors), `ids`, and `truth` (error-free widths, climate, age trends, memory and noise, disturbance, the release, the event and the trees it hit, the errors, pith years, parameters). Base R only.
 
@@ -297,7 +354,7 @@ Why the simulation carries into it: with a known climate series, reconstruction 
 Before writing: get climate data (PRISM monthly from 1895 covers both US sites; ship it or fetch at build time) and compute whether `co021` and `wa082` have a usable climate signal. Don't assume either does; a weak or absent one could be a lesson. Cost: at least one more part on top of the rewrite and the 2027 promises. Also reopens whether dplR should have calibration and verification helpers.
 - Superseded 2026-10-15 by the reorder; the Preface paragraph is cut and the other two now point forward to the next part. Old text: Crossdating comes after standardization, so the book's order differs from the order of a project. Done 2026-10-13: a paragraph each in the Preface, A First Pass and Checking a Collection (Wrapping Up) says dating comes first in practice and points to 10Crossdating. Check the reason the Preface gives for the order (dplR's crossdating tools prewhiten and use a biweight master, so they lean on the standardization chapters). That reason is mine, and you may have had another one. Keep these paragraphs when those chapters are rewritten.
 
-### Proposed structure (2026-10-13, for next session)
+### Proposed structure (2026-10-13; statuses superseded by the table at the top, kept for its notes)
 
 Puts together the crossdating reorder, the concepts chapter and the climate part above. The crossdating reorder is done (2026-10-15), so 1 to 14 below match the files. Chapter 2 and the Climate part are not started; adding 15 and 16 would renumber Basal Area, Events, dplPy and Conclusion to 17 to 20. "Status" is the files as of 2026-10-13. Three new chapters (2 replaces A First Pass, 15 and 16 are added), so 18 chapters become 20.
 
@@ -360,13 +417,9 @@ Notes:
 - The 54 chunks that were unnamed in the 2022 chapters are still unlabeled.
 - Whether to split the chapter skeleton and code conventions out of the writing spec into a `CRC-POLISH.md`, as in the other books.
 
-### Suggested next step
+### Suggested next step (2026-10-13, superseded)
 
-The crossdating reorder is done (2026-10-15), and chapter 2 is decided (concepts chapter plus a quick-reference appendix). Next, settle the rest of "Simulated collection and the climate thread": where the simulation code lives (book or a `sim.rwl` in dplR), Cook's model checked against his text, and whether to add a climate part (check `co021` and `wa082` against PRISM first). Those decide the book's shape, so they come before more chapter drafting.
-
-Chronology Statistics (09) and Chronology Building (10) have first full drafts (2026-10-13). Read them against the spec and decide whether they are the template. Then 08 Detrending, which both lean on and which is still the 2022 text on `ca533`.
-
-Before either goes to CI: 10 needs 1.8.1 dev, which CI installs from GitHub (see "Open decisions"). The dplR changes were committed and pushed by 2026-10-15. Neither chapter has been rendered as part of the whole book, only alone.
+See "Next" at the top. The simulation question was settled (it lives in the book, `R/sim-collection.R`); Cook's model was checked 2026-10-17; the climate part is still undecided.
 
 ### 10 Chronology Building, for Andy to check
 
@@ -399,6 +452,9 @@ Before either goes to CI: 10 needs 1.8.1 dev, which CI installs from GitHub (see
 - dplR, not done: none of the 2026-10-13 changes had the full test suite or `R CMD check` run, only the test files touched. `chron.ars()` still reuses the pooled order for the second whitening, where ARSTAN picks it afresh. iDetrend calls `chron.ars()`, so its ARSTAN chronology changes with 1.8.1.
 - dplR: `ssf(return.info = TRUE)` returns a list with class `crn`.
 - dplR `TODO` has a new item: revamp the plots.
+- dplR dev, 2026-10-21 to 2026-10-23: `read.tucson` NO_STOP_MARKER, `write.tucson` rounding warning, `rwl.check` RWL_SERIES_SCALE, `rwl.report` deprecated into `rwl.check`, `rwl.meta`, `xdate.floater` defaults matched to `xdate.report` and its Hanning n/2 dating bug fixed (all committed by Andy). Uncommitted: `xdate.report(prewhiten = FALSE)` guard (2026-10-23).
+- xDateR: Floater panel refuses the Hanning filter before dplR 1.8.1; live as 2026.10.1 since 2026-10-22.
+- dplR, not fixed: `glk` help says Huber 1942 (it's 1943) and Schweingruber 1988 (it's 1983); `glk()` warns on `rwi`; its global-glk example includes the diagonal.
 
 ## Standing notes
 
@@ -410,9 +466,9 @@ Before either goes to CI: 10 needs 1.8.1 dev, which CI installs from GitHub (see
 - `co021` is the strong-signal collection: 14th of 6,764 ITRDB ring-width files for interseries correlation, no flagged segments until an error is planted, 716 absent rings.
 - `wa082` is the ordinary one: 44th percentile, EPS near 0.85, and the sample-depth and SSS cutoffs disagree. Its raw file has a `-999` gap in 712011 at 1900 that the on-board copy holds as zero.
 - `gp.rwl` for Regional Curves and Basal Area (pith offsets and diameters; `zof.rwl` has them too). `ca533` for Signal-Free only. `cana157` for Events.
-- `data/` holds `co021.rwl` and `wa082.rwl` as served by the ITRDB. Chapters 02, 04 and 08 still use `ca533` and need switching when they are rewritten.
+- `data/` holds `co021.rwl` and `wa082.rwl` as served by the ITRDB. Chapter 08 still uses `ca533` and needs switching when it is rewritten (02 and 04 were switched).
 - The "zip `data/` into the site" step is in `publish.yml` (2026-10-13, copied from the time series book), and A2DataSources links to `data.zip`. The link is relative and only works on the deployed site, since `data.zip` is made in CI. Check it after the first deploy.
-- Still needed: a deliberately broken file for the Tucson aside; an entry for the two files in a permissions log if the book goes to a publisher.
+- Still needed: an entry for the two files in a permissions log if the book goes to a publisher. (The broken Tucson file is done: `R/make-broken-tucson.R`.)
 - Rule adopted with this decision: don't describe what a dataset is good for without checking it against the data. Unchecked claims are listed in the callout at the top of A2DataSources.
 
 ## Coverage decisions (2026-10-06)
@@ -427,7 +483,7 @@ Before either goes to CI: 10 needs 1.8.1 dev, which CI installs from GitHub (see
 
 ## Planned revisions to carried-over chapters
 
-- 05Crossdating: the chapter never mentions `xdate.report` or `write.xdate.report`.
+- 05Crossdating: done 2026-10-22, rewritten around `xdate.report`.
 - 13SmoothingFiltering: lead with `pass.filt` and fold the manual `signal` padding code. If 13 still loads `signal` after that, its footnote should say `hanning` now means `signal`'s and `dplR::hanning` gets dplR's back. That is all that is left of the name-conflicts aside.
 ## Known problems in carried-over chapters
 

@@ -83,6 +83,7 @@ What to read instead is how far the best stands above the rest. At Mesa Verde th
 
 ```{r}
 #| label: floater-wa082
+# The same recipe: 200 rings from 712092, and the collection without it
 pieceWa <- wa082[["712092"]][time(wa082) %in% 1750:1949]
 masterWa <- wa082[, names(wa082) != "712092"]
 foWa <- xdate.floater(masterWa, pieceWa, make.plot = FALSE, verbose = FALSE)

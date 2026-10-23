@@ -1,9 +1,171 @@
 # Aside: What the Crossdating Statistics Are Doing {- .aside-chapter}
 
-:::{.callout-note title="Stub"}
-Not written yet.
-
-Planned: segment length, the spline, prewhitening, Spearman correlation, and the COFECHA history.
-
-Source: new.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-23. Every number is computed when the book builds, and the experiment takes a few minutes. Needs dev dplR 1.8.1 (`xdate.report(prewhiten = FALSE)` was fixed there). Open questions are in the backlog.
 :::
+
+The last three chapters ran `xdate.report` with its defaults: each series divided by a 32-year spline and prewhitened, cut into 50-year segments, and correlated with a master by Pearson's r. [Where dplR Comes From](01WhereDplRComesFrom.qmd) told where those choices came from. This aside asks what each one does. The test is the one the book keeps coming back to: plant a missing ring in a collection where we know the answer, change one setting at a time, and count what the report finds and what it flags that isn't wrong.
+
+```{r}
+#| label: xstats-setup
+#| message: false
+library(dplR)
+source("R/sim-collection.R")
+source("R/plant-dating-errors.R")
+```
+
+## The Experiment
+
+Each run builds one simulated stand from [Chapter 2](02CoresToRecord.qmd), with its one missing ring in SIM03A at 1800, runs `xdate.report` with the settings being tested, and scores the result. The planted Mesa Verde and Hurricane Ridge collections from [Crossdating a Collection](05Crossdating.qmd) and [Fixing Errors](06FixingErrors.qmd) get the same treatment, once each.
+
+```{r}
+#| label: xstats-score
+# Score one report: did it find every planted error, and how many flags did
+# it raise on series with nothing wrong? `planted` lists the series with an
+# error and the lag sign it should show (-1 for a missing ring).
+scoreReport <- function(rwl, planted, settings) {
+  report <- suppressWarnings(do.call(xdate.report, c(list(rwl), settings)))
+  f <- report$flagged
+  isPlanted <- f$series %in% planted$series
+  # found: each planted series has a B flag at the right sign that isn't
+  # "weak at every lag"
+  found <- TRUE
+  for (i in seq_len(nrow(planted))) {
+    hit <- f$series == planted$series[i] & f$flag == "B" &
+      sign(f$best.lag) == planted$expected.lag[i] & !f$weak
+    found <- found && any(hit)
+  }
+  c(found = found,
+    falseB = sum(!isPlanted & f$flag == "B" & !f$weak),
+    falseA = sum(!isPlanted & f$flag == "A"))
+}
+```
+
+The settings to try, each a change from the defaults:
+
+```{r}
+#| label: xstats-settings
+settings <- list(
+  "default"                 = list(),
+  "raw widths"              = list(nyrs = NULL, prewhiten = FALSE),
+  "spline only"             = list(prewhiten = FALSE),
+  "prewhitening only"       = list(nyrs = NULL),
+  "spline 10 years"         = list(nyrs = 10),
+  "spline 20 years"         = list(nyrs = 20),
+  "spline 64 years"         = list(nyrs = 64),
+  "spline 100 years"        = list(nyrs = 100),
+  "segments 30 years"       = list(seg.length = 30),
+  "segments 100 years"      = list(seg.length = 100),
+  "Spearman"                = list(method = "spearman")
+)
+```
+
+`nyrs = NULL` turns the spline off, and `prewhiten = FALSE` turns the AR model off. Now run every setting on 20 simulated stands and on the two real collections. This is the slow chunk.
+
+```{r}
+#| label: xstats-run
+simPlanted <- data.frame(series = "SIM03A", expected.lag = -1)
+co021Bad <- plant.dating.errors()
+wa082Bad <- plant.wa082.error()
+
+results <- NULL
+for (name in names(settings)) {
+  # 20 simulated stands, averaged
+  simScores <- NULL
+  for (seed in 1:20) {
+    stand <- sim.collection(seed = seed)$rwl
+    simScores <- rbind(simScores, scoreReport(stand, simPlanted, settings[[name]]))
+  }
+  # the two real collections, once each
+  co <- scoreReport(co021Bad, attr(co021Bad, "planted"), settings[[name]])
+  wa <- scoreReport(wa082Bad, attr(wa082Bad, "planted"), settings[[name]])
+  results <- rbind(results, data.frame(
+    setting = name,
+    simFound = mean(simScores[, "found"]),
+    simFalseB = mean(simScores[, "falseB"]),
+    simFalseA = mean(simScores[, "falseA"]),
+    co021Found = as.logical(co["found"]), co021FalseB = co["falseB"],
+    wa082Found = as.logical(wa["found"]), wa082FalseB = wa["falseB"],
+    wa082FalseA = wa["falseA"],
+    row.names = NULL))
+}
+```
+
+`simFound` is the share of the 20 stands in which the missing ring was found, and `simFalseB` and `simFalseA` are the average number of false flags per stand. For the real collections, `Found` says whether every planted error was found, and the other columns count false flags. Mesa Verde never gets a false A flag under any setting here, so its column is left out.
+
+```{r}
+#| label: xstats-helpers
+#| include: false
+row <- function(name) results[results$setting == name, ]
+```
+
+## Why Filter at All?
+
+```{r}
+#| label: xstats-filter
+# Pick out the rows of the results table for these four settings
+show <- c("default", "raw widths", "spline only", "prewhitening only")
+results[results$setting %in% show, ]
+```
+
+Correlate raw ring widths and something surprising happens: the report still finds the missing ring, in `r round(100 * row("raw widths")$simFound)` percent of the stands. What raw widths do is bury it. Each simulated stand gets `r sprintf("%.1f", row("raw widths")$simFalseB)` false B flags and `r round(row("raw widths")$simFalseA)` false A flags on average, and Hurricane Ridge gets `r row("raw widths")$wa082FalseB` and `r row("raw widths")$wa082FalseA`. Even Mesa Verde gets `r row("raw widths")$co021FalseB` false B flags. Two things cause it. Every tree's widths slope down with age, so any two old series correlate a little whether or not their years line up. And a good year carries into the next, so a series shifted by a year still looks like itself. Both make wrong positions look almost as good as the right one.
+
+The spline takes out the slow slope, and prewhitening takes out the memory. Each alone helps a good deal; together they bring the false flags down to `r sprintf("%.1f", row("default")$simFalseB)` B and `r sprintf("%.1f", row("default")$simFalseA)` A per stand, and none at all at Mesa Verde. Filtering is mostly what keeps you from chasing ghosts.
+
+## How Stiff a Spline?
+
+```{r}
+#| label: xstats-spline
+show <- c("spline 10 years", "spline 20 years", "default", "spline 64 years",
+          "spline 100 years")
+results[results$setting %in% show, ]
+```
+
+Holmes chose 20 years for his California collections, and COFECHA's default became 32 [@Holmes1983; @GrissinoMayer2001]. On these data it hardly matters. Every stiffness from 10 to 100 years found the missing ring in every stand and both real collections, and the false flags moved by less than one per stand. The default sits at or near the fewest. A very flexible spline takes out some of the year-to-year signal along with the trend; a very stiff one leaves some trend in, though prewhitening mops up much of what's left. On these data that's a narrow range, and a reason to leave the default alone unless your trees give you one.
+
+## How Long a Segment?
+
+```{r}
+#| label: xstats-segments
+show <- c("segments 30 years", "default", "segments 100 years")
+results[results$setting %in% show, ]
+```
+
+Segment length matters a lot. Thirty-year segments find the error, along with `r round(row("segments 30 years")$simFalseB)` false B flags and `r round(row("segments 30 years")$simFalseA)` false A flags per stand: a correlation from 30 years is too noisy to trust, and there are more segments to go wrong. Hundred-year segments raise almost no false flags and find the missing ring in only `r round(100 * row("segments 100 years")$simFound)` percent of the stands, and they miss Hurricane Ridge's altogether. A segment that long is mostly correctly dated rings on one side of the error or the other, so the misdated part rarely dominates it. Holmes's 50 years, lagged by 25, sits between the two failures. Shorter segments are for narrowing down a problem you've already found, as in [Fixing Errors](06FixingErrors.qmd), and the report is for finding it.
+
+## Pearson or Spearman?
+
+```{r}
+#| label: xstats-method
+results[results$setting %in% c("default", "Spearman"), ]
+```
+
+Spearman's correlation works on ranks, so one extreme ring can't drag it around. On these data it finds the same errors as Pearson's with a few more false flags, `r sprintf("%.1f", row("Spearman")$simFalseB)` B per stand against `r sprintf("%.1f", row("default")$simFalseB)`. `xdate.report` uses Pearson for a practical reason: the critical value it prints is then exact, and the A flags mean what they say.
+
+## The Defaults Don't All Agree
+
+The other crossdating functions in `dplR` are older than `xdate.report`, and they have their own defaults.
+
+```{r}
+#| label: xstats-defaults
+# The default of one argument of one function, as text ("-" if the function
+# doesn't have that argument)
+defaultOf <- function(f, arg) {
+  fa <- formals(f)
+  if (!arg %in% names(fa)) return("-")
+  v <- fa[[arg]]
+  if (is.null(v)) return("NULL")
+  if (is.call(v)) v <- eval(v)   # method = c("pearson", ...) means the first
+  as.character(v)[1]
+}
+fns <- c("xdate.report", "xdate.floater", "corr.rwl.seg", "corr.series.seg",
+         "ccf.series.rwl", "xskel.ccf.plot")
+args <- c("nyrs", "prewhiten", "ar.order.max", "method", "pcrit")
+# For each function, the default of each argument; t() puts functions in rows
+defaults <- t(sapply(fns, function(f) sapply(args, function(a) defaultOf(f, a))))
+noquote(defaults)
+```
+
+`xdate.report` and `xdate.floater` take COFECHA's 32-year spline and the 99 percent level Grissino-Mayer describes [@GrissinoMayer2001, p. 209], prewhiten with an AR model of order three or less, and use Pearson. The older functions skip the spline and lean on prewhitening alone, with no cap on the AR order, and they default to Spearman and the 95 percent level. The experiment above says prewhitening alone and Spearman each change little on these data, and [Fixing Errors](06FixingErrors.qmd) found the same errors with `ccf.series.rwl` that the report flagged. It also says why you'd want to know: on a weak collection the false flags grow, and comparing a flag from one function with a correlation from another is easier when they filtered the same way. Every one of these arguments can be set. `corr.rwl.seg(x, nyrs = 32, method = "pearson", pcrit = 0.01)` gets you the report's choices.
+
+COFECHA also took logs of the ring widths before filtering by default, a choice Ed Cook argued against ([Where dplR Comes From](01WhereDplRComesFrom.qmd)). `dplR` doesn't take logs.

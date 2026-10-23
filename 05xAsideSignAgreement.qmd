@@ -1,9 +1,178 @@
 # Aside: Gleichläufigkeit and Synchronous Growth Changes {- .aside-chapter}
 
-:::{.callout-note title="Stub"}
-Not written yet.
-
-Planned: `glk` and `sgc`, the sign-agreement statistics of the European crossdating tradition, and how they relate to the correlation-based statistics.
-
-Source: new.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-23. Every number is computed when the book builds. Buras and Wilmking (2015) is cited from its bibliographic record and Visser's account of it; its text hasn't been read. Huber and Eckstein and Bauch come in through Visser and the Cook Book, not directly. Open questions are in the backlog.
 :::
+
+[Crossdating a Collection](05Crossdating.qmd) compared series by correlation, the way COFECHA does. That's the American tradition. Europe grew its own. Douglass worked with semiarid conifers whose narrow rings stand out, and crossdated by eye before measuring anything. Bruno Huber, starting in the early 1940s, worked with European trees whose rings vary much less from year to year. He measured every ring, plotted them, and backed up the visual match with a simple count of how often two series rise and fall together, the coefficient of parallel variation [@EcksteinPilcher1990, p. 12]. Huber actually counted the opposite, the years in which the two series went different ways, the *Gegenläufigkeit*; its complement, the *Gleichläufigkeit*, became the standard [@Visser2021, p. 204]. It is simple enough to work out by hand, and by 1956 someone had built a machine that compared two 100-ring curves in only 45 minutes [@Visser2021, p. 204]. European labs following Huber measure first and crossdate the measurements; American labs following Douglass crossdate first [@Pilcher1990, p. 40]. Gleichläufigkeit is still in common use for crossdating in Europe, much less in the United States [@Visser2021, p. 204]. `glk` and `sgc` are that tradition in `dplR`.
+
+```{r}
+#| label: glk-setup
+#| message: false
+library(dplR)
+source("R/plant-dating-errors.R")
+co021 <- read.rwl("data/co021.rwl", format = "tucson")
+wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
+wa082 <- wa082[, names(wa082) != "712011"]   # the series with the 1900 gap
+```
+
+## Up or Down
+
+Gleichläufigkeit looks only at the direction of each year-to-year change. Did the ring get wider or narrower than the one before? For two series, it's the share of years in which both went the same way. Here are two Mesa Verde cores for eleven years, which give ten changes.
+
+```{r}
+#| label: glk-by-hand
+yrs <- as.character(1900:1910)
+a <- co021[yrs, "641114"]
+b <- co021[yrs, "641121"]
+# sign() of each year-to-year difference: 1 wider, -1 narrower, 0 no change
+upDown <- data.frame(year = yrs[-1], a = sign(diff(a)), b = sign(diff(b)))
+# 1 when both went the same way, 0 when they went opposite ways, and a half
+# when one of them didn't change
+upDown$agree <- ifelse(upDown$a == upDown$b, 1,
+                       ifelse(upDown$a == 0 | upDown$b == 0, 0.5, 0))
+upDown
+mean(upDown$agree)
+# glk() on the same eleven years agrees (it warns that 10 changes is few)
+suppressWarnings(glk(co021[yrs, c("641114", "641121")], overlap = 5))$glk_mat
+```
+
+```{r}
+#| label: glk-by-hand-numbers
+#| include: false
+nSame <- sum(upDown$agree == 1)
+noChange <- upDown$year[upDown$agree == 0.5]
+```
+
+They moved the same way in `r nSame` of the 10 years. In `r noChange` 641114 didn't change at all, to the hundredth of a millimeter, and a year like that counts as half an agreement. That makes a Gleichläufigkeit of `r mean(upDown$agree)`, and `glk` gets the same. Two series that had nothing to do with each other would agree about half the time by chance, so 0.5 is the floor to measure against and 1 is perfect agreement.
+
+`glk` does that for every pair of series in a collection, over all the years they share.
+
+```{r}
+#| label: glk-collections
+co021Glk <- glk(co021)
+wa082Glk <- glk(wa082)
+names(co021Glk)
+```
+
+It returns three matrices, one row and one column per series: the agreement for each pair (`glk_mat`), how many year-to-year changes each pair shared (`overlap`), and a p-value for each pair (`p_mat`). One number for a whole collection is the mean over all pairs. Each pair appears twice in the matrix, above and below the diagonal, and the diagonal is each series compared with itself, so take only the part above the diagonal.
+
+```{r}
+#| label: glk-global
+# Each pair once: the part of the matrix above the diagonal
+pairs <- function(m) m[upper.tri(m)]
+c(co021 = mean(pairs(co021Glk$glk_mat), na.rm = TRUE),
+  wa082 = mean(pairs(wa082Glk$glk_mat), na.rm = TRUE))
+```
+
+```{r}
+#| label: glk-global-numbers
+#| include: false
+coG <- mean(pairs(co021Glk$glk_mat), na.rm = TRUE)
+waG <- mean(pairs(wa082Glk$glk_mat), na.rm = TRUE)
+coSig <- mean(pairs(co021Glk$p_mat) < 0.05, na.rm = TRUE)
+waSig <- mean(pairs(wa082Glk$p_mat) < 0.05, na.rm = TRUE)
+```
+
+Mesa Verde's series move together `r round(100 * coG)` percent of the time, Hurricane Ridge's `r round(100 * waG)` percent. The p-values say that `r round(100 * coSig)` percent of Mesa Verde's pairs and `r round(100 * waSig)` percent of Hurricane Ridge's agree better than chance at the 0.05 level. With a few hundred shared changes per pair, even modest agreement clears that bar, the same lesson as the floater searches in [Dating a Floater](07Floaters.qmd). The size of the Gleichläufigkeit says more than its p-value.
+
+## No Detrending Needed
+
+The appeal of a sign test is what it ignores. A slow age trend changes a ring's width a little from one year to the next, but it rarely changes which way the width moved. So Gleichläufigkeit can be computed on raw ring widths.
+
+```{r}
+#| label: glk-raw-vs-indices
+# The same comparison on spline indices. glk() expects ring widths and says
+# so when it gets indices; the arithmetic is the same.
+co021RwiGlk <- suppressWarnings(glk(detrend(co021, method = "Spline")))
+wa082RwiGlk <- suppressWarnings(glk(detrend(wa082, method = "Spline")))
+# The largest difference for any pair between raw widths and indices
+c(co021 = max(abs(co021RwiGlk$glk_mat - co021Glk$glk_mat), na.rm = TRUE),
+  wa082 = max(abs(wa082RwiGlk$glk_mat - wa082Glk$glk_mat), na.rm = TRUE))
+```
+
+No pair moves by more than `r sprintf("%.2f", max(abs(c(co021RwiGlk$glk_mat - co021Glk$glk_mat, wa082RwiGlk$glk_mat - wa082Glk$glk_mat)), na.rm = TRUE))`. That's why it suits a workflow that measures first and dates from the measurements: there's no curve to fit before you can compare.
+
+What it gives up is size. A drought year that halves a ring counts the same as a wiggle of a hundredth of a millimeter. Correlation uses the size, after the trend and memory come out. Do the two agree about which pairs agree?
+
+```{r}
+#| label: glk-vs-correlation
+# Prewhitened spline indices, as the crossdating functions use them
+prewhitened <- function(rwl) {
+  rwi <- detrend(rwl, method = "Spline")
+  out <- rwi
+  for (s in names(rwi)) {
+    ok <- !is.na(rwi[[s]])
+    out[[s]][ok] <- ar(rwi[[s]][ok], order.max = 3)$resid
+  }
+  out
+}
+waCor <- cor(prewhitened(wa082), use = "pairwise.complete.obs")
+coCor <- cor(prewhitened(co021), use = "pairwise.complete.obs")
+# Across all pairs: does a pair with a high glk also have a high correlation?
+c(co021 = cor(pairs(co021Glk$glk_mat), pairs(coCor), use = "complete.obs"),
+  wa082 = cor(pairs(wa082Glk$glk_mat), pairs(waCor), use = "complete.obs"))
+```
+
+Broadly. Across pairs the two measures correlate at `r sprintf("%.2f", cor(pairs(co021Glk$glk_mat), pairs(coCor), use = "complete.obs"))` at Mesa Verde and `r sprintf("%.2f", cor(pairs(wa082Glk$glk_mat), pairs(waCor), use = "complete.obs"))` at Hurricane Ridge. They see much the same thing in a strong collection and part company more in an ordinary one. One reason: in an unremarkable year a tiny change counts fully toward Gleichläufigkeit and barely at all toward a correlation.
+
+## When Nothing Changes
+
+Sometimes a ring is exactly as wide as the one before it, to the precision it was measured at. Is that agreement or disagreement with a series that went up? Neither, really. Huber's rule was to count every second such year as a disagreement, which amounts to counting each one as half an agreement [@Visser2021, p. 205]. A definition published by Schweingruber in 1983 handled these years differently, and several software packages followed it until Buras and Wilmking pointed back to Huber's [@BurasWilmking2015; @Visser2021, p. 205]. The Gleichläufigkeit in `dplR` follows Huber.
+
+Visser went further. He split the agreement into synchronous growth changes (SGC), years in which both series changed in the same direction, and semi-synchronous ones (SSGC), years in which one series didn't change at all. Gleichläufigkeit counts each semi-synchronous year as half an agreement, so GLK = SGC + SSGC/2. Visser suspects the half credit was a convenience for calculating by hand, and points out that it inflates the Gleichläufigkeit. He argued that SGC describes similarity better, that a large SSGC can point to anomalies or even errors, and that SGC is best used alongside a parametric measure like correlation [@Visser2021, p. 204-205]. Across the whole ITRDB he found a quarter of all comparisons with an SSGC above 0.1, enough to lift the Gleichläufigkeit by at least five percentage points [@Visser2021, p. 209-210]. `sgc` computes both.
+
+```{r}
+#| label: glk-sgc
+co021Sgc <- sgc(co021)
+wa082Sgc <- sgc(wa082)
+data.frame(
+  site = c("co021", "wa082"),
+  glk = c(coG, waG),
+  sgc = c(mean(pairs(co021Sgc$sgc_mat), na.rm = TRUE),
+          mean(pairs(wa082Sgc$sgc_mat), na.rm = TRUE)),
+  ssgc = c(mean(pairs(co021Sgc$ssgc_mat), na.rm = TRUE),
+           mean(pairs(wa082Sgc$ssgc_mat), na.rm = TRUE))
+)
+```
+
+```{r}
+#| label: glk-sgc-numbers
+#| include: false
+zeroShare <- function(rwl) mean(apply(rwl, 2, diff) == 0, na.rm = TRUE)
+coS <- mean(pairs(co021Sgc$sgc_mat), na.rm = TRUE)
+coSS <- mean(pairs(co021Sgc$ssgc_mat), na.rm = TRUE)
+```
+
+Check the arithmetic on Mesa Verde: `r sprintf("%.3f", coS)` plus half of `r sprintf("%.3f", coSS)` is `r sprintf("%.3f", coS + coSS / 2)`, which is the Gleichläufigkeit above. In both collections about `r round(100 * mean(c(coSS, mean(pairs(wa082Sgc$ssgc_mat), na.rm = TRUE))))` percent of the comparisons involve a year where one series didn't change. Where do they come from? At 0.01 mm, two neighboring narrow rings come out equal surprisingly often: `r round(100 * zeroShare(co021), 1)` percent of Mesa Verde's year-to-year changes are exactly zero, and `r round(100 * zeroShare(wa082), 1)` percent of Hurricane Ridge's. Mesa Verde's runs of absent rings are among them, since two zeros in a row are a change of zero; Visser left series with missing rings out of his ITRDB analysis for exactly that reason [@Visser2021, p. 209]. Ties also come with narrow rings. In the ITRDB, years with a semi-synchronous change averaged 0.88 mm against 1.14 mm for the rest [@Visser2021, p. 210], and for random series averaging 1.28 mm, measured to 0.01 mm, he expected an SSGC of only about 1 percent [@Visser2021, p. 207]. Mesa Verde's rings average `r sprintf("%.2f", mean(unlist(co021), na.rm = TRUE))` mm, narrow enough to account for a good share of its ties. Hurricane Ridge's average `r sprintf("%.2f", mean(unlist(wa082), na.rm = TRUE))` mm, close to Visser's typical ring, and it has about as many semi-synchronous years anyway. I haven't looked into why. That's a reason to care about measurement precision, from [Reading and Writing](03ReadingWriting.qmd), that has nothing to do with the widths themselves: a sign test needs the measurements fine enough to tell neighboring rings apart.
+
+## Finding a Misdated Series
+
+Gleichläufigkeit is a whole-series measure, like the check in `rwl.check`. Here it is on the two series misdated in [Crossdating a Collection](05Crossdating.qmd).
+
+```{r}
+#| label: glk-planted
+co021Bad <- plant.dating.errors()
+badGlk <- glk(co021Bad)$glk_mat
+# A series' mean agreement with every other series in the collection
+meanWithOthers <- function(m, s) mean(m[s, colnames(m) != s], na.rm = TRUE)
+data.frame(
+  series = c("645221", "643143"),
+  before = c(meanWithOthers(co021Glk$glk_mat, "645221"),
+             meanWithOthers(co021Glk$glk_mat, "643143")),
+  after = c(meanWithOthers(badGlk, "645221"), meanWithOthers(badGlk, "643143"))
+)
+```
+
+```{r}
+#| label: glk-planted-numbers
+#| include: false
+typical <- median(sapply(colnames(co021Glk$glk_mat),
+                         function(s) meanWithOthers(co021Glk$glk_mat, s)))
+```
+
+645221, misdated over most of its length, drops to `r sprintf("%.2f", meanWithOthers(badGlk, "645221"))`, which is chance. 643143, misdated only at its inner end, drops just to `r sprintf("%.2f", meanWithOthers(badGlk, "643143"))`, against a typical series' `r sprintf("%.2f", typical)`. That's the lesson of "Segments Find What a Whole Series Hides" in [Crossdating a Collection](05Crossdating.qmd), from the other tradition.
+
+`glk` in `dplR` compares series where they are dated; it doesn't cut them into segments or slide them. In Europe the sliding was done by programs like the one Baillie and Pilcher published in 1973, which computes a correlation and Student's t at every position of overlap to mimic sliding one plot past another, and which was essential to building the long oak chronologies [@Pilcher1990, p. 46]. In `dplR` the sliding is done by `xdate.report`, `ccf.series.rwl` and `xdate.floater`.
+
+Why keep Gleichläufigkeit at all, then? Because it needs no detrending and no assumptions about the shape of the data, and because a large part of the field reports agreement with it, especially in European oak and in archaeology. When you read one in a paper, remember that 0.5 is chance, that a long overlap makes almost any value "significant", and that how finely the rings were measured changes how many years count at all.
