@@ -42,7 +42,7 @@ Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. 
 
 ### Waiting on Andy
 
-- ILL: Buras and Wilmking (2015), Huber (1943), Eckstein and Bauch (1969). Check 05x's Buras and Wilmking sentence against the paper when it comes; don't cite the German papers directly.
+- ILL: Huber (1943), Eckstein and Bauch (1969); don't cite them directly. Buras and Wilmking (2015) arrived 2026-10-23 (`Buras2015_glk.pdf`) and 05x was corrected against it: Schweingruber's 1983 error was the case where both series show no change (scored as disagreement), not the one-series case; glk is computed as 1 - Gegenläufigkeit as in Eckstein and Bauch; CDendro and dplR corrected; rare, effect usually small (p. 29).
 - `Douglass1929` volume (56), issue (6) and end page (770) are unchecked.
 - Lines written in Andy's voice and flagged in the chapter entries below (search "For Andy").
 
