@@ -1,89 +1,588 @@
 # Detrending
 
-:::{.callout-note title="Partly written"}
-The sections below were moved here from A First Pass and have not been revised.
-
-Still planned:
-
-- How to choose a method.
-- The `rwi` summary and image plot.
-- Ratios versus differences and the power transform, as its own section: spread against level before and after `powt`, and both the `cook` and `universal` methods.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-23, from the outline of the same day. Every number in the text is computed when the book builds. Needs dev dplR 1.8.1 for `fill.internal.NA(fill = "Chron")`, `series =` and the extreme-index check in `summary` of indices. Open questions are in the backlog.
 :::
 
 ## Big Idea
 
-## Packages
+A growth curve is a guess at what a tree would have grown if nothing but getting older had happened to it. Detrending fits that guess to each series and divides the ring widths by it, and the index that comes out is everything the guess didn't explain. So the guess is in every number downstream: the chronology, rbar and EPS, every correlation with climate you will ever compute from it.
 
-We use `dplR` and the on-board Campito Mountain ring widths, `ca533`.
+The trouble is that no curve knows which slow wiggles are age. Competition, a stand event and a run of dry decades all look like trend to a curve fitted to one tree. [An Additive Model of Tree Growth](02CoresToRecord.qmd) caught the default spline bending into the 1880 stand event. This chapter measures what each method takes and what it leaves, first on the simulated stand, where the answer is known, and then on Mesa Verde and Hurricane Ridge, where it isn't.
+
+As any dendrochronologist will tell you, detrending is a dark art. I'll give you my opinions on it near the end. The one to take away now is that you choose a curve by deciding what you want the chronology to keep.
+
+## Packages
 
 ```{r}
 #| label: det-setup
+#| message: false
 library(dplR)
-data(ca533)
+library(ggplot2)
+source("R/sim-collection.R")
+co021 <- read.rwl("data/co021.rwl", format = "tucson")
+wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
 ```
+
+Hurricane Ridge is read from its ITRDB file, so series 712011 still has no measurement for 1900. That gap has been open since [Reading and Writing](03ReadingWriting.qmd).
 
 ## Closing the Gap
 
-:::{.callout-note title="Outline"}
-Moved from 04 Checking a Collection on 2026-10-19. Reads `data/wa082.rwl`, so 712011 has its `NA` in 1900, even while the rest of this chapter is still on `ca533`. Needs dev dplR 1.8.1 for `fill = "Chron"` and `series =`.
-:::
-
-- Open with the stop: `detrend` on `wa082` as read fails on 712011. This is where the gap left open in 04 and through crossdating has to be closed.
-
-- `fill.internal.NA` on 712011, four ways, in one small table for 1900 with the neighbouring rings: `Mean`, `Linear`, `Spline` and `Chron`. Computed 2026-10-19: Linear 0.42, Spline 0.47, Chron 0.24, against 0.45 in 1899 and 0.39 in 1901.
-- Why `Chron` comes out so much lower: the first three only look at 712011, and `Chron` asks the other trees what kind of year 1900 was. Check the mechanism (20-year spline indices, scaled by the series' own spread) before explaining the size of the difference. The mean index of the other series in 1900 is about 0.82 with a default spline, so 1900 was a narrow year, but that alone does not account for a fill near half the neighbors.
-- The catch, from the help page: a fill built from the other trees agrees with them by construction, so it inflates every statistic of agreement and should not be used for crossdating.
-- Decided 2026-10-19: the gap stays open through crossdating and is filled here. Say why in a sentence: crossdating is done, so a fill that borrows agreement from the other trees can no longer bias a dating check. Splitting 712011 at the gap stays an option worth one sentence, for longer gaps.
-- `fill.internal.NA(..., series = "712011")` to fill only that series.
-- Agreement statistics come after this chapter too (rbar and EPS in 09), so the inflation doesn't go away once dating is done. For one ring in one series it should be tiny. Compute rbar and EPS with a `Chron` fill and a `Linear` fill before saying so.
-
-## Common Detrending Methods
-
-As any dendrochronologist will tell you, detrending is a dark art. In `dplR` we have implemented some of the standard tools for detrending but all have drawbacks. In all of the methods, the detrending is the estimation and removal of the low frequency variability that is due to biological or stand  effects. The standardization is done by dividing each series by the growth  trend to produce units in the dimensionless ring-width index (RWI). Much of the text that follows is modified from the help page of `detrend`.
-
-Probably the most common method for detrending is what is often called the "conservative" approach of attempting to fit a negative exponential curve to a series. In the `dplR` implementation the `"ModNegExp"` method of `detrend` attempts to fit a classic nonlinear model of biological growth of the form $(f(t) = a \times \mathrm{e}^{bt} + k)$, where the argument of the function is time, using `nls`. See Fritts [-@Fritts2001] for details about the parameters. If a suitable nonlinear model cannot be fit (function is non-decreasing or some values are not positive) then a linear model is fit using `lm`. That linear model can have a positive slope unless `pos.slope` is `FALSE` in which case the series is standardized by its mean (method `"Mean"` in `detrend`).
-
-For instance, every series in the `ca533` object can be detrended at once with an age-dependent spline via:  
+Here is where it has to close.
 
 ```{r}
-#| warning: false
-ca533.rwi <- detrend(rwl = ca533, method = "AgeDepSpline")
+#| label: det-stop
+#| error: true
+wa082Indices <- detrend(wa082)
 ```
 
-This saves the results in `ca533.rwi` which is a `data.frame` with the same dimensions as the `rwl` object `ca533` and each series standardized.
-```{r}
-nrow(ca533.rwi) # 1358 years
-ncol(ca533.rwi) # 34 series
-colMeans(ca533.rwi, na.rm=TRUE)
-```
-
-When `detrend` is run on a `rwl` object the function loops through 
-each series. It does this by calling a different function 
-(`detrend.series`) for each column in the `rwl` object. 
-But, a user can also call `detrend.series` and it is useful to do so here 
-for educational purposes.
-
-Let us detrend a single series and apply more than one detrending method when we call the detrend function. We will call `detrend.series` using the verbose mode so that we can see the parameters applied for each method. The `detrend.series` function produces a plot by default.
+The crossdating functions worked around the gap, mostly by leaving 712011 out of the tests that needed an unbroken series. `detrend` can't, because a spline needs a value in every year. `fill.internal.NA` offers four ways to make one up. The table has 712011's measured rings around the gap, and then the value each fill puts in 1900.
 
 ```{r}
-#| warning: false
-CAM011.rwi <- detrend.series(y = ca533[, "CAM011"],verbose=TRUE)
+#| label: det-fills
+gapYears <- as.character(1898:1902)
+# the measured rings, with the gap, and an empty column for each fill
+fillTable <- data.frame(year = 1898:1902,
+                        measured = wa082[gapYears, "712011"])
+# fill 712011 four ways and keep only the value each puts in 1900
+for (method in c("Mean", "Linear", "Spline", "Chron")) {
+  filled <- fill.internal.NA(wa082, fill = method, series = "712011")
+  fillTable[[method]] <- NA
+  fillTable[fillTable$year == 1900, method] <- round(filled["1900", "712011"], 2)
+}
+# as a formatted table, with empty cells where there's nothing to show
+options(knitr.kable.NA = "")
+knitr::kable(fillTable)
 ```
 
-Note that advanced users can use `return.info=TRUE` to have all the fitting parameters returned in a `list`. Having access to these is occasionally desirable. 
+```{r}
+#| label: det-chron-mechanism
+#| include: false
+# The pieces of the "Chron" fill for 712011 in 1900, from public functions.
+# 712011 bridged with a straight line, then a 20-year spline, as the fill does.
+gapFilledLinear <- fill.internal.NA(wa082, fill = "Linear", series = "712011")
+ownIdx <- detrend(gapFilledLinear, method = "Spline", nyrs = 20)[["712011"]]
+ownCurve <- gapFilledLinear[["712011"]] / ownIdx
+names(ownIdx) <- names(ownCurve) <- rownames(gapFilledLinear)
+ownIdx["1900"] <- NA
+otherIdx <- detrend(wa082[, names(wa082) != "712011"], method = "Spline",
+                    nyrs = 20)
+masterIdx <- apply(as.matrix(otherIdx), 1, function(v) {
+  v <- v[!is.na(v)]
+  if (length(v) >= 3) tbrm(v) else NA
+})
+both <- !is.na(ownIdx) & !is.na(masterIdx[names(ownIdx)])
+mast <- masterIdx[names(ownIdx)][both]
+gapZ <- (masterIdx["1900"] - mean(mast)) / sd(mast)
+gapPct <- mean(masterIdx <= masterIdx["1900"], na.rm = TRUE)
+gapIdx <- gapZ * sd(ownIdx[both]) + mean(ownIdx[both])
+nOthers <- sum(!is.na(as.matrix(otherIdx)["1900", ]))
+```
 
-## Interactive Detrending
+Look at the row for the year 1900. That's the missing value.
 
-There are many instances where a user needs fine scale control while detrending perhaps fitting a negative exponential curve to one series, a spline to another, and the mean to a third. Like with crossdating, interactive detrending is a case where an app is useful. The `iDetrend` app is relatively simple interface to `detrend.series` that let's users fit curves and plot them with several different options. When completed the user can save a file with the detrended data as well as generate log file that allows reproduction of the detrending from the command line. It's available here 
+`Mean` puts in the average of the whole series. `Linear` draws a straight line between 1899 and 1901, and `Spline` a curve through the rings nearby. All three look only at 712011. `Chron` asks the other trees what kind of year 1900 was, and it comes out far lower than the rest. Why?
 
-[viz.datascience.arizona.edu/iDetrend/](https://viz.datascience.arizona.edu/iDetrend/){target="_blank"}
+It fits a 20-year spline to each series and divides, so every tree is on the same index scale. Then it takes a robust mean of the other `r nOthers` series. In 1900 that mean was `r sprintf("%.2f", masterIdx["1900"])`, lower than in all but `r round(100 * gapPct)`% of years, or `r sprintf("%.2f", abs(gapZ))` standard deviations below its average. So 1900 was a narrow year at Hurricane Ridge. That departure is then given 712011's own spread, and 712011 swings much more than the mean of the others does (a standard deviation of `r sprintf("%.2f", sd(ownIdx[both]))` against `r sprintf("%.2f", sd(mast))`), so its fill index comes out at `r sprintf("%.2f", gapIdx)`. Multiply by its spline in 1900, `r sprintf("%.2f", ownCurve["1900"])` mm, and you get the `r sprintf("%.2f", fillTable$Chron[3])` in the table. The neighbors look wide next to it because they are wide for this tree. 712011's indices in 1899 and 1901 are `r sprintf("%.2f", ownIdx["1899"])` and `r sprintf("%.2f", ownIdx["1901"])`, above its own curve.
 
-## Other Detrending Methods
+The other three fills put in a value that says nothing about 1900, so I'd use `Chron`. There's a catch, and the help page says it plainly: a fill built from the other trees agrees with them by construction. Used before crossdating, it would raise every statistic of agreement for 712011 and could hide an error. That's why the gap stayed open through the crossdating chapters. Dating is done now, so borrowing one year from the other trees can't bias a dating check. For a gap of more than a few years, I'd split the series at the gap and treat the two pieces as separate series. A decade is too much to make up.
 
-There are other detrending methods that are less commonly used but might have theoretical advantages. These include regional curve standardization (function `rcs`), C-Method Standardization (function `cms`), and converting measurements of ring widths to basal area increment (functions  `bai.in` and `bai.out`). See their help pages for further information.
+Does the borrowed ring inflate rbar and EPS, which come next in [Chronology Statistics](09ChronologyStats.qmd)?
+
+```{r}
+#| label: det-fill
+wa082Filled <- fill.internal.NA(wa082, fill = "Chron", series = "712011")
+```
+
+```{r}
+#| label: det-fill-stats
+#| include: false
+statsChron <- rwi.stats(detrend(wa082Filled), prewhiten = TRUE)
+statsLinear <- rwi.stats(detrend(gapFilledLinear), prewhiten = TRUE)
+statsDrop <- rwi.stats(detrend(wa082[, names(wa082) != "712011"]),
+                       prewhiten = TRUE)
+nRings <- sum(!is.na(as.matrix(wa082)))
+```
+
+Not that you could see. With the `Chron` fill, rbar is `r sprintf("%.3f", statsChron$rbar.eff)` and EPS `r sprintf("%.3f", statsChron$eps)`. With the `Linear` fill they are `r sprintf("%.3f", statsLinear$rbar.eff)` and `r sprintf("%.3f", statsLinear$eps)`. One ring among `r format(nRings, big.mark = ",")` doesn't move a collection statistic. `wa082Filled` is still class `rwl`, and the rest of the chapter uses it.
+
+## One Series, Several Curves
+
+The methods come in two kinds. The first starts from a picture of how a tree grows. A stem that adds about the same amount of wood each year to a widening circle has to lay it down in thinner and thinner rings, so ring width falls with age along a curve of known shape [@Cook1990, p. 108-109]. `ModNegExp` and `ModHugershoff` are curves of that kind. They can't bend to follow anything else, so whatever isn't age trend stays in the index, which is why they are often called the conservative methods. They suit open-grown trees whose decline follows the picture.
+
+The second kind assumes no shape and follows the data. Cook and Peters brought the smoothing spline into tree rings for trees in a closed forest, where competition and disturbance give the trend no predictable form [@Cook1981]. "Forest interior" is in their title. Splines, the age-dependent spline and `Friedman` are all smoothers. The price of the flexibility is that a smoother takes some of whatever is slow, climate included, along with the trend. In practice the two kinds often get combined. Double detrending fits a negative exponential first and then a stiff spline to the indices, to catch what the first curve missed [@Cook1990, p. 122-123]. In `dplR` that is two calls to `detrend`. `AgeDepSpline` sits between the two kinds: a smoother built to stiffen as the tree ages, the way a growth curve flattens.
+
+`detrend` calls `detrend.series` on each series in turn, and calling it yourself on one series is the best way to see what the methods do. Series 712092 is a good test: a long decline, a flat century and then a burst of growth in the 1940s and 1950s.
+
+```{r}
+#| label: det-curves
+#| fig-cap: "Series 712092 at Hurricane Ridge (gray) with four growth curves fitted to it, one to a panel."
+# 712092 without the years before and after it was measured
+width712092 <- wa082Filled[["712092"]]
+years712092 <- as.numeric(rownames(wa082Filled))[!is.na(width712092)]
+width712092 <- width712092[!is.na(width712092)]
+
+# return.info = TRUE gives back the fitted curves, a data.frame with one
+# column per method
+methods <- c("Spline", "ModNegExp", "AgeDepSpline", "Friedman")
+fits712092 <- detrend.series(width712092, method = methods,
+                             make.plot = FALSE, return.info = TRUE)
+
+# one row per year and method, for ggplot
+curves712092 <- data.frame(year = rep(years712092, length(methods)),
+                           method = rep(methods, each = length(years712092)),
+                           curve = unlist(fits712092$curves[methods], use.names = FALSE))
+
+# the widths repeated in every panel, under each curve
+widthPanels <- data.frame(year = rep(years712092, length(methods)),
+                          method = rep(methods, each = length(years712092)),
+                          width = rep(width712092, length(methods)))
+
+ggplot(curves712092, aes(x = year)) +
+  geom_line(data = widthPanels, aes(y = width), colour = "grey70") +
+  geom_line(aes(y = curve)) +
+  facet_wrap(~method) +
+  labs(x = "Year", y = "Ring width (mm)") +
+  theme_minimal()
+```
+
+What each curve assumes:
+
+- `Spline` is a cubic smoothing spline [@Cook1981]. By default its stiffness is set so that it removes half the variance at a wavelength of 67% of the series length, which is the rule Cook gives in the Cook Book [@Cook1990, p. 114]. For 712092 that is about `r round(0.67 * length(width712092))` years. It is the default in `detrend` because it fits almost anything without going wild.
+- `ModNegExp` is the modified negative exponential, $a e^{-bt} + k$, the shape a ring width takes when a stem adds about the same wood each year to a widening circle [@Fritts2001]. It follows the decline and then can only stay flat. The burst in the 1950s is all index.
+- `AgeDepSpline` is a spline that starts flexible and gets stiffer as the tree ages, on the idea that young trees change fast and old ones slowly. Here it flattens by the 1830s and then stays flat.
+- `Friedman` is Friedman's super smoother, which picks its own flexibility from the data. It chases the burst, and so it would chase a climate signal lasting a few decades too.
+- `ModHugershoff` adds a rise before the decline, for juvenile growth. `Mean` is a horizontal line. `Ar` isn't a curve at all: it prewhitens the series with an autoregressive model.
+
+`ModNegExp` and `ModHugershoff` don't always fit. The nonlinear fit can fail to converge, or it converges on a curve that rises or dips below zero, which usually means the series has no decline for the model to describe. Then `detrend` steps down to the next simplest picture of age: a straight line. The Cook Book gives the linear trend as the simplest deterministic model, with its slope held at zero or below when the expectation calls for it [@Cook1990, p. 108-109]. That expectation is the geometric argument again. A tree's age makes its rings narrower and never wider, so a rising trend is something else, a release or a run of good decades, and removing it would remove that too. So if the line rises, `detrend` uses a horizontal line at the series mean instead and takes out no trend at all. (`pos.slope = TRUE` lets the line rise, if you have a reason.) The line also has to stay above zero, since the rings are divided by it, and if it doesn't the mean is used. Each step down assumes less about the tree. The verbose output and `return.info = TRUE` tell you which step a series ended on, and it is worth knowing, because a series that fell back to the mean has had nothing removed.
+
+Do the choices matter for a chronology? Over the whole span, less than you might think.
+
+```{r}
+#| label: det-real-chrons
+# a standard chronology from each method, side by side
+chronsBy <- function(rwl) {
+  out <- data.frame(row.names = rownames(rwl))
+  for (m in methods) {
+    out[[m]] <- chron(detrend(rwl, method = m))[, "std"]
+  }
+  out
+}
+round(cor(chronsBy(wa082Filled)), 2)
+```
+
+```{r}
+#| label: det-real-chrons-co021
+#| include: false
+coChronCor <- cor(chronsBy(co021))
+waChronCor <- cor(chronsBy(wa082Filled))
+offDiag <- function(m) m[upper.tri(m)]
+threeMethods <- c("Spline", "ModNegExp", "AgeDepSpline")
+```
+
+`Spline`, `ModNegExp` and `AgeDepSpline` correlate at `r sprintf("%.2f", min(offDiag(waChronCor[threeMethods, threeMethods])))` or better at Hurricane Ridge, and at `r sprintf("%.2f", min(offDiag(coChronCor[threeMethods, threeMethods])))` or better at Mesa Verde. `Friedman` is the odd one out. Don't let numbers like these reassure you. A correlation over three centuries is dominated by the year-to-year wiggles, and those survive any reasonable curve. Where the methods disagree is in the slow part, and a high correlation can hide a large difference there. The next two sections go after it.
+
+## What the Curve Takes
+
+The simulated stand from chapter 2 knows its own age trends. `truth$age` holds the curve each core would have followed with nothing else going on, so dividing by it is the right answer, and every method can be scored against it.
+
+```{r}
+#| label: det-sim
+sim <- sim.collection(seed = 1)
+simTruth <- sim$truth
+simFixed <- simTruth$rwl
+trueAge <- simTruth$age[rownames(simFixed), names(simFixed)]
+trueClimate <- setNames(simTruth$climate$climate, simTruth$climate$year)
+```
+
+Three scores for each method: the correlation of its chronology with the true climate since 1800, the mean index in the 1870s for the cores that the 1880 event would hit, and the drop in the whole chronology from the 1870s to the 1880s.
+
+```{r}
+#| label: det-sim-table
+# which cores were standing in 1880, and which of those the event hit
+standing <- !is.na(simFixed["1880", ])
+hitCore <- sim$ids[names(simFixed), "tree"] %in% simTruth$event$trees
+hitCores <- names(simFixed)[standing & hitCore]
+
+# the right answer: widths divided by the true age trend
+simByTruth <- as.rwi(simFixed / trueAge)
+
+# indices from each method, with the right answer first
+simIndices <- list(truth = simByTruth)
+for (m in c("Spline", "ModNegExp", "AgeDepSpline", "Friedman", "Ar")) {
+  simIndices[[m]] <- detrend(simFixed, method = m)
+}
+simIndices[["Spline32"]] <- detrend(simFixed, method = "Spline", nyrs = 32)
+
+# score each set of indices
+since1800 <- as.character(1800:2025)
+seventies <- as.character(1870:1879)
+eighties <- as.character(1880:1889)
+simScores <- data.frame()
+for (m in names(simIndices)) {
+  std <- chron(simIndices[[m]])[, "std"]
+  names(std) <- rownames(simIndices[[m]])
+  hitStd <- chron(simIndices[[m]][, hitCores])
+  simScores <- rbind(simScores, data.frame(
+    method = m,
+    climate.r = round(cor(std[since1800], trueClimate[since1800]), 2),
+    hit.1870s = round(mean(hitStd[seventies, "std"]), 2),
+    drop.1880 = round(mean(std[eighties]) - mean(std[seventies]), 2)))
+}
+simScores
+```
+
+The `hit.1870s` column is chapter 2's puzzle. Divided by their true age trends, the hit cores average `r sprintf("%.2f", simScores$hit.1870s[simScores$method == "truth"])` in the decade before the event, a perfectly ordinary decade. The default spline puts them at `r sprintf("%.2f", simScores$hit.1870s[simScores$method == "Spline"])`. Its curve for each of those cores bends down into the dip after 1880, which leaves it below the rings of the 1870s, and dividing by a curve that is too low makes a good decade out of nothing. `ModNegExp` can't bend, so it does better here.
+
+```{r}
+#| label: det-event
+#| fig-cap: "The cores the 1880 event hit, as a chronology, with indices made three ways. Dividing by the true age trend (solid) gives an ordinary 1870s. The default spline bends into the dip and lifts the years before it."
+eventYears <- as.character(1860:1910)
+# the chronology of the hit cores, made three ways, for ggplot
+eventData <- data.frame()
+for (m in c("truth", "Spline", "ModNegExp")) {
+  hitStd <- chron(simIndices[[m]][, hitCores])
+  eventData <- rbind(eventData,
+                     data.frame(year = as.numeric(eventYears), method = m,
+                                index = hitStd[eventYears, "std"]))
+}
+
+ggplot(eventData, aes(x = year, y = index, linetype = method)) +
+  geom_vline(xintercept = 1880, colour = "grey60") +
+  geom_hline(yintercept = 1, colour = "grey80") +
+  geom_line() +
+  scale_linetype_manual(values = c(truth = "solid", Spline = "dashed",
+                                   ModNegExp = "dotted")) +
+  labs(x = "Year", y = "Index", linetype = NULL) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+
+Now look at the first column, and be suspicious of it. The 32-year spline and `Friedman` correlate better with the climate than the right answer does, and `Ar`, which is no curve at all, beats everything at `r sprintf("%.2f", simScores$climate.r[simScores$method == "Ar"])`. That's an artifact of the simulation. Its climate is white noise, so all the slow variation in the widths is something other than climate: the event, the competition some trees face, the tree's memory of last year. A method that strips out everything slow can only gain. If that were how climate behaved, you'd prewhiten everything and stop reading here. It isn't.
+
+## The Segment-Length Curse
+
+A curve fitted to one tree removes everything slow in that tree, whatever caused it. So a climate swing that lasts about as long as the series itself looks like part of the tree's age trend and goes out with it. Cook and his coauthors called this the segment-length curse [@Cook1995]. The longest climate swing a chronology can show is limited by the lengths of the series in it, however long the chronology is. In practice the limit is about a third of a series' length [@Cook1995, p. 230-231]. A millennium-long chronology made from 200-year series can't show you a 500-year swing, however carefully it is standardized.
+
+How much does each method lose? Give the simulated trees a climate with slow swings in it. Half its variance is year-to-year noise and half is a running mean of noise, which wanders up and down. With an 80-year running mean the swings last decades to a century. With a 250-year one they last centuries, longer than most of the trees. Then score each method on the slow part of its chronology, separated with a 31-year running mean, in two ways: how well it follows the slow climate (a correlation), and how much of the swing's size it keeps (the slope of the slow chronology on the slow climate, as a share of the slope you get by dividing by the true age trend). The fast part gets a correlation too.
+
+One stand with one climate could be lucky, and a slow climate is luckier than most, because a few swings either do or don't line up with the trees' ages. So the code below makes 100 stands, each with its own climate, for each kind of swing. That is 1,200 sets of indices, and it takes about half a minute.
+
+```{r}
+#| label: det-curse
+climYears <- 1400:2025
+
+# a climate with slow swings: white noise plus a running mean of noise over
+# `window` years, each part with the same variance
+makeClimate <- function(window, seed) {
+  set.seed(seed)
+  noise <- rnorm(length(climYears) + window - 1)
+  swing <- stats::filter(noise, rep(1 / window, window), sides = 1)
+  swing <- swing[window:length(swing)]
+  setNames(rnorm(length(climYears)) + swing / sd(swing), climYears)
+}
+
+# a centered 31-year running mean, to split slow from fast
+smooth31 <- function(v) as.numeric(stats::filter(v, rep(1 / 31, 31), sides = 2))
+
+curseMethods <- c("truth", "ModNegExp", "AgeDepSpline", "Spline", "Friedman",
+                  "Spline32")
+
+# grow one stand under one climate, detrend it every way, and score each
+scoreStand <- function(seed, window) {
+  stand <- sim.collection(seed = seed,
+                          climate = makeClimate(window, seed + 1000))
+  widths <- stand$truth$rwl
+  age <- stand$truth$age[rownames(widths), names(widths)]
+  climate <- setNames(stand$truth$climate$climate, stand$truth$climate$year)
+  scores <- data.frame()
+  for (m in curseMethods) {
+    if (m == "truth") {
+      indices <- as.rwi(widths / age)
+    } else if (m == "Spline32") {
+      indices <- detrend(widths, method = "Spline", nyrs = 32)
+    } else {
+      indices <- detrend(widths, method = m)
+    }
+    crn <- chron(indices)
+    keep <- crn$samp.depth >= 10  # only years with at least 10 cores
+    std <- crn[keep, "std"]
+    clim <- climate[rownames(crn)[keep]]
+    slowStd <- smooth31(std)
+    slowClim <- smooth31(clim)
+    scores <- rbind(scores, data.frame(
+      window = window, seed = seed, method = m,
+      slow.r = cor(slowStd, slowClim, use = "complete.obs"),
+      slope = coef(lm(slowStd ~ slowClim))[2],
+      fast.r = cor(std - slowStd, clim - slowClim, use = "complete.obs")))
+  }
+  # the share of the swing kept, against dividing by the true age trend
+  scores$slow.kept <- scores$slope / scores$slope[scores$method == "truth"]
+  scores
+}
+
+curseScores <- data.frame()
+for (window in c(80, 250)) {
+  for (seed in 1:100) {
+    curseScores <- rbind(curseScores, scoreStand(seed, window))
+  }
+}
+
+# average over the 100 stands for each kind of swing
+curseTable <- aggregate(cbind(slow.r, slow.kept, fast.r) ~ method + window,
+                        data = curseScores, FUN = mean)
+curseTable <- curseTable[order(curseTable$window,
+                               match(curseTable$method, curseMethods)), ]
+curseTable[, 3:5] <- round(curseTable[, 3:5], 2)
+curseTable
+```
+
+```{r}
+#| label: det-curse-numbers
+#| include: false
+curseGet <- function(m, w, col) {
+  curseTable[curseTable$method == m & curseTable$window == w, col]
+}
+pct <- function(v) paste0(round(100 * v), "%")
+fastRange <- range(curseTable$fast.r[curseTable$method != "truth"])
+treeAges <- eval(formals(sim.collection)$age.range)  # the simulation's default
+mneKept80 <- curseScores$slow.kept[curseScores$method == "ModNegExp" &
+                                     curseScores$window == 80]
+```
+
+Every method gets the year-to-year climate, and they all get it about equally well (`r sprintf("%.2f", fastRange[1])` to `r sprintf("%.2f", fastRange[2])`). They part company on the slow climate. Divided by the true age trend, the chronology follows it at `r sprintf("%.2f", curseGet("truth", 80, "slow.r"))`. The fitted curves follow it less well, and the correlation flatters them, because it only asks whether the swings are in the right places. Ask how big the swings are and the curse shows. For swings of decades to a century, `ModNegExp` keeps `r pct(curseGet("ModNegExp", 80, "slow.kept"))` of the swing's size, `AgeDepSpline` `r pct(curseGet("AgeDepSpline", 80, "slow.kept"))`, the default spline `r pct(curseGet("Spline", 80, "slow.kept"))`, and the 32-year spline `r pct(curseGet("Spline32", 80, "slow.kept"))`. For swings of centuries, `ModNegExp` keeps `r pct(curseGet("ModNegExp", 250, "slow.kept"))` and the default spline `r pct(curseGet("Spline", 250, "slow.kept"))`.
+
+`ModNegExp` is the best a curve could hope to do here, because its shape is the shape the simulated trees age with, and it still loses more than half of the slow climate. It varies a lot from stand to stand, too: the middle half of the stands kept between `r pct(quantile(mneKept80, 0.25))` and `r pct(quantile(mneKept80, 0.75))`. The trees in every stand are `r treeAges[1]` to `r treeAges[2]` years old. Fit any curve to a series that short and a swing lasting most of a century is, as far as the curve can tell, part of that tree's trend. That's the curse.
+
+```{r}
+#| label: det-curse-plot
+#| fig-cap: "The slow part of the climate in one simulated stand (points) and the slow part of three chronologies made from it (lines), each a 31-year running mean. Dividing by the true age trend follows the climate. The fitted curves keep the timing of the swings and lose much of their size."
+# one stand with swings of decades to a century, made three ways
+stand <- sim.collection(seed = 1, climate = makeClimate(80, 1001))
+widths <- stand$truth$rwl
+age <- stand$truth$age[rownames(widths), names(widths)]
+climate <- setNames(stand$truth$climate$climate, stand$truth$climate$year)
+curseIndices <- list(truth = as.rwi(widths / age),
+                     ModNegExp = detrend(widths, method = "ModNegExp"),
+                     Spline = detrend(widths, method = "Spline"))
+cursePlot <- data.frame()
+for (m in names(curseIndices)) {
+  crn <- chron(curseIndices[[m]])
+  keep <- crn$samp.depth >= 10
+  cursePlot <- rbind(cursePlot,
+                     data.frame(year = as.numeric(rownames(crn)[keep]),
+                                method = m, slow = smooth31(crn[keep, "std"])))
+}
+# the slow climate on the index scale, from a regression of the slow truth
+# chronology on it
+truthSlow <- cursePlot[cursePlot$method == "truth", ]
+climSlow <- smooth31(climate[as.character(truthSlow$year)])
+climFit <- coef(lm(truthSlow$slow ~ climSlow))
+climData <- data.frame(year = truthSlow$year,
+                       slow = climFit[1] + climFit[2] * climSlow)
+
+ggplot(cursePlot, aes(x = year, y = slow)) +
+  geom_point(data = climData, colour = "grey50", size = 0.6) +
+  geom_line(aes(linetype = method)) +
+  scale_linetype_manual(values = c(truth = "solid", ModNegExp = "dotted",
+                                   Spline = "dashed")) +
+  labs(x = "Year", y = "Index, 31-year running mean", linetype = NULL) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+
+The way around the curse is to stop fitting a curve to each tree by itself, and that is what the next part of the book is about. [Regional Curves](11RegionalCurves.qmd) fits one age curve to all the trees at once, aligned by ring age, so that a swing shared by trees of different ages can't be mistaken for any one tree's trend. [Signal-Free](12SignalFree.qmd) takes the common signal out of each series before fitting its curve and puts it back after.
+
+## Ratios or Differences?
+
+Detrending in `dplR` divides by default. The reason is that the spread of ring widths grows with their level. A tree laying down 3 mm rings swings by a millimeter from year to year, and the same tree at 0.3 mm swings by a tenth of that. Dividing puts both on the same footing [@Cook1990, p. 105]. How would you see the failure? Fit a curve to a series, measure how far each ring lands from it, and ask whether those departures get bigger where the curve is higher. A rank correlation between the size of the departures and the height of the curve does it, one number per series. Do it three ways: departures in millimeters (the curve subtracted from the raw widths), as ratios, and subtracted after `powt`, the power transform that `dplR` uses to stabilize the variance.
+
+```{r}
+#| label: det-spread
+#| fig-cap: "For each series (one point each), the rank correlation between the size of its departures from a spline and the height of the spline. Above zero, the spread grows with the level. Subtracting from raw widths leaves that in. Ratios and subtracting after powt take it out."
+# For each series, how strongly the size of the departures from a spline
+# follows the height of the spline: a rank correlation, three ways.
+spreadCor <- function(rwl, collection) {
+  ratio <- detrend(rwl, method = "Spline")
+  curve <- rwl / ratio                       # the spline itself
+  diffs <- detrend(rwl, method = "Spline", difference = TRUE)
+  transformed <- powt(rwl)
+  powtDiffs <- detrend(transformed, method = "Spline", difference = TRUE)
+  powtCurve <- transformed - powtDiffs       # the spline on the new scale
+  out <- data.frame()
+  for (s in names(rwl)) {
+    ok <- !is.na(rwl[[s]])
+    out <- rbind(out, data.frame(
+      collection = collection, series = s,
+      subtracted = cor(curve[ok, s], abs(diffs[ok, s]), method = "spearman"),
+      ratio = cor(curve[ok, s], abs(ratio[ok, s] - 1), method = "spearman"),
+      powt = cor(powtCurve[ok, s], abs(powtDiffs[ok, s]), method = "spearman")))
+  }
+  out
+}
+coSpread <- spreadCor(co021, "Mesa Verde")
+waSpread <- spreadCor(wa082Filled, "Hurricane Ridge")
+
+# one row per series and way, for ggplot
+spreadLong <- data.frame()
+for (way in c("subtracted", "ratio", "powt")) {
+  both <- rbind(coSpread, waSpread)
+  spreadLong <- rbind(spreadLong,
+                      data.frame(collection = both$collection, way = way,
+                                 r = both[[way]]))
+}
+spreadLong$way <- factor(spreadLong$way, levels = c("subtracted", "ratio", "powt"))
+
+ggplot(spreadLong, aes(x = way, y = r)) +
+  geom_hline(yintercept = 0, colour = "grey60") +
+  geom_jitter(width = 0.1, height = 0, alpha = 0.6) +
+  facet_wrap(~collection) +
+  labs(x = NULL, y = "Rank correlation, spread with level") +
+  theme_minimal()
+```
+
+```{r}
+#| label: det-spread-numbers
+#| include: false
+coPower <- powt(co021, return.power = TRUE)$power
+waPower <- powt(wa082Filled, return.power = TRUE)$power
+```
+
+Subtracted from the raw widths, the departures grow with the curve. At Mesa Verde the median correlation is `r sprintf("%.2f", median(coSpread$subtracted))`, and it is above zero in `r sum(coSpread$subtracted > 0)` of `r nrow(coSpread)` series. At Hurricane Ridge it is `r sprintf("%.2f", median(waSpread$subtracted))`. Ratios take it out (medians of `r sprintf("%.2f", median(coSpread$ratio))` and `r sprintf("%.2f", median(waSpread$ratio))`), and so does subtracting after `powt` (`r sprintf("%.2f", median(coSpread$powt))` and `r sprintf("%.2f", median(waSpread$powt))`). Neither is perfect. Both leave some series below zero, where the spread now shrinks as the level rises, which means the correction overshot. The Cook Book warns that logs can do this [@Cook1990, p. 106], and dividing does much the same to the spread as taking logs. At Mesa Verde the ratios overshoot more than `powt` does, down to `r sprintf("%.2f", min(coSpread$ratio))` against `r sprintf("%.2f", min(coSpread$powt))`.
+
+So both work. Why have two? Cook and Peters showed that the ratio has a bias of its own [@CookPeters1997]. An index is the ring divided by the curve, so where the curve comes close to zero any lack of fit is magnified. The worst place is the end of a series, where a curve that is still falling meets rings that have stopped. Their example was the bristlecone pine at Campito Mountain, where ratios overstated the growth increase since 1900 by 23.6% on average [@CookPeters1997, p. 361]. Their fix is to stabilize the variance first and then subtract the curve, which is what `powt` followed by `detrend(..., difference = TRUE)` does. They point out that this is a return to something older. Huber and other European dendrochronologists took logs of their ring widths and subtracted, decades before the power transform [@CookPeters1997, p. 362].
+
+Here is the bias in our own data.
+
+```{r}
+#| label: det-blowup
+#| fig-cap: "Series 712082 at Hurricane Ridge (gray) with the age-dependent spline and the default spline. The age-dependent spline is stiff by the 1970s and keeps falling while the rings turn up."
+width712082 <- wa082Filled[["712082"]]
+years712082 <- as.numeric(rownames(wa082Filled))[!is.na(width712082)]
+width712082 <- width712082[!is.na(width712082)]
+fits712082 <- detrend.series(width712082, method = c("AgeDepSpline", "Spline"),
+                             make.plot = FALSE, return.info = TRUE)
+blowupData <- data.frame(year = rep(years712082, 2),
+                         method = rep(c("AgeDepSpline", "Spline"),
+                                      each = length(years712082)),
+                         curve = c(fits712082$curves[, "AgeDepSpline"],
+                                   fits712082$curves[, "Spline"]))
+
+ggplot(blowupData, aes(x = year)) +
+  geom_line(data = data.frame(year = years712082, width = width712082),
+            aes(y = width), colour = "grey70") +
+  geom_line(aes(y = curve, linetype = method)) +
+  labs(x = "Year", y = "Ring width (mm)", linetype = NULL) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+
+```{r}
+#| label: det-blowup-numbers
+#| include: false
+n712082 <- length(width712082)
+adsEnd <- fits712082$curves[n712082, "AgeDepSpline"]
+splEnd <- fits712082$curves[n712082, "Spline"]
+waAds <- detrend(wa082Filled, method = "AgeDepSpline")
+waSpl <- detrend(wa082Filled, method = "Spline")
+```
+
+The tree's growth turns up in the late 1970s. The age-dependent spline is stiff by then, as it was built to be, and ends at `r sprintf("%.2f", adsEnd)` mm under a `r sprintf("%.2f", width712082[n712082])` mm ring. The last index is `r sprintf("%.2f", waAds["1983", "712082"])`. The default spline ends at `r sprintf("%.2f", splEnd)` mm, and its largest index anywhere at Hurricane Ridge is `r sprintf("%.2f", max(waSpl, na.rm = TRUE))`.
+
+An index like that is easy to miss. It changes the chronology's last few years, and rbar and EPS hardly move. `summary` of a set of indices looks for it. For each series it lists any ratio far above the rest of that series, and says whether it sits at the start or end, where a curve near zero is the usual cause.
+
+```{r}
+#| label: det-summary-ads
+summary(waAds)
+```
+
+Do ratios and residuals give different chronologies on the whole? Make both, from the default spline.
+
+```{r}
+#| label: det-ratio-resid
+ratioChron <- chron(detrend(co021, method = "Spline"))
+residChron <- chron(detrend(powt(co021), method = "Spline", difference = TRUE))
+cor(ratioChron$std, residChron$std)
+cor(ratioChron$std, residChron$std, method = "spearman")
+```
+
+```{r}
+#| label: det-ratio-resid-numbers
+#| include: false
+lowYear <- rownames(ratioChron)[which.min(ratioChron$std)]
+waRatioChron <- chron(waSpl)
+waResidChron <- chron(detrend(powt(wa082Filled), method = "Spline",
+                              difference = TRUE))
+waRR <- cor(waRatioChron$std, waResidChron$std)
+logCor <- cor(log(ratioChron$std), residChron$std)
+nZero <- sum(as.matrix(co021) == 0, na.rm = TRUE)
+```
+
+A Pearson correlation of `r sprintf("%.2f", cor(ratioChron$std, residChron$std))` looks like disagreement, and the rank correlation of `r sprintf("%.2f", cor(ratioChron$std, residChron$std, method = "spearman"))` says it isn't about which years were good. It's about shape. `powt` picked a power of `r sprintf("%.2f", coPower)` for Mesa Verde, close to a log, and subtracting after a log is the same as taking the log of a ratio. Mesa Verde has `r nZero` absent rings and drought years in which the ratio chronology falls nearly to zero (`r sprintf("%.3f", min(ratioChron$std))` in `r lowYear`). A log stretches those years out and squeezes the wide ones, and the log of the ratio chronology correlates with the residual one at `r sprintf("%.2f", logCor)`. At Hurricane Ridge, with no zeros, the two chronologies correlate at `r sprintf("%.2f", waRR)`. Which shape you want depends on what you'll do with the chronology. A regression against climate assumes errors that are the same size at every level, which argues for the stabilized residuals.
+
+`powt` has two methods. The default, `universal`, fits one power to all the series together while allowing for the year each pair of rings comes from, so the shared climate doesn't masquerade as a level effect. `method = "cook"` fits a power to each series separately, as Cook and Peters did.
+
+## Looking at the Indices
+
+Whatever method you use, look at the result before you build a chronology from it. `summary` gives the collection statistics for the common interval and the correlation of each series with the others, and it lists anything it thinks is off.
+
+```{r}
+#| label: det-summary
+waIndices <- detrend(wa082Filled)
+summary(waIndices)
+```
+
+```{r}
+#| label: det-summary-numbers
+#| include: false
+waRwiStats <- rwi.stats(waIndices, prewhiten = TRUE)
+```
+
+The rbar here, `r sprintf("%.3f", summary(waIndices)$stats$rbar.eff)`, is lower than the `r sprintf("%.3f", waRwiStats$rbar.eff)` that `rwi.stats(prewhiten = TRUE)` gives for the same indices in the next chapter. Neither is wrong. The summary uses the indices as they are, and the next chapter prewhitens them first, which takes out each tree's memory of last year before the trees are compared.
+
+The image plot shows every index as a colored cell, years across and series down. A run of one color at the start or end of a series is trend the curve left in, and a vertical stripe is a year the trees agree on.
+
+```{r}
+#| label: det-image
+#| fig-cap: "Hurricane Ridge indices from the default spline. Brown is below 1 and green above it. The vertical stripes are years the trees agree on."
+plot(waIndices, plot.type = "image")
+```
+
+## Choosing a Method
+
+Here's what I do, and why.
+
+- For dating work and for climate at scales of a few decades or less, the default spline. It fits almost any series, it is less likely than a stiff curve to end far below the last rings (it can still happen, which is what the summary is for), and the segment-length curse is a problem you don't have at those scales.
+- For open-grown trees whose decline looks like a negative exponential, `ModNegExp`. It keeps more of the slow variation than a spline because it can't bend. Look at every curve. Where the fit falls back to a line or meets a late release, its ratios can blow up, and stabilized residuals after `powt` are the safer route.
+- If the slow climate is what you're after, nothing fitted to one tree at a time will give it to you. That's the next part of the book.
+- Never a flexible curve (a short spline, `Friedman`) on a chronology you mean to interpret at decadal scales, unless you've decided that variation at those scales is noise for your question. That can be the right call, for a stand full of disturbance. Say that you made it.
+
+Whatever you choose, say which method and settings you used. Someone else would make a different choice for a defensible reason, and they need to know yours to compare.
+
+Fitting curves one series at a time, looking at each fit and changing your mind is easier in an app than at the prompt. iDetrend is a Shiny app built on `dplR` for exactly that. It overlays curves on each series, shows what a choice does to the chronology, and writes a record that rebuilds the indices in R. `i.detrend`, the old interactive function in `dplR`, now points to it. The [openDendro apps page](https://opendendro.org/apps/){target="_blank"} has the link to the live app, and the source is [on GitHub](https://github.com/OpenDendro/iDetrend){target="_blank"}.
+
+Three more ways to standardize have chapters of their own: `rcs` in [Regional Curves](11RegionalCurves.qmd), `ssf` in [Signal-Free](12SignalFree.qmd), and basal area increment (`bai.in` and `bai.out`) in [Basal Area](15BasalArea.qmd). `cms`, C-method standardization, is in `dplR` too, and its help page describes it.
 
 ## Wrapping Up
 
+Detrending is good at taking a tree's own trend out of its rings and leaving the year-to-year departures, which every method in this chapter recovered equally well in the simulation. It is bad at anything as long as the series themselves. A curve fitted to one tree can't tell a slow climate swing from aging, competition or a stand event, and it takes some of each. The simulation also showed that a test against white climate rewards the methods that strip out the most, so be wary of choosing a method by how well its chronology correlates with climate.
+
+Ratios are the default and usually fine. Where a curve gets close to zero they blow up, and `summary` now tells you where. Stabilized residuals after `powt` avoid the bias and give the chronology a different shape, close to a log.
+
+[Chronology Statistics](09ChronologyStats.qmd) takes these indices and asks how well the trees agree: rbar, EPS and how they change through time.
+
 ## Exercises
 
+1. Fill 712011 with `Mean` and compare its 1900 value with the table. Why is it the widest of the four?
+2. Add `ModHugershoff` and a 200-year spline (`nyrs = 200`) to `curseMethods` and rerun the loop. Where do they fall? (`scoreStand` will need a branch for the 200-year spline.)
+3. Rerun the segment-length loop with `compete = 0` passed to `sim.collection`, so that every tree is open-grown and ages the way `ModNegExp` assumes. Does `ModNegExp` keep more of the slow climate?
+4. Find the largest index in Mesa Verde under each method in `methods`, and plot that series with its curve. Is the largest index at an end?
+5. Make the ratio and residual chronologies for Hurricane Ridge with `AgeDepSpline`, and plot their difference after 1950.
+
 ## Further Reading
+
+- @Cook1990 is the standardization chapter in the Cook Book: why ratios, the log alternative and its trouble with zeros, the families of curves, and the 67% rule for the spline. It is the best single account of detrending there is.
+- @Cook1981 introduced the smoothing spline to tree rings, and is the reason it is the default.
+- @CookPeters1997 is short and worth reading whole. It shows where ratio bias comes from and why stabilized residuals avoid it.
+- @Cook1995 names the segment-length curse, with sine waves and a bristlecone pine cut into pieces to show it.
+- @melvin2008 is the signal-free method, the bridge to the next part of the book.

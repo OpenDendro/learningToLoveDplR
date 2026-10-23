@@ -4,7 +4,7 @@ Working notes for the rewrite. Not part of the book.
 
 ## Start here (updated 2026-10-23)
 
-State of the repo: the rewrite is on the `quarto-rewrite` branch; `main` is still the 2024 bookdown version. Last commit 55e7dea (06, 07, code explained). Uncommitted: 05x, 07x, the `Visser2021` and other bib entries, small edits to 07, and this file. The writing spec (`CLAUDE.md`) is local and not in the repo. The book needs dplR 1.8.1 dev (installed from the local checkout); dplR dev has one uncommitted change, the `xdate.report(prewhiten = FALSE)` guard.
+State of the repo: the rewrite is on the `quarto-rewrite` branch; `main` is still the 2024 bookdown version. Last commit 4081754 (05x repaired). Uncommitted: 08, the `Cook1995` and `CookPeters1997` bib entries, rendered output in `docs/`, and this file. The writing spec (`CLAUDE.md`) is local and not in the repo. The book needs dplR 1.8.1 dev (installed from the local checkout); 08 needs the extreme-index check in `summary.rwi` (dplR dev 205caac, 2026-10-23).
 
 The folder moved from `workshopMaterials/dplR-workshop` to `openDendro/learningToLoveDplR`; the GitHub repo was renamed from `OpenDendro/dplR-workshop` to `OpenDendro/learningToLoveDplR` on 2026-10-13, and the old name no longer resolves.
 
@@ -20,7 +20,7 @@ The folder moved from `workshopMaterials/dplR-workshop` to `openDendro/learningT
 | 05, 05x | Crossdating a Collection; Gleichläufigkeit aside | first drafts 2026-10-22/23 |
 | 06 | Finding and Fixing an Error | first draft 2026-10-22 |
 | 07, 07x | Dating a Floater; Crossdating Statistics aside | first drafts 2026-10-23 |
-| 08 | Detrending | 2022 text on `ca533`; "Closing the Gap" outline waiting; next big job |
+| 08 | Detrending | first draft 2026-10-23 |
 | 09, 10 | Chronology Statistics; Chronology Building | full drafts 2026-10-13, code explained 2026-10-22; still to be read against the spec |
 | 11 | Regional Curves | stub |
 | 12 | Signal-Free | 2024 text on `ca533`, nine chunks fail |
@@ -35,8 +35,8 @@ Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. 
 
 ### Next
 
-1. Commit 05x and 07x (and the dplR guard in dplR dev).
-2. 08 Detrending: rewrite on `co021` and `wa082`, with the 712011 fill ("Closing the Gap"), the spline bending into the 1880 stand event (from 02), the unexplained `Chron` fill value, and Cook and Peters (1997) on ratio bias.
+1. Commit 08.
+2. 08 Detrending: first draft 2026-10-23; Andy to read, especially Choosing a Method.
 3. Read 09 and 10 against the spec.
 4. Render the whole book once.
 
@@ -45,6 +45,27 @@ Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. 
 - ILL: Huber (1943), Eckstein and Bauch (1969); don't cite them directly. Buras and Wilmking (2015) arrived 2026-10-23 (`Buras2015_glk.pdf`) and 05x was corrected against it: Schweingruber's 1983 error was the case where both series show no change (scored as disagreement), not the one-series case; glk is computed as 1 - Gegenläufigkeit as in Eckstein and Bauch; CDendro and dplR corrected; rare, effect usually small (p. 29).
 - `Douglass1929` volume (56), issue (6) and end page (770) are unchecked.
 - Lines written in Andy's voice and flagged in the chapter entries below (search "For Andy").
+
+### 08 Detrending, first draft 2026-10-23
+
+- Drafted from the outline below (Andy: "Now draft it"). Renders alone on dev dplR in about 40 s; every number inline. Sections: Big Idea, Packages, Closing the Gap (the stop, four fills, the `Chron` arithmetic, rbar/EPS unchanged), One Series Several Curves (712092 faceted by method; chronology correlations), What the Curve Takes (simulation seed 1 table: white climate, the 1870s lift, the white-climate trap), The Segment-Length Curse (100 stands, each with its own climate, swings of 80 and 250 years; slow r, share of the swing kept, fast r), Ratios or Differences? (per-series spread-with-level dot plot; Cook and Peters; 712082 blowup and the new `summary` flag; ratio vs residual chronologies), Looking at the Indices (`summary`, image plot), Choosing a Method, Wrapping Up, five exercises, Further Reading.
+- Changed from the outline after checking: (1) the segment-length run used one climate for ten stands, and results swung with the climate (default spline slow r 0.23 in one run, 0.82 in another). Now 100 stands with a climate each, and a second score, the share of the swing's size kept (slope against the true-curve slope): 80-yr swings ModNegExp 43%, AgeDepSpline 32%, Spline 26%, 32-yr spline 1%; 250-yr swings 33%, 26%, 20%, 1%. Correlations flatter the curves (ModNegExp 0.73). (2) The single-series log-log spread plot was dropped: after `powt` it showed spread falling with level (641114's zeros and a power of 0.23), and the log-log slope is meaningless after a near-log transform. (3) The summary's rbar (0.253) differs from 09's (0.364) because 09 prewhitens, not because of the common interval as the outline said.
+- `co021` ratio vs residual chronology r 0.85 explained: Spearman 0.99, log of the ratio chronology vs residual 0.97. `powt` power 0.23 (near log) and drought years down to 0.003 (1455).
+- dplR dev: `summary.rwi` gains `zcrit` (default 5) and lists ratio indices whose log is more than `zcrit` MADs above the series median, with start/end/middle; differences not tested (after `powt` the same test flags hundreds of `co021` absent rings). On-board data: nothing for `co021`, `ca533`, `nm046` with Spline or ModNegExp; every flag at a series end over a curve below 0.2 mm (wa082 AgeDepSpline 712082 x4, gp.rwl ends, me044 HOW08B start). NEWS, Rd, tests; R CMD check OK. Andy: no `rwi.check` needed.
+- iDetrend: apps page and GitHub links, as for xDateR.
+- Added later on 2026-10-23 (Andy): a short definition at the top of The Segment-Length Curse; the fill table now shows measured rings plus each fill's 1900 value only (`knitr::kable`, blanks for NA); two paragraphs opening One Series Several Curves on the two kinds of method (growth models vs smoothers, double detrending, AgeDepSpline between them; Cook 1990 p. 108-109 and 122-123, Cook and Peters 1981); and a paragraph on the ModNegExp/ModHugershoff fallbacks (line with slope held at or below zero, then the mean; Cook 1990 p. 108-109).
+- Choosing a Method: the ModNegExp recommendation stays as written until Andy talks with Ed or Kevin. Ed's likely view is AgeDepSpline over ModNegExp, since it mimics it in well-behaved trees; against it on our data, AgeDepSpline ends worst (wa082 26 indices > 3 vs 3; co021 201 vs 121; gp.rwl max 48.76) and kept less slow climate in the simulation (which favors ModNegExp by construction). Find where Ed says it in print before the book attributes it to him.
+- Cook and Briffa (1990, Cook Book 3.7, p. 153-162) compare standardization methods: chronologies mostly correlate above 0.95 but differ at low frequencies (p. 156-161), which is the point 08 makes from `co021` and `wa082`. Worth citing there; needs a bib entry.
+- For Andy: (a) Choosing a Method is my opinion throughout. (b) `Cook1995` volume 5, issue 2 are from memory (pages 229-237 match the PDF). (c) `powt`'s universal power is much lower than the per-series powers: `co021` 0.23 against a median of 0.52 with `method = "cook"`; `wa082` 0.0016, which is a log in all but name. The random year effect may be pushing b toward 1. Worth a look in dplR before the book leans on `universal`. (d) Huber is cited only through Cook and Peters (1997, p. 362).
+
+### 08 Detrending, outline 2026-10-23 (superseded by the draft above)
+
+- Outline in `08Detrending.qmd`, replacing the 2022 `ca533` text (in git history). Sections: Big Idea, Packages, Closing the Gap, One Series Several Curves, What the Curve Takes, The Segment-Length Curse, Ratios or Differences?, Looking at the Indices, Choosing a Method, Wrapping Up, five exercises, Further Reading. Numbers in the outline computed on dev dplR 2026-10-23.
+- The `Chron` fill of 0.24 is explained (see the outline): narrow year (master at 9th percentile, z -1.39), 712011's indices twice as variable as the master (0.24 vs 0.13), its spline 0.36 in 1900, and its neighbors above its curve. rbar and EPS are the same to three decimals with `Chron` or `Linear` fills.
+- Simulation with white climate rewards flexible curves (`Ar` 0.91, 32-yr spline 0.81 vs true curve 0.78), so the chapter adds a slow-climate run (ten seeds) for the segment-length curse: slow-part r 0.99 true curve, 0.48 ModNegExp, 0.23 default spline, 0.13 32-yr spline; fast part 0.77-0.79 for all.
+- Real ratio blowup: `AgeDepSpline` on `wa082` 712082 gives 11.95 in 1983 (curve 0.08 under a 0.95 ring).
+- Open before drafting: ratio vs residual chronologies correlate only 0.85 at `co021` (zeros and `powt` suspected); `powt` arguments; read Cook et al. (1995) and the page for Cook and Peters (1997)'s 23.6%.
+- For Andy: whether `summary.rwi` should catch end blowups like 712082's; the live iDetrend URL; the method opinions in Choosing a Method are mine.
 
 ### 05x Gleichläufigkeit and Synchronous Growth Changes, first draft 2026-10-23 (uncommitted)
 
@@ -452,7 +473,7 @@ See "Next" at the top. The simulation question was settled (it lives in the book
 - dplR, not done: none of the 2026-10-13 changes had the full test suite or `R CMD check` run, only the test files touched. `chron.ars()` still reuses the pooled order for the second whitening, where ARSTAN picks it afresh. iDetrend calls `chron.ars()`, so its ARSTAN chronology changes with 1.8.1.
 - dplR: `ssf(return.info = TRUE)` returns a list with class `crn`.
 - dplR `TODO` has a new item: revamp the plots.
-- dplR dev, 2026-10-21 to 2026-10-23: `read.tucson` NO_STOP_MARKER, `write.tucson` rounding warning, `rwl.check` RWL_SERIES_SCALE, `rwl.report` deprecated into `rwl.check`, `rwl.meta`, `xdate.floater` defaults matched to `xdate.report` and its Hanning n/2 dating bug fixed (all committed by Andy). Uncommitted: `xdate.report(prewhiten = FALSE)` guard (2026-10-23).
+- dplR dev, 2026-10-21 to 2026-10-23: `read.tucson` NO_STOP_MARKER, `write.tucson` rounding warning, `rwl.check` RWL_SERIES_SCALE, `rwl.report` deprecated into `rwl.check`, `rwl.meta`, `xdate.floater` defaults matched to `xdate.report` and its Hanning n/2 dating bug fixed (all committed by Andy). The `xdate.report(prewhiten = FALSE)` guard and the `summary.rwi` extreme-index check (205caac) are committed too.
 - xDateR: Floater panel refuses the Hanning filter before dplR 1.8.1; live as 2026.10.1 since 2026-10-22.
 - dplR, not fixed: `glk` help says Huber 1942 (it's 1943) and Schweingruber 1988 (it's 1983); `glk()` warns on `rwi`; its global-glk example includes the diagonal.
 
