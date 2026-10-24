@@ -20,7 +20,13 @@
 #       (compete.frac) also get a slow AR(1) wander on the log scale
 #       (compete, compete.phi): a competition history no detrending curve
 #       assumes. compete = 0 gives open-canopy trees only.
-#   C   climate, shared by every tree
+#   C   climate, shared by every tree. climate.phi (default 0.3) gives it
+#       AR(1) persistence of its own, separate from the tree's memory (phi).
+#       The shocks keep their share of the variance, so the prewhitened
+#       rbar targets hold, and everything is scaled so that the filtered
+#       C + T + E still has standard deviation sd.hf (see the C block). climate.phi = 0 gives white climate,
+#       the collection the book used before 2026-10-23. A climate series
+#       passed in is used as it is, and climate.phi is ignored.
 #   T   noise shared by the cores of one tree. Cook's E covers microsite
 #       and measurement noise, uncorrelated within and between trees
 #       (p. 102); T is split out of it so two cores of a tree agree more
@@ -50,7 +56,7 @@
 sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
                            age.range = c(120, 380),
                            rbar.bt = 0.4, rbar.wt = 0.6, sd.hf = 0.25,
-                           phi = 0.5, climate = NULL,
+                           phi = 0.5, climate = NULL, climate.phi = 0.3,
                            bai = 600, bai.sdlog = 0.4, juv = 25,
                            compete = 0.3, compete.frac = 0.5,
                            compete.phi = 0.97,
@@ -66,7 +72,7 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   if (!is.null(seed)) set.seed(seed)
   stopifnot(n.tree >= 2, n.core >= 1, n.core <= 26,
             rbar.bt >= 0, rbar.wt >= rbar.bt, rbar.wt < 1,
-            abs(phi) < 1, sd.hf > 0)
+            abs(phi) < 1, abs(climate.phi) < 1, sd.hf > 0)
 
   # ── who is in the collection ──
   # Tree 1 is the oldest. Ages are spaced on a square so old trees are few,
@@ -84,7 +90,21 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   n.yr <- length(yrs)
 
   # ── C: climate ──
-  v <- sd.hf^2 * (1 - phi^2)            # variance of C + T + E before the filter
+  # Variance of C + T + E before the tree's memory filter. White input of
+  # variance v comes out of an AR(1) filter with variance v / (1 - phi^2),
+  # so this gives the filtered series a standard deviation of sd.hf. It is
+  # the scaling Bunn et al. (2013, Appendix A) use to keep an AR(1) series'
+  # own variance fixed whatever phi is. A red climate (climate.phi) goes
+  # through two filters, its own and the tree's, and comes out with g times
+  # the variance a white one would. So all three parts are shrunk by one
+  # common factor that brings the filtered total back to sd.hf; their
+  # proportions, and so the prewhitened rbar targets, don't change.
+  v <- sd.hf^2 * (1 - phi^2)
+  if (is.null(climate) && climate.phi != 0) {
+    g <- (1 + phi * climate.phi) /
+      ((1 - climate.phi^2) * (1 - phi * climate.phi))
+    v <- v / (rbar.bt * g + 1 - rbar.bt)
+  }
   sd.c <- sqrt(rbar.bt * v)
   sd.t <- sqrt((rbar.wt - rbar.bt) * v)
   sd.e <- sqrt((1 - rbar.wt) * v)
@@ -99,6 +119,10 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
     }
   }
   clim <- (clim - mean(clim)) / sd(clim) * sd.c
+  # red climate: the same shocks, carried forward from year to year
+  if (is.null(climate) && climate.phi != 0) {
+    clim <- as.numeric(stats::filter(clim, climate.phi, method = "recursive"))
+  }
 
   # ── A, T, E and the AR(1) memory ──
   burn <- 50
@@ -246,7 +270,7 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
          competition = tree.id[comp.trees],
          params = list(n.tree = n.tree, n.core = n.core, end.year = end.year,
                        rbar.bt = rbar.bt, rbar.wt = rbar.wt, sd.hf = sd.hf,
-                       phi = phi, bai = bai, juv = juv, compete = compete,
+                       phi = phi, climate.phi = climate.phi, bai = bai, juv = juv, compete = compete,
                        compete.frac = compete.frac,
                        compete.phi = compete.phi, seed = seed)))
 }

@@ -135,7 +135,7 @@ for (site in names(collections)) {
 lengthTable
 ```
 
-Each number is the share of 20 random floaters placed at the right year. Mesa Verde dates short pieces almost every time, which is the unrealistic-expectations problem from [Fixing Errors](06FixingErrors.qmd) again: those trees are about as good as tree rings get. Hurricane Ridge agrees with Pilcher. It's reliable down to 60 rings or so, and at `r lengthTable$rings[4]` rings it gets `r round(100 * lengthTable$wa082[4])` percent of them right, which is not a number to bet a date on. The weak stand can't be trusted even with 100 rings.
+Each number is the share of 20 random floaters placed at the right year. Mesa Verde dates short pieces almost every time, which is the unrealistic-expectations problem from [Fixing Errors](06FixingErrors.qmd) again: those trees are about as good as tree rings get. Hurricane Ridge agrees with Pilcher. It's reliable down to 60 rings or so, and at `r lengthTable$rings[4]` rings it gets `r round(100 * lengthTable$wa082[4])` percent of them right, which is not a number to bet a date on. The weak stand holds up at 100 rings and more, placing `r round(100 * lengthTable$weak[2])` percent of them right, and then falls apart: `r round(100 * lengthTable$weak[3])` percent at `r lengthTable$rings[3]` rings and `r round(100 * lengthTable$weak[5])` percent at `r lengthTable$rings[5]`.
 
 So how short is too short? It depends on the collection, and that's Pilcher's point. Run this on your own collection before you trust a short floater.
 

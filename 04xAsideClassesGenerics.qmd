@@ -38,9 +38,11 @@ A collection of ring widths, a set of indices made from them, and a set of basal
 | Class | Holds | Made by |
 |---|---|---|
 | `rwl` | ring widths, in mm | `read.rwl` and the other readers |
-| `rwi` | ring-width indices, around 1 | `detrend`, `rcs`, `cms` |
+| `rwi` | ring-width indices: ratios to a growth curve, around 1, or differences from it (`difference = TRUE`), around 0 | `detrend`, `rcs`, `cms` |
 | `bai` | basal area increment, in mm² | `bai.in`, `bai.out` |
 | `crn` | a chronology and its sample depth | `chron` and the other chronology builders |
+
+Three of the four are the basic workflow of dendrochronology, in order. You measure and crossdate ring widths, an `rwl`. You detrend them into indices, an `rwi`, which takes out each tree's growth trend and puts fast and slow trees on the same footing. You average the indices into a chronology, a `crn`. [Detrending](08Detrending.qmd) takes widths to indices and [Chronology Building](10Chronologies.qmd) takes indices to a chronology, and the labels are how `dplR` knows which step a collection has reached. Basal area increment is a side branch, made from widths for questions about how much wood a tree adds.
 
 ```{r}
 #| label: class-kinds
@@ -87,7 +89,10 @@ It keeps the read record. The notes `read.tucson` took on the file, the ones [Re
 #| label: class-records
 names(attributes(co021Rwi))
 attr(co021Rwi, "dplR.detrend")$method
+attr(co021Rwi, "dplR.detrend")$difference
 ```
+
+`difference` says which kind of index you have. `FALSE` means ratios, centered on 1. `TRUE` means the curve was subtracted, so the indices are centered on 0, which matters for anything that assumes one or the other. [Detrending](08Detrending.qmd) says when you'd want each.
 
 It trims the years when you drop series. Take three series and you get the years those three cover, with no empty rows left over from the series that went away.
 

@@ -6,9 +6,25 @@ First draft, 2026-10-23, from the outline of the same day. Every number in the t
 
 ## Big Idea
 
-A growth curve is a guess at what a tree would have grown if nothing but getting older had happened to it. Detrending fits that guess to each series and divides the ring widths by it, and the index that comes out is everything the guess didn't explain. So the guess is in every number downstream: the chronology, rbar and EPS, every correlation with climate you will ever compute from it.
+Everything in the book so far has been ring widths. They are the raw data: what you measured, in millimeters, one series per core, held in an object of class `rwl`. They are worth a lot as they are. Widths are what you crossdate, what you archive in the ITRDB, and what basal area and growth-rate studies are made from, and you never throw them away.
 
-The trouble is that no curve knows which slow wiggles are age. Competition, a stand event and a run of dry decades all look like trend to a curve fitted to one tree. [An Additive Model of Tree Growth](02CoresToRecord.qmd) caught the default spline bending into the 1880 stand event. This chapter measures what each method takes and what it leaves, first on the simulated stand, where the answer is known, and then on Mesa Verde and Hurricane Ridge, where it isn't.
+What widths can't do is be compared from tree to tree as they stand. A fast-growing tree lays down rings twice as wide as a slow one in the same years, and every tree's rings get narrower as it gets older. To put trees side by side and average them into a record of the site, you have to take out each tree's growth trend and put fast and slow trees on the same footing. That is detrending, and what comes out is a ring-width index, class `rwi`. Average the indices across trees, year by year, and you have a chronology, class `crn`.
+
+That is the most basic workflow in dendrochronology, and in `dplR` it is three lines:
+
+```{r}
+#| label: det-workflow
+#| eval: false
+co021 <- read.rwl("data/co021.rwl")   # ring widths: rwl
+co021Rwi <- detrend(co021)            # ring-width indices: rwi
+co021Crn <- chron(co021Rwi)           # the chronology: crn
+```
+
+Widths to indices to a chronology. This chapter is the first arrow, [Chronology Statistics](09ChronologyStats.qmd) asks how well the indices agree, and [Chronology Building](10Chronologies.qmd) is the second arrow. The middle line is the one that does the most work and gets the least thought, because it is one function call with defaults.
+
+Why can't you just average the widths? Because a year's mean ring width says more about which trees are in the average than about the year. Trees grow at different rates, so a fast tree outvotes a slow one. Every tree's rings get narrower as it gets bigger, so the mean falls through time whatever the weather did. And the trees in the average change as you go back in time, so every time a young tree enters with its wide inner rings, the mean jumps. Detrending fixes all three at once. Fit a curve to each series that says what that tree would have grown if nothing but getting older had happened to it, and divide. What comes out is each ring as a departure from its own tree's expected growth, dimensionless and centered on 1. A ring of 1.2 means 20% better than expected, in a fast tree or a slow one, at age 20 or age 300. Those numbers can be averaged across trees, and the average is a chronology. Douglass's master chronologies, the ITRDB and every reconstruction built from them rest on this step.
+
+The catch is the curve. It is a guess, and the guess is in every number downstream: the chronology, rbar and EPS, every correlation with climate you will ever compute from it. No curve knows which slow wiggles are age. Competition, a stand event and a run of dry decades all look like trend to a curve fitted to one tree. [An Additive Model of Tree Growth](02CoresToRecord.qmd) caught the default spline bending into the 1880 stand event. So after showing what the step buys you, this chapter measures what each method takes and what it leaves, first on the simulated stand, where the answer is known, and then on Mesa Verde and Hurricane Ridge, where it isn't.
 
 As any dendrochronologist will tell you, detrending is a dark art. I'll give you my opinions on it near the end. The one to take away now is that you choose a curve by deciding what you want the chronology to keep.
 
@@ -25,6 +41,86 @@ wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
 ```
 
 Hurricane Ridge is read from its ITRDB file, so series 712011 still has no measurement for 1900. That gap has been open since [Reading and Writing](03ReadingWriting.qmd).
+
+## Why Not Average the Widths?
+
+The simulated stand from chapter 2 is the place to see it, because its climate is known. These are its widths before any dating errors were planted.
+
+```{r}
+#| label: det-sim
+sim <- sim.collection(seed = 1)
+simTruth <- sim$truth
+simFixed <- simTruth$rwl
+trueAge <- simTruth$age[rownames(simFixed), names(simFixed)]
+trueClimate <- setNames(simTruth$climate$climate, simTruth$climate$year)
+```
+
+Two candidates for a chronology: the mean ring width across the cores in each year, and the mean of the indices after the default detrending.
+
+```{r}
+#| label: det-why
+#| fig-height: 7
+#| fig-cap: "The simulated stand three ways. Top: the mean ring width across cores, which falls as the trees age and jumps when young trees enter. Middle: the chronology of indices, centered on 1. Bottom: the number of cores in each year."
+# candidate 1: average the widths, year by year
+widthMean <- rowMeans(simFixed, na.rm = TRUE)
+
+# candidate 2: detrend each core, then average the indices
+simRwi <- detrend(simFixed)
+simCrn <- chron(simRwi)
+
+# the two, and the sample depth, stacked for ggplot
+simYears <- as.numeric(rownames(simFixed))
+whyData <- rbind(
+  data.frame(year = simYears, value = widthMean,
+             panel = "Mean ring width (mm)"),
+  data.frame(year = simYears, value = simCrn$std,
+             panel = "Chronology of indices"),
+  data.frame(year = simYears, value = simCrn$samp.depth,
+             panel = "Cores"))
+whyData$panel <- factor(whyData$panel, levels = unique(whyData$panel))
+
+ggplot(whyData, aes(x = year, y = value)) +
+  geom_line() +
+  facet_wrap(~panel, ncol = 1, scales = "free_y") +
+  labs(x = "Year", y = NULL) +
+  theme_minimal()
+```
+
+```{r}
+#| label: det-why-numbers
+#| include: false
+since1800 <- as.character(1800:2025)
+widthClimR <- cor(widthMean[since1800], trueClimate[since1800])
+indexClimR <- cor(simCrn[since1800, "std"], trueClimate[since1800])
+# years in which at least one core starts, and the change in the mean width
+firstRing <- sapply(simFixed, function(v) min(which(!is.na(v))))
+entryYear <- seq_along(widthMean) %in% firstRing
+widthChange <- c(NA, diff(widthMean))
+coreMeans <- colMeans(simFixed, na.rm = TRUE)
+c1700s <- as.character(1700:1799)
+c1900s <- as.character(1900:1999)
+```
+
+The mean width falls from `r sprintf("%.2f", mean(widthMean[c1700s]))` mm in the 1700s to `r sprintf("%.2f", mean(widthMean[c1900s]))` mm in the 1900s. Nothing about the climate did that. The trees got older. It also jumps whenever a core starts: in those years it rose by `r sprintf("%.3f", mean(widthChange[entryYear], na.rm = TRUE))` mm on average, and in other years it fell by `r sprintf("%.3f", abs(mean(widthChange[!entryYear], na.rm = TRUE)))` mm. And the fastest core in the stand averages `r sprintf("%.2f", max(coreMeans))` mm a year against `r sprintf("%.2f", min(coreMeans))` mm for the slowest, so in any year the fast one moves the mean `r round(max(coreMeans) / min(coreMeans), 1)` times as much. The chronology of indices has none of that. It sits near 1 in every century (`r sprintf("%.2f", mean(simCrn[c1700s, "std"]))` in the 1700s, `r sprintf("%.2f", mean(simCrn[c1900s, "std"]))` in the 1900s), and every core counts the same.
+
+Does it matter for the climate? Since 1800 the mean width correlates with the climate I built into the trees at `r sprintf("%.2f", widthClimR)`. The chronology of indices, made from the same rings, correlates at `r sprintf("%.2f", indexClimR)`.
+
+`dplR` keeps track of which side of the step you are on. Widths are class `rwl` and indices are class `rwi`, and the indices carry a record of how they were made.
+
+```{r}
+#| label: det-class
+class(simFixed)
+class(simRwi)
+attr(simRwi, "dplR.detrend")$method
+```
+
+The functions that build and judge chronologies (`chron`, `rwi.stats`, `sss` and the others in the next two chapters) want indices and warn if you hand them widths. The functions that work on measurements (`detrend` itself, `rcs`, `bai.in`, `rwl.check` and a few more) want widths and warn if you hand them indices. The crossdating functions take either without a word. If you ever see one of those warnings, take it seriously. It means a number is about to come out that looks fine and isn't.
+
+```{r}
+#| label: det-chron-widths
+#| warning: true
+widthChron <- chron(simFixed)
+```
 
 ## Closing the Gap
 
@@ -184,16 +280,7 @@ threeMethods <- c("Spline", "ModNegExp", "AgeDepSpline")
 
 ## What the Curve Takes
 
-The simulated stand from chapter 2 knows its own age trends. `truth$age` holds the curve each core would have followed with nothing else going on, so dividing by it is the right answer, and every method can be scored against it.
-
-```{r}
-#| label: det-sim
-sim <- sim.collection(seed = 1)
-simTruth <- sim$truth
-simFixed <- simTruth$rwl
-trueAge <- simTruth$age[rownames(simFixed), names(simFixed)]
-trueClimate <- setNames(simTruth$climate$climate, simTruth$climate$year)
-```
+The simulated stand knows its own age trends. `truth$age` holds the curve each core would have followed with nothing else going on, so dividing by it is the right answer, and every method can be scored against it.
 
 Three scores for each method: the correlation of its chronology with the true climate since 1800, the mean index in the 1870s for the cores that the 1880 event would hit, and the drop in the whole chronology from the 1870s to the 1880s.
 
@@ -258,7 +345,7 @@ ggplot(eventData, aes(x = year, y = index, linetype = method)) +
   theme(legend.position = "top")
 ```
 
-Now look at the first column, and be suspicious of it. The 32-year spline and `Friedman` correlate better with the climate than the right answer does, and `Ar`, which is no curve at all, beats everything at `r sprintf("%.2f", simScores$climate.r[simScores$method == "Ar"])`. That's an artifact of the simulation. Its climate is white noise, so all the slow variation in the widths is something other than climate: the event, the competition some trees face, the tree's memory of last year. A method that strips out everything slow can only gain. If that were how climate behaved, you'd prewhiten everything and stop reading here. It isn't.
+Now look at the first column, and be suspicious of it. The 32-year spline and `Friedman` correlate better with the climate than the right answer does, and `Ar`, which is no curve at all, beats everything at `r sprintf("%.2f", simScores$climate.r[simScores$method == "Ar"])`. That's an artifact of the simulation. Its climate carries over a little from year to year (a lag-one autocorrelation of `r sprintf("%.2f", acf(trueClimate, plot = FALSE)$acf[2])`), but it has no swings lasting decades, and the trees' own memory of last year is stronger than the climate's. So nearly all the slow variation in the widths is something other than climate: the event, the competition some trees face, the trees' memory. A method that strips out everything slow loses a little climate and sheds a lot of noise. If that were how climate behaved, you'd prewhiten everything and stop reading here. Real climate has slow swings too, and the next section gives the trees some.
 
 ## The Segment-Length Curse
 
@@ -565,7 +652,7 @@ Three more ways to standardize have chapters of their own: `rcs` in [Regional Cu
 
 ## Wrapping Up
 
-Detrending is good at taking a tree's own trend out of its rings and leaving the year-to-year departures, which every method in this chapter recovered equally well in the simulation. It is bad at anything as long as the series themselves. A curve fitted to one tree can't tell a slow climate swing from aging, competition or a stand event, and it takes some of each. The simulation also showed that a test against white climate rewards the methods that strip out the most, so be wary of choosing a method by how well its chronology correlates with climate.
+Detrending turns ring widths into ring-width indices, and that is what lets you average trees into a chronology: each ring becomes a departure from its own tree's expected growth, so fast and slow trees, young and old rings, count the same. Detrending is good at taking a tree's own trend out of its rings and leaving the year-to-year departures, which every method in this chapter recovered equally well in the simulation. It is bad at anything as long as the series themselves. A curve fitted to one tree can't tell a slow climate swing from aging, competition or a stand event, and it takes some of each. The simulation also showed that a test against a climate with no slow swings rewards the methods that strip out the most, so be wary of choosing a method by how well its chronology correlates with climate.
 
 Ratios are the default and usually fine. Where a curve gets close to zero they blow up, and `summary` now tells you where. Stabilized residuals after `powt` avoid the bias and give the chronology a different shape, close to a log.
 

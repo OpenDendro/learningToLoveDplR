@@ -187,13 +187,15 @@ simFlags[, c("series", "from", "to", "flag", "r.dated", "best.lag", "r.lag", "ga
 #| label: fix-sim-numbers
 #| include: false
 s03 <- simFlags[simFlags$series == "SIM03A", ]
-s08 <- simFlags[simFlags$series == "SIM08B", ]
+s03run <- s03[s03$best.lag == -1, ]                 # the run before the error
+s03mid <- s03[s03$from < 1800 & s03$to > 1800, ]    # the segment across it
 s10 <- simFlags[simFlags$series == "SIM10A", ]
+crit <- qt(0.99, 48) / sqrt(48 + qt(0.99, 48)^2)    # 50-year segments
 ```
 
-SIM03A looks like 712031: B flags at lag -1 with gains of `r paste(sprintf("%.2f", s03$gain[s03$flag == "B"]), collapse = " and ")`, then an A on the segment that straddles the error. The other two series are dated correctly, and I know because I built them.
+SIM03A looks like 712031: B flags at lag -1 with gains of `r paste(sprintf("%.2f", s03run$gain), collapse = " and ")` in the segments before the error. The segment that straddles it, `r s03mid$from`-`r s03mid$to`, is flagged too, at lag `r sprintf("%+d", s03mid$best.lag)` with a gain of only `r sprintf("%.2f", s03mid$gain)`, and it is marked weak. In 712031 the same segment got an A. Either way the report is saying the same thing: half of the segment is dated right and half is a year off, so no single shift fits it.
 
-SIM08B is flagged B at lag `r sprintf("%+d", s08$best.lag)`. Its segment correlates with the master at `r sprintf("%.3f", s08$r.dated)` where it is dated, which is above the critical value, and at `r sprintf("%.3f", s08$r.lag)` seven years over. The gain is `r sprintf("%.3f", s08$gain)`. A segment that already crossdates where it is, beaten by a few thousandths at a shift of seven years, is noise. SIM10A's flag, at lag `r s10$best.lag`, is marked "weak at every lag": it correlates below the critical value wherever you put it, so the flag is really saying the segment fits poorly, and the best shift only wins among bad options.
+SIM10A is the one that is dated correctly, and I know because I built it. Its segment from `r s10$from` to `r s10$to` correlates with the master at `r sprintf("%.3f", s10$r.dated)` where it is dated, a little under the critical value of `r sprintf("%.3f", crit)`, and shifted `r abs(s10$best.lag)` years it correlates at `r sprintf("%.3f", s10$r.lag)`, `r if (abs(s10$r.lag - crit) < 0.005) "right at it" else if (s10$r.lag > crit) "a little above it" else "still under it"`. The gain is `r sprintf("%.3f", s10$gain)`. For that shift to be real, the core would need `r abs(s10$best.lag)` rings missing inside one 50-year segment and none anywhere else. A segment that fits poorly where it is, and only slightly better at a shift no core could plausibly need, is noise.
 
 Now Hurricane Ridge as it comes.
 
@@ -211,7 +213,7 @@ a0 <- wa082Flags0[wa082Flags0$flag == "A", ]
 crit <- qt(0.99, 48) / sqrt(48 + qt(0.99, 48)^2)
 ```
 
-The `r nrow(b0)` B flags are all marked weak, at lags of `r paste(sprintf("%+d", b0$best.lag), collapse = ", ")`. A misdated core can be off by more than a ring, but a shift of eight or nine years in a segment that fits no better there than anywhere else is the SIM10A pattern again. The `r nrow(a0)` A flags, in `r paste(a0$series, collapse = " and ")`, correlate at `r paste(sprintf("%.3f", a0$r.dated), collapse = " and ")` against a critical value of `r sprintf("%.3f", crit)`. That is low agreement just under a line, in a collection whose segments are often not far above it, and both are best where they're dated. As far as anyone knows, Hurricane Ridge is dated correctly, and nothing here argues otherwise.
+The `r nrow(b0)` B flags are all marked weak, at lags of `r paste(sprintf("%+d", b0$best.lag), collapse = ", ")`. A misdated core can be off by more than a ring, but a shift of eight or nine years in a segment that fits no better there than anywhere else looks like SIM10A again: a big shift for a small gain. The `r nrow(a0)` A flags, in `r paste(a0$series, collapse = " and ")`, correlate at `r paste(sprintf("%.3f", a0$r.dated), collapse = " and ")` against a critical value of `r sprintf("%.3f", crit)`. That is low agreement just under a line, in a collection whose segments are often not far above it, and both are best where they're dated. As far as anyone knows, Hurricane Ridge is dated correctly, and nothing here argues otherwise.
 
 What, then, makes a B flag worth pulling a core out of the drawer for? A gain of a few tenths. A lag of one or two years. A run of segments that agree on the lag, and a clean switch back to lag 0 where the run ends, often with an A flag on the segment in between. 712031's planted ring has all of that. None of the flags nobody planted has any of it. In a collection as strong as Mesa Verde even a lone B flag deserves a look, and in an ordinary one I'd wait for the pattern before pulling anything.
 
@@ -225,7 +227,7 @@ The next chapter, [Dating a Floater](07Floaters.qmd), is about a series with no 
 
 1. Narrow 712031 with 10-year segments. Where does it stop being reliable? Do the same for 645221 at Mesa Verde and compare.
 2. Insert the missing ring in 645221 with `ring.value = mean(co021Bad[["645221"]], na.rm = TRUE)` instead of zero, detrend, and compare `rwi.stats` with the zero version. Does the choice of width matter for anything downstream?
-3. Look at SIM08B's flagged segment with `ccf.series.rwl` and `xskel.ccf.plot`. Would you have pulled the core?
+3. Look at SIM10A's flagged segment with `ccf.series.rwl` and `xskel.ccf.plot`. Would you have pulled the core?
 4. Pick one of Hurricane Ridge's A flags and decide what you'd do about it. Does the other core from the same tree help?
 5. Plant a missing ring in a weak simulated stand, `sim.collection(rbar.bt = 0.2, rbar.wt = 0.4, seed = 1)`, and try to find it with this chapter's tools.
 
