@@ -194,13 +194,13 @@ Square brackets work too, since an `rwl` object is a data frame underneath, and 
 
 ```{r}
 #| label: check-bracket
-#| error: true
+#| warning: true
 co021Early <- co021[time(co021) <= 1300, ]
 sum(colSums(!is.na(co021Early)) == 0)
-summary(co021Early)
+co021EarlyStats <- summary(co021Early)
 ```
 
-`[` keeps all `r ncol(co021Early)` columns, `r sum(colSums(!is.na(co021Early)) == 0)` of them empty, so that `x[i, j]` always gives back the columns `j` names and stays lined up with anything else indexed the same way, like a table of tree IDs. And then `summary` stops with a message about a `ts` object. That's the trap. If you index with brackets, the empty columns are yours to clean up. Use `window` and `subset` and they're taken care of. The [aside on classes and generics](04xAsideClassesGenerics.qmd) says more about why an `rwl` object behaves like a data frame most of the time and not all of it.
+`[` keeps all `r ncol(co021Early)` columns, `r sum(colSums(!is.na(co021Early)) == 0)` of them empty, so that `x[i, j]` always gives back the columns `j` names and stays lined up with anything else indexed the same way, like a table of tree IDs. Then `summary` warns and names them. They keep their rows in its table, with a length of 0 and `NA` for every statistic, so the table still lines up with the columns. Not every function is that forthcoming about an empty series, and that's the trap. If you index with brackets, the empty columns are yours to clean up. Use `window` and `subset` and they're taken care of. The [aside on classes and generics](04xAsideClassesGenerics.qmd) says more about why an `rwl` object behaves like a data frame most of the time and not all of it.
 
 ## Wrapping Up
 

@@ -6,7 +6,7 @@ First full draft of the rewrite, 2026-10-13. The stripping section was written e
 
 ## Big Idea
 
-Making a chronology takes one line. You average the indices across series, year by year, and you are done. So why does it get a chapter?
+This is the last of the four steps from [chapter 2](02CoresToRecord.qmd). The cores are dated and measured, [Detrending](08Detrending.qmd) turned the widths (an `rwl`) into indices (an `rwi`), and now the indices become a chronology (a `crn`), the record of the site that everything after this chapter uses. Making one takes one line. You average the indices across series, year by year, and you are done. So why does it get a chapter?
 
 Because that one line hides four decisions. Which mean? Which years, given that the early ones rest on two or three trees? How far do you trust the result? And what do you do about a chronology that gets noisier wherever the trees thin out? `dplR` has a function for each, and none of them can make the decision for you.
 
@@ -56,7 +56,7 @@ cor(wa082Crn$std, wa082CrnMean$std)
 summary(meanGap)
 ```
 
-Most years it doesn't. The two chronologies correlate at `r round(cor(wa082Crn$std, wa082CrnMean$std), 3)` and the typical difference is under 0.01. Then there are years like this one.
+Most years it doesn't. The two chronologies correlate at `r round(cor(wa082Crn$std, wa082CrnMean$std), 3)` and the median difference is `r sprintf("%.3f", median(meanGap))`. Then there are years like this one.
 
 ```{r}
 #| label: crn-biweight-year
@@ -410,7 +410,7 @@ stripYears <- stripRecord$years
 stripWorse <- stripYears$year[stripYears$eps.after < stripYears$eps.before]
 ```
 
-One series goes, `r stripRecord$removed`, and EPS creeps from `r stripRecord$stats$eps[1]` to `r stripRecord$stats$eps[2]`. Don't stop reading there. The last lines of the printout say what that cost. From `r min(stripWorse)` to `r max(stripWorse)` the chronology has one tree fewer, and in those `r length(stripWorse)` years the EPS for the trees that are left is lower than it was. EPS over the whole span went up and a piece of the chronology got worse.
+`r if (length(stripRecord$removed) == 1) "One series goes," else paste(length(stripRecord$removed), "series go,")` `r paste(stripRecord$removed, collapse = ", ")`, and EPS creeps from `r stripRecord$stats$eps[1]` to `r stripRecord$stats$eps[2]`. Don't stop reading there. The last lines of the printout say what that cost. From `r min(stripWorse)` to `r max(stripWorse)` the chronology has one tree fewer, and in those `r length(stripWorse)` years the EPS for the trees that are left is lower than it was. EPS over the whole span went up and a piece of the chronology got worse.
 
 Here the damage is trivial. It won't always be. In the early years of a collection, where three or four trees carry everything, losing one of them is a bad trade for a gain in the third decimal place. Fowler and Boswijk checked for this year by year and threw out their own stripping in six of their thirty tries. The function can't make that call for you. The record of what it did rides along with the result as `attr(wa082Strip, "dplR.strip")`.
 
@@ -440,7 +440,7 @@ row.names(stripCompare) <- c("20-year spline",
 stripCompare
 ```
 
-One series or `r stripCompare$removed[3]`, out of `r ncol(wa082)`, from the same wood. Look at the EPS before stripping to see why. After a 20-year spline the series agree well, so hardly any of them looks like a drag. Keep the slower variation and the trees disagree more, and the disagreement is there to be judged. If you run the 200-year version yourself, `dplR` will warn that `r sum(colSums(!is.na(wa082)) < 200)` of these series are shorter than 200 years. It is right to.
+From the same `r ncol(wa082)` series, stripping removes `r stripCompare$removed[1]`, `r stripCompare$removed[2]` or `r stripCompare$removed[3]`, depending on how it detrends. Look at the EPS before stripping to see why. After a 20-year spline the series agree well, so hardly any of them looks like a drag. Keep the slower variation and the trees disagree more, and the disagreement is there to be judged. If you run the 200-year version yourself, `dplR` will warn that `r sum(colSums(!is.na(wa082)) < 200)` of these series are shorter than 200 years. It is right to.
 
 Which answer do you use? The one that judges the series on what the chronology keeps. Detrend the way you mean to, then hand `strip.rwl` the indices.
 

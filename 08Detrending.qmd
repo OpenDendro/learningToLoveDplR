@@ -6,9 +6,9 @@ First draft, 2026-10-23, from the outline of the same day. Every number in the t
 
 ## Big Idea
 
-Everything in the book so far has been ring widths. They are the raw data: what you measured, in millimeters, one series per core, held in an object of class `rwl`. They are worth a lot as they are. Widths are what you crossdate, what you archive in the ITRDB, and what basal area and growth-rate studies are made from, and you never throw them away.
+Everything in the book so far has been ring widths. They are the raw data: what you measured, in millimeters, one series per core, held in an object of class `rwl`. Widths are what you crossdate, what you archive in the ITRDB, and what basal area and growth-rate studies are made from.
 
-What widths can't do is be compared from tree to tree as they stand. A fast-growing tree lays down rings twice as wide as a slow one in the same years, and every tree's rings get narrower as it gets older. To put trees side by side and average them into a record of the site, you have to take out each tree's growth trend and put fast and slow trees on the same footing. That is detrending, and what comes out is a ring-width index, class `rwi`. Average the indices across trees, year by year, and you have a chronology, class `crn`.
+However, widths can't be easily compared from tree to tree. A fast-growing tree lays down rings twice as wide as a slow one in the same years, and every tree's rings get narrower as it gets older. To put trees side by side and average them into a record of the site, you have to take out each tree's growth trend and put fast and slow trees on similar footing. That is detrending, and what comes out is a ring-width index, class `rwi`. Average the indices across trees, year by year, and you have a chronology, class `crn`.
 
 That is the most basic workflow in dendrochronology, and in `dplR` it is three lines:
 

@@ -6,7 +6,7 @@ First full draft, 2026-10-13. Every number in the text is computed when the book
 
 ## Big Idea
 
-A chronology is an average. You take a few dozen cores that each say something a little different about the same years, and you take their mean. Should anyone trust that mean?
+[Detrending](08Detrending.qmd) turned ring widths into indices, so fast and slow trees, young and old rings, can be put side by side. The last of the four steps from [chapter 2](02CoresToRecord.qmd) is to average them into a chronology, and this chapter is the check that comes just before it. A chronology is an average. You take a few dozen cores that each say something a little different about the same years, and you take their mean. Should anyone trust that mean?
 
 The answer depends on two things. How well do the trees agree with each other? And how many trees are there? Every statistic in this chapter is one of those two things or a blend of them. The mean interseries correlation, rbar, is the agreement. The expressed population signal, EPS, blends agreement with the number of trees. Subsample signal strength, SSS, asks what you lose when the number of trees drops.
 
@@ -44,7 +44,7 @@ sum(upper)
 mean(wa082Cor[upper])
 ```
 
-That is rbar, the mean of `r sum(upper)` pairwise correlations. I used Spearman's rank correlation because `rwi.stats` does by default. Use `method = "pearson"` if you want the other one. On these data it makes little difference.
+That is rbar, the mean of `r sum(upper)` pairwise correlations. I used Spearman's rank correlation because `rwi.stats` does by default. Use `method = "pearson"` if you want the other one. On these data it makes little difference: Pearson's correlations average `r sprintf("%.3f", mean(cor(wa082Rwi, use = "pairwise.complete.obs")[upper]))`, against `r sprintf("%.3f", mean(wa082Cor[upper]))`.
 
 Not all of those pairs are alike. Some are two cores from the same tree.
 
@@ -130,7 +130,7 @@ ggplot(simEps, aes(x = n)) +
   theme_minimal()
 ```
 
-The points follow the line. So the formula does what it says, at least when the world is as tidy as the simulation: every series has the same variance, every pair has the same correlation, and nothing changes through time. Trees are not that tidy, which is why EPS from a living collection is an estimate and not a measurement.
+The points follow the line. So the formula does what it says, at least when the world is as tidy as the simulation: every series has the same variance, every pair has the same correlation, and nothing changes through time. Trees are not that tidy, so the EPS of a living collection is an estimate that leans on those assumptions.
 
 Look at where the line crosses 0.85. Turn the formula around and you get the number of series needed to reach a given EPS.
 
@@ -147,7 +147,7 @@ With an rbar of 0.25 you need `r round(nNeeded(0.25))` series. With 0.75 you nee
 
 ### Cores Are Not Trees
 
-The formula wants $n$ independent samples of the stand. Two cores from the same tree are not that. They share everything that is particular to their tree. So `rwi.stats` counts trees, not cores, and it adjusts rbar for the fact that averaging the cores within a tree cleans up each tree's series a little before the trees are compared. The adjusted value is the effective rbar [@Briffa1990].
+The formula wants $n$ independent samples of the stand. Two cores from the same tree are not that. They share everything that is particular to their tree. So `rwi.stats` counts trees, and it adjusts rbar for the fact that averaging the cores within a tree cleans up each tree's series a little before the trees are compared. The adjusted value is the effective rbar [@Briffa1990, p. 143].
 
 $$\bar{r}_{eff} = \frac{\bar{r}_{bt}}{\bar{r}_{wt} + \frac{1 - \bar{r}_{wt}}{c_{eff}}}$$
 
@@ -344,7 +344,7 @@ The year in which EPS first passes 0.85 depends on the window you picked. So doe
 
 EPS says how well your sample mean stands in for the mean of all the trees like these. That is all. It doesn't say what those trees are recording. A stand can have an EPS of 0.95 and no usable climate signal, because the thing the trees share might be a thinning, an insect outbreak or the neighbor's irrigation. Buras [-@Buras2017] wrote a short and pointed comment on this, and it is worth the ten minutes.
 
-And 0.85? Wigley and colleagues did not hand it down as a threshold. It has been cited as one ever since, and you have now seen how easily a collection moves across it with the detrending, the prewhitening, the window and whether anybody remembered the `ids`. Report EPS and rbar, say how you computed them, and let the reader see the trees thin out. Don't treat one side of 0.85 as safe.
+And 0.85? Wigley and colleagues did not hand it down as a threshold. They wrote that there is no obvious way to say how high EPS must be for a chronology to be fit for reconstruction [@Wigley1984, p. 206]. It has been cited as one ever since, and you have now seen how easily a collection moves across it with the detrending, the prewhitening, the window and whether anybody remembered the `ids`. Report EPS and rbar, say how you computed them, and let the reader see the trees thin out. Don't treat one side of 0.85 as safe.
 
 ## Subsample Signal Strength
 

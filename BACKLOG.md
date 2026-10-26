@@ -38,10 +38,17 @@ Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. 
 1. Andy to read 02 (bedrock steps and red climate, 2026-10-23), then back to 08.
 2. Commit 02, 04x, 05, 06, 07, 07x, 08 and `R/sim-collection.R`.
 3. 08 Detrending: first draft 2026-10-23; Andy to read, especially Choosing a Method.
-4. Read 09 and 10 against the spec.
+4. 09 and 10 read against the spec, 2026-10-23 (see the entry below).
 5. Whole book rendered once, 2026-10-23: no unresolved citations, no broken internal links; the only code errors are 04's deliberate `summary` on empty columns, 08's deliberate `detrend` stop, and 12's known failures.
 
-- dplR idea from the whole-book render (not done): `summary()` of an rwl with all-NA columns, which `[` keeps on purpose, stops with "'ts' object must have one or more observations" (04 shows it as the trap). It could name the empty series and say to use `window` or `subset`, in the fail-loudly style. 04's text would then change.
+- Done 2026-10-23 (Andy: "fix that"), from the whole-book render: `rwl.stats()`, and so `summary()` of an rwl, used to stop on an all-NA column (which `[` keeps on purpose) with "'ts' object must have one or more observations". Of 14 functions tried on `co021[time(co021) <= 1300, ]`, these were the only two that failed. Now the series keeps its row with year 0 and NA statistics, and a warning names it and points to `window()`/`subset()`. dplR dev: R/rwl.stats.R, man/rwl.stats.Rd, NEWS, new tests/testthat/test-rwl.stats.R; R CMD check OK. 04's `check-bracket` chunk now shows the warning, and the text was rewritten (the trap is now that not every function says so).
+
+### 09 and 10 read against the spec, 2026-10-23
+
+- Both were in good shape: voice, opinions with reasons, failures shown (ids left out, EPS across detrendings, stripping's cost). Every claim in words was checked against the rendered numbers and holds (09: start/end rbar 0.257/0.251, peak 0.493 in 1833; 10: lag-one 0.33/0.26 and 0.46/0.19, ARSTAN 0.11 vs 0.20, depth 4.66 vs 16.88, stabilized blocks 0.12-0.15, median biweight gap 0.008).
+- 09 edits: Big Idea now opens on the workflow (indices from 08, the chronology next, this chapter the check before it); Pearson vs Spearman made inline (0.249 vs 0.253); "an estimate and not a measurement" and "counts trees, not cores" reworded; page cites added, Briffa and Jones p. 143 and Wigley et al. p. 206 (both checked earlier, see references notes), with Wigley's "no obvious way to say how high EPS must be" now stated.
+- 10 edits: Big Idea opens on the last of the four steps (rwl to rwi in 08, rwi to crn here); "under 0.01" replaced by the inline median difference; the two stripping sentences that wrote "One" now compute their counts ("From the same 23 series, stripping removes 1, 9 or 6, depending on how it detrends").
+- The "For Andy" items in the 09 and 10 entries below are unchanged and still open.
 
 ### Revision passes after drafting (Andy, 2026-10-23)
 
