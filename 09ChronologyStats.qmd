@@ -28,6 +28,22 @@ co021Rwi <- detrend(co021, method = "Spline")
 wa082Rwi <- detrend(wa082, method = "Spline")
 ```
 
+```{r}
+#| label: stats-words
+#| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
+```
+
+`ggplot2` draws the figures.
+
 Each collection is detrended with a spline, as in the [Data Sources](A2DataSources.qmd) appendix. Is that the right detrending? That question belongs to the [Detrending](08Detrending.qmd) chapter, but it doesn't stay there. Later in this chapter the statistics change when the detrending does.
 
 The `ids` objects say which cores come from which tree. For `wa082` the series names make that plain. For `co021` it is an educated guess, and the appendix shows the evidence for it.
@@ -314,7 +330,7 @@ Why? I don't know, and the statistic can't say. It could be the stand, the clima
 
 ### How Noisy Is a Window?
 
-The first Hurricane Ridge window rests on `r wa082Run$n.bt[1]` between-tree correlations. The first Mesa Verde window rests on `r co021Run$n.bt[1]`. An average of that few correlations, each from a few decades of data, is a rough estimate. The window length matters too.
+The first Hurricane Ridge window rests on `r words(wa082Run$n.bt[1])` between-tree correlations. The first Mesa Verde window rests on `r words(co021Run$n.bt[1])`. An average of that few correlations, each from a few decades of data, is a rough estimate. The window length matters too.
 
 ```{r}
 #| label: fig-stats-windows
@@ -342,7 +358,9 @@ The year in which EPS first passes 0.85 depends on the window you picked. So doe
 
 ### What EPS Does Not Say
 
-EPS says how well your sample mean stands in for the mean of all the trees like these. That is all. It doesn't say what those trees are recording. A stand can have an EPS of 0.95 and no usable climate signal, because the thing the trees share might be a thinning, an insect outbreak or the neighbor's irrigation. Buras [-@Buras2017] wrote a short and pointed comment on this, and it is worth the ten minutes.
+EPS says how well your sample mean stands in for the mean of all the trees like these. That is all. It doesn't say what those trees are recording. A stand can have an EPS of 0.95 and no usable climate signal, because the thing the trees share might be a thinning, an insect outbreak or the neighbor's irrigation. Buras [-@Buras2017] wrote a short and pointed comment on this, and it is worth the ten minutes. Cook and Pederson put it more bluntly: rbar, EPS and SSS are sound statistics, and they "tell us exactly nothing about the true strength of the environmental signal" [@CookPederson2011, p. 81].
+
+There is a second limit. EPS is built from rbar, and rbar is dominated by how well the trees agree from one year to the next [@BriffaMelvin2011, p. 140]. So a high EPS says the year-to-year pattern is well estimated. It says less about the slow wiggles. That matters once the slow part is what you're after, and it comes back in [Regional Curves](11RegionalCurves.qmd).
 
 And 0.85? Wigley and colleagues did not hand it down as a threshold. They wrote that there is no obvious way to say how high EPS must be for a chronology to be fit for reconstruction [@Wigley1984, p. 206]. It has been cited as one ever since, and you have now seen how easily a collection moves across it with the detrending, the prewhitening, the window and whether anybody remembered the `ids`. Report EPS and rbar, say how you computed them, and let the reader see the trees thin out. Don't treat one side of 0.85 as safe.
 
@@ -465,6 +483,8 @@ cor(sensBoth$fromSdAr1, sensBoth$sens)
 
 The correlation is `r round(cor(sensBoth$fromSdAr1, sensBoth$sens), 3)` across all the series, and it is `r round(min(sapply(split(sensBoth, sensBoth$site), function(d) cor(d$fromSdAr1, d$sens))), 2)` or better within each collection. Mean sensitivity is the standard deviation and the autocorrelation stirred together so that you can't get either one back out. Report those two instead. `rwl.stats` gives both, and a reader can do something with them.
 
+Cook and Pederson came at it from another direction. Seven species at Mohonk Lake in New York, all living with the same climate, had mean sensitivities from 0.11 to 0.25, so it can't be read as a direct measure of how sensitive a species is to climate [@CookPederson2011, p. 96]. And of the statistics they tried as predictors of how much ring-width variance a climate response function explained, mean sensitivity did worst (r of 0.10 and 0.16, against 0.64 and 0.55 for effective rbar) [@CookPederson2011, p. 100]. Seven species isn't many, and they say so.
+
 ## Wrapping Up
 
 There are two ingredients, agreement and depth. rbar is the first. EPS is both, and it moves when either one does, so read it next to rbar and the number of trees and never alone. SSS holds the agreement fixed and shows you the depth.
@@ -485,6 +505,7 @@ The [next chapter](10Chronologies.qmd) builds chronologies and puts these statis
 
 - @Wigley1984 is where EPS and SSS come from. The derivation is short and readable, and reading it is the cure for treating 0.85 as a law.
 - @Briffa1990 lays out the within-tree and between-tree correlations and the effective rbar.
+- @CookPederson2011 tells the history from Schulman's coefficient to EPS in two pages (p. 80-81), then compares these statistics across seven species growing side by side. Its appendix gives the formulas `rwi.stats` uses.
 - @Buras2017 is a three-page comment on how EPS gets misused and why SSS is the statistic to use for truncating a chronology.
 - @Bunn2013 has the simulations behind my opinion of mean sensitivity.
 - @Cook1990 and @Fritts2001 are where to go if the ideas of signal and noise in a tree-ring series are new to you.

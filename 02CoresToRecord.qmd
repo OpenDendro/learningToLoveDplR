@@ -21,11 +21,28 @@ A simulation lets you test each method: here is what went in, did it come back o
 #| message: false
 library(dplR)
 library(ggplot2)
+library(cowplot)
 source("R/sim-collection.R")
 data(wa082)
 ```
 
+```{r}
+#| label: cores-words
+#| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
+```
+
 The simulation of the data we use heavily is a single function, `sim.collection`, that lives in the book's `R/` folder.
+
+`ggplot2` draws the figures. `cowplot` is here for one function, `plot_grid`, which stacks two `ggplot` figures and lines up their axes. I use it once, for the two panels of the figure on the stand event.
 
 ## A Ring Width in Parts
 
@@ -82,7 +99,7 @@ ggplot(na.omit(parts), aes(x = year, y = value)) +
 
 Where does the age trend come from? Partly from geometry. A stem that adds about the same area of wood each year has to spread it around a bigger circle every year, so the rings get thinner. Fritts made the same point from the other direction: two rings of the same width hold more wood on the outside of a big stem than near the pith [@Fritts1966]. In an open stand that geometry gives the familiar decaying curve, and Cook's example of it is a ponderosa pine from an open, semiarid site. In a closed canopy he argued that $A_t$ has no expected shape at all. Competition suppresses a tree and a gap releases it, and his red spruce and hemlock series climb and fall over a century in a way no growth curve predicts [@Cook1987]. So half of the simulated trees have neighbors, and their age trend wanders.
 
-Climate has memory of its own. Wet years tend to come in runs, and so do warm ones, so this year's weather carries a little of last year's. The simulated climate does the same: each year keeps `r simTruth$params$climate.phi` of the year before, on top of its own new shock. The trees add a memory of their own on top of that, because a good year leaves needles, roots and stored sugar that help the next one, and in the simulation that carries `r simTruth$params$phi` of last year's growth forward. The two kinds of memory look alike in a ring-width series, and they mean different things. The climate's is shared by every tree. The tree's belongs to the tree.
+Climate has memory of its own. Wet years tend to come in runs, and so do warm ones, so this year's weather carries a little of last year's. The simulated climate does the same: each year keeps `r simTruth$params$climate.phi` of the year before, on top of its own new shock. The trees add a memory of their own on top of that, because a good year leaves needles, roots and stored sugar that help the next one, and in the simulation that carries `r simTruth$params$phi` of last year's growth forward. Vaganov and colleagues suggest one route: how many cells the cambium starts a season with depends partly on how the tree grew the year before [@Vaganov2011, p. 45]. Cook and Pederson point to another, stored carbon that goes into next year's buds and early leaves and can stay in an oak for three to five years [@CookPederson2011, p. 102-103]. The two kinds of memory look alike in a ring-width series, and they mean different things. The climate's is shared by every tree. The tree's belongs to the tree.
 
 ### Who Shares What
 
@@ -109,7 +126,7 @@ simStats[, c("n.trees", "rbar.wt", "rbar.bt")]
 
 Cores from one tree correlate at `r round(simStats$rbar.wt, 2)`. Cores from different trees correlate at `r round(simStats$rbar.bt, 2)`. The difference between the two is the part that belongs to each tree and to no other. I set those correlations to `r simTruth$params$rbar.wt` and `r simTruth$params$rbar.bt` when I built the collection, and they come back near their targets, the between-tree one a little low. The exercises go after why.
 
-The hidden things are made the same way, by turning parts up and down. Tree 10 gets a release in `r simTruth$release$year`, which is $D1_t$ switched on in one tree. An event in `r simTruth$event$year` knocks back `r length(simTruth$event$trees)` of the trees standing at the time, which is $D2_t$. The missing ring is simpler. I deleted the `r simTruth$errors$year` ring from `r simTruth$errors$series`.
+The hidden things are made the same way, by turning parts up and down. Tree 10 gets a release in `r simTruth$release$year`, which is $D1_t$ switched on in one tree. An event in `r simTruth$event$year` knocks back `r words(length(simTruth$event$trees))` of the trees standing at the time, which is $D2_t$. The missing ring is simpler. I deleted the `r simTruth$errors$year` ring from `r simTruth$errors$series`.
 
 ## The Missing Ring
 
@@ -312,7 +329,7 @@ ggplot(simDepth, aes(x = year, y = cores)) +
   theme_minimal()
 ```
 
-That is the shape of almost every collection. All `r max(simDepth$cores)` cores reach the twentieth century. In 1800 there are `r simDepth$cores[simDepth$year == 1800]`, and in 1700 there are `r simDepth$cores[simDepth$year == 1700]`.
+That is the shape of almost every collection. All `r max(simDepth$cores)` cores reach the twentieth century. In 1800 there are `r words(simDepth$cores[simDepth$year == 1800])`, and in 1700 there are `r words(simDepth$cores[simDepth$year == 1700])`.
 
 I built a climate series into every tree, so I can ask how much of it the chronology recovers as the trees pile up. Compare the residual chronology with the true climate, a century at a time.
 
@@ -347,7 +364,7 @@ whiteR <- cor(whiteChron[y1900s, "res"], whiteClimate[y1900s],
               use = "complete.obs")
 ```
 
-In the 1700s, with about `r round(byCentury(1700:1799)["cores"])` cores, the chronology correlates with the climate at `r round(byCentury(1700:1799)["r"], 2)`. In the 1900s, with about `r round(byCentury(1900:1999)["cores"])`, it reaches `r round(byCentury(1900:1999)["r"], 2)`. This is the residual chronology, which has had each tree's memory taken out before averaging. Prewhitening can't tell the tree's memory from the climate's, so the climate's carryover goes too. It costs a little: the same stand grown under white climate, with no carryover, reaches `r round(whiteR, 2)` in the 1900s. [Chronology Building](10Chronologies.qmd) comes back to it.
+In the 1700s, with about `r words(round(byCentury(1700:1799)["cores"]))` cores, the chronology correlates with the climate at `r round(byCentury(1700:1799)["r"], 2)`. In the 1900s, with about `r words(round(byCentury(1900:1999)["cores"]))`, it reaches `r round(byCentury(1900:1999)["r"], 2)`. This is the residual chronology, which has had each tree's memory taken out before averaging. Prewhitening can't tell the tree's memory from the climate's, so the climate's carryover goes too. It costs a little: the same stand grown under white climate, with no carryover, reaches `r round(whiteR, 2)` in the 1900s. [Chronology Building](10Chronologies.qmd) comes back to it.
 
 With a field collection there is no true climate to compare with. What you can measure is how well the trees agree with each other, and Wigley, Briffa and Jones worked out what that buys you [@Wigley1984]. Their expressed population signal, EPS, estimates how closely the mean of the trees you have follows the mean of the whole population the trees came from, given how many there are and how well they correlate. Here it is in 50-year windows, next to the squared correlation with the climate I put in.
 
@@ -434,7 +451,7 @@ plotB <- ggplot(panelB, aes(x = year)) +
   labs(x = "Year", y = "Chronology minus climate") +
   theme_minimal()
 
-cowplot::plot_grid(plotA, plotB, ncol = 1, align = "v", labels = c("A", "B"))
+plot_grid(plotA, plotB, ncol = 1, align = "v", labels = c("A", "B"))
 ```
 
 ```{r}

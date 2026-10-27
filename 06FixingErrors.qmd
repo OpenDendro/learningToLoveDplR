@@ -24,6 +24,20 @@ co021Bad <- plant.dating.errors()
 wa082Bad <- plant.wa082.error()
 ```
 
+```{r}
+#| label: fix-words
+#| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
+```
+
 `co021Bad` is Mesa Verde with the two errors from the last chapter. `wa082Bad` is Hurricane Ridge with one: series 712031 has lost its 1850 ring.
 
 ## The Clean Case, Briefly
@@ -89,7 +103,7 @@ f031 <- wa082Flags[wa082Flags$series == "712031", ]
 fOther <- wa082Flags[wa082Flags$series != "712031", ]
 ```
 
-The planted error is there: 712031 is flagged B at lag -1 in `r nrow(f031[f031$flag == "B", ])` segments, with correlations of `r paste(sprintf("%.2f", f031$r.lag[f031$flag == "B"]), collapse = " and ")` at the lag, and then A in `r f031$from[f031$flag == "A"]` to `r f031$to[f031$flag == "A"]`. That A is the segment that straddles the error, half misdated and half not, so it fits badly where it is and no better anywhere else. It's the commonest way a real error shows up at the end of its run of B flags. And it isn't alone. `r nrow(fOther)` other segments are flagged in series that nobody touched, which is how a real error usually looks: one problem among several things that look like problems.
+The planted error is there: 712031 is flagged B at lag -1 in `r words(nrow(f031[f031$flag == "B", ]))` segments, with correlations of `r paste(sprintf("%.2f", f031$r.lag[f031$flag == "B"]), collapse = " and ")` at the lag, and then A in `r f031$from[f031$flag == "A"]` to `r f031$to[f031$flag == "A"]`. That A is the segment that straddles the error, half misdated and half not, so it fits badly where it is and no better anywhere else. It's the commonest way a real error shows up at the end of its run of B flags. And it isn't alone. `r words(nrow(fOther), cap = TRUE)` other segments are flagged in series that nobody touched, which is how a real error usually looks: one problem among several things that look like problems.
 
 Here is `ccf.series.rwl` on 712031, drawn this time.
 
@@ -112,7 +126,7 @@ ccf031b <- ccf.series.rwl(window(wa082Bad, 1790, 1910), series = "712031",
 lag031b <- bestLag(ccf031b)
 ```
 
-It works, but look at the difference from Mesa Verde. At lag -1 the early bins correlate between `r sprintf("%.2f", min(r031["lag.-1", lag031 == -1]))` and `r sprintf("%.2f", max(r031["lag.-1", lag031 == -1]))`. One bin, `r muddled`, points nowhere useful: its best lag is -2, at only `r sprintf("%.2f", r031["lag.-2", muddled])`, which is no dating error anyone planted. It's what a bin straddling an error looks like when the signal is ordinary. From `r firstBin(lag031, 0)` on, lag 0 wins at `r sprintf("%.2f", min(r031["lag.0", lag031 == 0]))` to `r sprintf("%.2f", max(r031["lag.0", lag031 == 0]))`. The last bin at lag -1 is `r binRange(lastBin(lag031, -1))` and the first at lag 0 is `r binRange(firstBin(lag031, 0))`, with the muddled bin between them, so the error is somewhere from the 1840s to the early 1850s. The planted year is 1850. Short segments trade reliability for resolution, and at Hurricane Ridge 20 years is near the edge. With 30-year bins the last bin at lag -1 is `r binRange(lastBin(lag031b, -1))` and the first at lag 0 is `r binRange(firstBin(lag031b, 0))`. No bin points anywhere else, and the years the two share hold the error.
+It works, but look at the difference from Mesa Verde. At lag -1 the early bins correlate between `r sprintf("%.2f", min(r031["lag.-1", lag031 == -1]))` and `r sprintf("%.2f", max(r031["lag.-1", lag031 == -1]))`. One bin, `r binRange(muddled)`, points nowhere useful: its best lag is -2, at only `r sprintf("%.2f", r031["lag.-2", muddled])`, which is no dating error anyone planted. It's what a bin straddling an error looks like when the signal is ordinary. From the `r binRange(firstBin(lag031, 0))` bin on, lag 0 wins at `r sprintf("%.2f", min(r031["lag.0", lag031 == 0]))` to `r sprintf("%.2f", max(r031["lag.0", lag031 == 0]))`. The last bin at lag -1 is `r binRange(lastBin(lag031, -1))` and the first at lag 0 is `r binRange(firstBin(lag031, 0))`, with the muddled bin between them, so the error is somewhere from the 1840s to the early 1850s. The planted year is 1850. Short segments trade reliability for resolution, and at Hurricane Ridge 20 years is near the edge. With 30-year bins the last bin at lag -1 is `r binRange(lastBin(lag031b, -1))` and the first at lag 0 is `r binRange(firstBin(lag031b, 0))`. No bin points anywhere else, and the years the two share hold the error.
 
 The last statistical step is the one Douglass would recognize. `xskel.ccf.plot` draws a skeleton plot of the series above one of the master for a window of years, with the cross-correlations for each half underneath.
 
@@ -170,7 +184,7 @@ wa082FixedFlags <- xdate.report(wa082Fixed)$flagged
 unique(wa082FixedFlags$series)
 ```
 
-Mesa Verde has no flags. Hurricane Ridge is back to its own `r nrow(wa082FixedFlags)`, none of them in 712031. And keep the script. Those three lines are the record of what you changed and why, attached to the original file. xDateR writes the same kind of record for you when you edit there.
+Mesa Verde has no flags. Hurricane Ridge is back to its own `r words(nrow(wa082FixedFlags))`, none of them in 712031. And keep the script. Those three lines are the record of what you changed and why, attached to the original file. xDateR writes the same kind of record for you when you edit there.
 
 ## Flags Nobody Planted
 
@@ -195,7 +209,7 @@ crit <- qt(0.99, 48) / sqrt(48 + qt(0.99, 48)^2)    # 50-year segments
 
 SIM03A looks like 712031: B flags at lag -1 with gains of `r paste(sprintf("%.2f", s03run$gain), collapse = " and ")` in the segments before the error. The segment that straddles it, `r s03mid$from`-`r s03mid$to`, is flagged too, at lag `r sprintf("%+d", s03mid$best.lag)` with a gain of only `r sprintf("%.2f", s03mid$gain)`, and it is marked weak. In 712031 the same segment got an A. Either way the report is saying the same thing: half of the segment is dated right and half is a year off, so no single shift fits it.
 
-SIM10A is the one that is dated correctly, and I know because I built it. Its segment from `r s10$from` to `r s10$to` correlates with the master at `r sprintf("%.3f", s10$r.dated)` where it is dated, a little under the critical value of `r sprintf("%.3f", crit)`, and shifted `r abs(s10$best.lag)` years it correlates at `r sprintf("%.3f", s10$r.lag)`, `r if (abs(s10$r.lag - crit) < 0.005) "right at it" else if (s10$r.lag > crit) "a little above it" else "still under it"`. The gain is `r sprintf("%.3f", s10$gain)`. For that shift to be real, the core would need `r abs(s10$best.lag)` rings missing inside one 50-year segment and none anywhere else. A segment that fits poorly where it is, and only slightly better at a shift no core could plausibly need, is noise.
+SIM10A is the one that is dated correctly, and I know because I built it. Its segment from `r s10$from` to `r s10$to` correlates with the master at `r sprintf("%.3f", s10$r.dated)` where it is dated, a little under the critical value of `r sprintf("%.3f", crit)`, and shifted `r abs(s10$best.lag)` years it correlates at `r sprintf("%.3f", s10$r.lag)`, `r if (abs(s10$r.lag - crit) < 0.005) "right at it" else if (s10$r.lag > crit) "a little above it" else "still under it"`. The gain is `r sprintf("%.3f", s10$gain)`. For that shift to be real, the core would need `r words(abs(s10$best.lag))` rings missing inside one 50-year segment and none anywhere else. A segment that fits poorly where it is, and only slightly better at a shift no core could plausibly need, is noise.
 
 Now Hurricane Ridge as it comes.
 
@@ -213,13 +227,13 @@ a0 <- wa082Flags0[wa082Flags0$flag == "A", ]
 crit <- qt(0.99, 48) / sqrt(48 + qt(0.99, 48)^2)
 ```
 
-The `r nrow(b0)` B flags are all marked weak, at lags of `r paste(sprintf("%+d", b0$best.lag), collapse = ", ")`. A misdated core can be off by more than a ring, but a shift of eight or nine years in a segment that fits no better there than anywhere else looks like SIM10A again: a big shift for a small gain. The `r nrow(a0)` A flags, in `r paste(a0$series, collapse = " and ")`, correlate at `r paste(sprintf("%.3f", a0$r.dated), collapse = " and ")` against a critical value of `r sprintf("%.3f", crit)`. That is low agreement just under a line, in a collection whose segments are often not far above it, and both are best where they're dated. As far as anyone knows, Hurricane Ridge is dated correctly, and nothing here argues otherwise.
+The `r words(nrow(b0))` B flags are all marked weak, at lags of `r paste(sprintf("%+d", b0$best.lag), collapse = ", ")`. A misdated core can be off by more than a ring, but a shift of eight or nine years in a segment that fits no better there than anywhere else looks like SIM10A again: a big shift for a small gain. The `r words(nrow(a0))` A flags, in `r paste(a0$series, collapse = " and ")`, correlate at `r paste(sprintf("%.3f", a0$r.dated), collapse = " and ")` against a critical value of `r sprintf("%.3f", crit)`. That is low agreement just under a line, in a collection whose segments are often not far above it, and both are best where they're dated. As far as anyone knows, Hurricane Ridge is dated correctly, and nothing here argues otherwise.
 
 What, then, makes a B flag worth pulling a core out of the drawer for? A gain of a few tenths. A lag of one or two years. A run of segments that agree on the lag, and a clean switch back to lag 0 where the run ends, often with an A flag on the segment in between. 712031's planted ring has all of that. None of the flags nobody planted has any of it. In a collection as strong as Mesa Verde even a lone B flag deserves a look, and in an ordinary one I'd wait for the pattern before pulling anything.
 
 ## Wrapping Up
 
-The statistics placed every planted error to within a decade or so, the skeleton plot showed the shift in the marker years, and `insert.ring` and `delete.ring` put the rings back with the outer year held fixed. The statistics couldn't say how wide a missing ring was or which of two rings was the false one, and on Hurricane Ridge they flagged `r nrow(wa082Flags0)` segments in a collection with no known errors. Those are questions for the sample.
+The statistics placed every planted error to within a decade or so, the skeleton plot showed the shift in the marker years, and `insert.ring` and `delete.ring` put the rings back with the outer year held fixed. The statistics couldn't say how wide a missing ring was or which of two rings was the false one, and on Hurricane Ridge they flagged `r words(nrow(wa082Flags0))` segments in a collection with no known errors. Those are questions for the sample.
 
 The next chapter, [Dating a Floater](07Floaters.qmd), is about a series with no outer year to hold fixed.
 

@@ -1,19 +1,639 @@
 # Regional Curves and Age
 
-:::{.callout-note title="Stub"}
-Not written yet.
-
-Planned: `rcs`, `ads`, `cms`, pith offsets.
-
-Source: new.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-26, from the outline of 2026-10-25. Every number in the text is computed when the book builds. The simulations take about three minutes. Open questions are in the backlog.
 :::
 
 ## Big Idea
 
+[Detrending](08Detrending.qmd) ended on an old problem: A curve fitted to one tree takes out everything slow in that tree, whatever caused it, so a climate swing about as long as the series goes out with the age trend. That's the segment-length curse [@Cook1995], and no curve fitted one tree at a time gets around it.
+
+Regional curve standardization (RCS) gets around it by not asking each tree about its own age trend. Line every series up by ring age, the number of years since the pith, instead of by calendar year. Average the widths at each ring age, smooth the average, and you have one curve that says how wide a ring of a given age is, for this kind of tree on this kind of site. Then divide each ring by the curve's value at that ring's age [@Briffa1992; @BriffaMelvin2011, p. 116].
+
+Why should that keep slow climate? Because a tree's indices are no longer forced to average one. A curve fitted to one tree goes through the middle of that tree's rings, so its indices center on one whatever century the tree lived in. The regional curve comes from all the trees. A tree that spent its life in a good century can sit above it the whole time, and its indices say so [@BriffaMelvin2011, p. 116-117].
+
+The cost is an assumption, and it's a big one. The curve says every tree in the collection would have grown the same way at the same age if the climate had held still. Trees don't. Some grow fast and some slow for reasons that have nothing to do with climate, and when the fast and slow ones aren't spread evenly through time, RCS turns that into a trend. So this chapter does two things. It shows RCS keeping slow climate that the curves in chapter 8 lost, and then it shows RCS making trends that were never in the climate, on simulated trees where both can be checked and on a collection of ponderosa pine where they can't.
+
 ## Packages
+
+```{r}
+#| label: rc-setup
+#| message: false
+library(dplR)
+library(ggplot2)
+library(cowplot)
+source("R/sim-collection.R")
+data(gp.rwl)
+data(gp.po)
+data(gp.d2pith)
+```
+
+`ggplot2` draws the figures. `cowplot` is here for one function, `plot_grid`, which stacks two `ggplot` figures and lines up their axes. I use it once, to put a regional curve above the number of cores it rests on.
+
+Mesa Verde and Hurricane Ridge sit this chapter out. RCS needs to know how far each core is from the pith, and neither file says. `gp.rwl` does. It's ponderosa pine from the Gus Pearson Natural Area in northern Arizona, `r ncol(gp.rwl)` cores from `r ncol(gp.rwl) / 2` trees, `r min(time(gp.rwl))` to `r max(time(gp.rwl))`, and it comes with its pith offsets (`gp.po`) and the distance from each core's innermost ring to the pith (`gp.d2pith`). The [Data Sources](A2DataSources.qmd) appendix has more on it.
+
+## Lining Up by Age
+
+A core that goes through the pith starts at ring age 1. Most don't. The borer misses by a few millimeters or a few centimeters, and the pith offset is the number of rings you think are missing between the innermost ring on the core and the pith.
+
+```{r}
+#| label: rc-po
+head(gp.po)
+summary(gp.po$pith.offset)
+sum(gp.po$pith.offset == 1)
+```
+
+```{r}
+#| label: rc-po-numbers
+#| include: false
+gpLength <- colSums(!is.na(gp.rwl))
+gpOuterAge <- gpLength + gp.po$pith.offset - 1
+gpFirst <- sapply(gp.rwl, function(v) min(time(gp.rwl)[!is.na(v)]))
+gpPithYear <- gpFirst - gp.po$pith.offset + 1
+# counts of zero to nine as words in the prose, larger ones as numerals
+words <- function(n) {
+  ifelse(n >= 0 & n <= 9,
+         c("zero", "one", "two", "three", "four", "five", "six", "seven",
+           "eight", "nine")[n + 1], as.character(n))
+}
+```
+
+Only `r words(sum(gp.po$pith.offset == 1))` of the `r nrow(gp.po)` cores hit the pith. Half miss it by more than `r median(gp.po$pith.offset)` rings, and one by `r max(gp.po$pith.offset)`. Add the offsets to the series and the oldest ring in the collection is `r max(gpOuterAge)` years from its pith, though no core is longer than `r max(gpLength)` rings. The trees started growing between `r min(gpPithYear)` and `r max(gpPithYear)`.
+
+`rcs` does the lining up, the averaging, the smoothing and the dividing. With `rc.out = TRUE` it hands back the curve as well as the indices.
+
+```{r}
+#| label: rc-fit
+#| fig-cap: "dplR's plot from rcs on the Gus Pearson cores: each series by ring age (gray), the mean width at each ring age (thin line) and the smoothed regional curve (blue)."
+gpRcs <- rcs(gp.rwl, po = gp.po, rc.out = TRUE)
+names(gpRcs)
+gpRc <- gpRcs$rc         # the regional curve, one value per ring age
+gpRcsRwi <- gpRcs$rwi    # the indices, class rwi
+```
+
+The mean width at each ring age is smoothed with a spline whose stiffness is 10% of the curve's length, after a biweight mean that keeps one odd core from pulling the average around. That's how @Esper2003 built their curves (p. 85), and they are `rcs`'s defaults.
+
+dplR's plot crams everything into one panel. The figure below pulls it apart, with the number of cores at each ring age underneath. To draw it, each series has to be shifted from calendar years to ring ages. `byRingAge` does that for one object at a time, widths or indices, and I'll use it again later in the chapter.
+
+```{r}
+#| label: rc-by-age
+# put each series on a ring-age axis: its first measured ring is at ring age
+# equal to its pith offset, and each ring after that is one year older
+byRingAge <- function(x, po) {
+  out <- data.frame()
+  for (s in names(x)) {
+    values <- x[[s]][!is.na(x[[s]])]
+    offset <- po$pith.offset[po$series == s]
+    out <- rbind(out, data.frame(series = s,
+                                 ring.age = offset + seq_along(values) - 1,
+                                 value = values))
+  }
+  out
+}
+gpByAge <- byRingAge(gp.rwl, gp.po)
+head(gpByAge)
+```
+
+```{r}
+#| label: rc-curve-plot
+#| fig-height: 6
+#| fig-cap: "Top: every Gus Pearson core by ring age (gray) with the regional curve (black). Bottom: the number of cores at each ring age."
+gpDepth <- as.data.frame(table(ring.age = gpByAge$ring.age))
+gpDepth$ring.age <- as.numeric(as.character(gpDepth$ring.age))
+rcData <- data.frame(ring.age = seq_along(gpRc), rc = gpRc)
+
+curvePanel <- ggplot(gpByAge, aes(x = ring.age, y = value)) +
+  geom_line(aes(group = series), colour = "grey70", linewidth = 0.2) +
+  geom_line(data = rcData, aes(y = rc), linewidth = 0.8, na.rm = TRUE) +
+  labs(x = NULL, y = "Ring width (mm)") +
+  theme_minimal()
+depthPanel <- ggplot(gpDepth, aes(x = ring.age, y = Freq)) +
+  geom_line() +
+  labs(x = "Ring age (years from pith)", y = "Cores") +
+  theme_minimal()
+plot_grid(curvePanel, depthPanel, ncol = 1, rel_heights = c(3, 1), align = "v")
+```
+
+```{r}
+#| label: rc-curve-numbers
+#| include: false
+rcPeak <- which.max(gpRc)
+depthAt <- function(a) gpDepth$Freq[gpDepth$ring.age == a]
+```
+
+The curve rises for the first `r rcPeak` years, from `r sprintf("%.2f", gpRc[1])` mm to `r sprintf("%.2f", gpRc[rcPeak])` mm, then falls: `r sprintf("%.2f", gpRc[100])` mm at ring age 100, `r sprintf("%.2f", gpRc[200])` at 200, `r sprintf("%.2f", gpRc[400])` at 400. A curve that rises before it falls is a shape `ModNegExp` can't draw. Don't lean on the rise, though. Only `r words(depthAt(1))` cores reach back to ring age 1 and `r words(depthAt(10))` to ring age 10. The curve is best where the cores are thickest, `r words(max(gpDepth$Freq))` of them around ring age `r gpDepth$ring.age[which.max(gpDepth$Freq)]`, and it thins out again past 400, where `r words(depthAt(400))` cores remain.
+
+The indices go to `chron` like any others.
+
+```{r}
+#| label: rc-chron
+gpRcsCrn <- chron(gpRcsRwi)
+tail(gpRcsCrn)
+```
+
+How that chronology compares with the ones chapter 8 would have made from the same trees is the subject of the last section before the opinions.
+
+## What the Pith Offsets Do
+
+Pith offsets are a nuisance to estimate. The usual way is to use the curvature of the innermost rings to find how far the core is from the center of the tree, then turn that distance into rings using the growth rate of the innermost rings. So the same missing distance means more rings in a slow tree than a fast one [@Esper2003, p. 87-90]. What do you lose if you skip it? Leave out `po` and `rcs` assumes every core starts at the pith.
+
+```{r}
+#| label: rc-no-po
+gpRcsNoPo <- rcs(gp.rwl, rc.out = TRUE, make.plot = FALSE)
+gpRcsNoPoCrn <- chron(gpRcsNoPo$rwi)
+```
+
+```{r}
+#| label: rc-no-po-numbers
+#| include: false
+gpYears <- as.numeric(rownames(gpRcsCrn))
+deep <- gpRcsCrn$samp.depth >= 10   # years with 10 or more cores
+smooth31 <- function(v) as.numeric(stats::filter(v, rep(1 / 31, 31), sides = 2))
+noPoR <- cor(gpRcsCrn$std[deep], gpRcsNoPoCrn$std[deep])
+noPoSmoothR <- cor(smooth31(gpRcsCrn$std)[deep], smooth31(gpRcsNoPoCrn$std)[deep],
+                   use = "complete.obs")
+noPoDiff <- gpRcsCrn$std - gpRcsNoPoCrn$std
+noPoBlock <- tapply(noPoDiff[deep], floor(gpYears[deep] / 50) * 50, mean)
+noPoMad <- mean(abs(noPoDiff[deep]))
+crnSpread <- mean(abs(gpRcsCrn$std[deep] - mean(gpRcsCrn$std[deep])))
+po4 <- gp.po
+po4$pith.offset <- po4$pith.offset * 4L
+gpRcsPo4Crn <- chron(rcs(gp.rwl, po = po4, make.plot = FALSE))
+po4R <- cor(gpRcsCrn$std[deep], gpRcsPo4Crn$std[deep])
+po4NoPoR <- cor(gpRcsNoPoCrn$std[deep], gpRcsPo4Crn$std[deep])
+```
+
+The curve changes most where few cores reach. At ring age 400 it is `r sprintf("%.2f", gpRcsNoPo$rc[400])` mm without offsets against `r sprintf("%.2f", gpRc[400])` mm with them. The chronologies hardly notice. Over the years with 10 or more cores they correlate at `r sprintf("%.2f", noPoR)`, and at `r sprintf("%.2f", noPoSmoothR)` after a 31-year running mean. They differ by `r sprintf("%.3f", noPoMad)` in a typical year, where the chronology itself strays `r sprintf("%.3f", crnSpread)` from its mean. The biggest 50-year difference is `r sprintf("%.2f", max(abs(noPoBlock)))`, in `r names(noPoBlock)[which.max(abs(noPoBlock))]` to `r as.numeric(names(noPoBlock)[which.max(abs(noPoBlock))]) + 49`.
+
+@Esper2003 found the same on Gotland pine, 86 series that all miss the pith by 2 to 40 rings. With and without offsets their chronologies differed by a mean absolute 0.035, small next to the 0.182 between the chronologies, and they concluded that offsets make the curve more biologically correct and the chronology only a little different (p. 90). Then they multiplied every offset by two and by four. The curve's first values jumped from under 2 mm to over 3 mm, and still the chronologies correlated above 0.92, except the one with no offsets against the one with four times the offsets, at 0.84 (p. 90). Do that to Gus Pearson and the four-times chronology correlates `r sprintf("%.3f", po4R)` with the real offsets and `r sprintf("%.3f", po4NoPoR)` with none.
+
+Why so little? The simulation in the next section answers that, because it knows every tree's true pith. The short version is that it depends on how much the offsets differ from core to core. Esper and his coauthors put it as how the offsets are spread through time (p. 90).
+
+Offsets don't have to be typed in by hand. If your data come from a TRiDaS file, `read.tridas` returns a record of wood completeness for each series, and `wc.to.po` turns it into the data frame `rcs` wants.
+
+## The Curse Lifted?
+
+Chapter 8 measured the curse on 100 simulated stands, each with its own climate, half with slow swings lasting decades to a century (an 80-year running mean of noise) and half with swings lasting centuries (250 years). Each method's chronology was scored on its slow part, separated with a 31-year running mean: how well it follows the slow climate (a correlation) and how much of the swing's size it keeps (the slope of the slow chronology on the slow climate, as a share of the slope you get by dividing by the true age trend). RCS gets the same test here.
+
+The climate is built as in chapter 8. The simulation also knows when each tree's pith formed, so the true offsets come from the first measured ring of each core.
+
+```{r}
+#| label: rc-sim-tools
+# a climate with slow swings: white noise plus a running mean of noise over
+# `window` years, each part with the same variance (as in chapter 8)
+makeClimate <- function(window, seed, years) {
+  set.seed(seed)
+  noise <- rnorm(length(years) + window - 1)
+  swing <- stats::filter(noise, rep(1 / window, window), sides = 1)
+  swing <- swing[window:length(swing)]
+  setNames(rnorm(length(years)) + swing / sd(swing), years)
+}
+
+# the true pith offset of each core: its first ring minus its tree's pith year
+truePo <- function(stand) {
+  widths <- stand$truth$rwl
+  firstYear <- sapply(widths, function(v) min(time(widths)[!is.na(v)]))
+  tree <- substr(names(widths), 1, nchar(names(widths)) - 1)  # drop core letter
+  pithYear <- stand$truth$pith$pith[match(tree, stand$truth$pith$tree)]
+  data.frame(series = names(widths),
+             pith.offset = as.integer(firstYear - pithYear + 1))
+}
+```
+
+`scoreMethods` makes chronologies four ways (divided by the true age trend, `ModNegExp`, the default spline and `rcs`) and scores each one. It also records the chronology's linear trend per century, which the next section needs. Years with fewer than 10 cores are left out.
+
+```{r}
+#| label: rc-score
+scoreMethods <- function(widths, age, po, climate) {
+  indices <- list(truth = as.rwi(widths / age),
+                  ModNegExp = detrend(widths, method = "ModNegExp"),
+                  Spline = detrend(widths, method = "Spline"),
+                  rcs = rcs(widths, po = po, make.plot = FALSE))
+  scores <- data.frame()
+  for (m in names(indices)) {
+    crn <- chron(indices[[m]])
+    keep <- crn$samp.depth >= 10
+    years <- as.numeric(rownames(crn))[keep]
+    std <- crn$std[keep]
+    clim <- climate[as.character(years)]
+    slowStd <- smooth31(std)
+    slowClim <- smooth31(clim)
+    scores <- rbind(scores, data.frame(
+      method = m,
+      slow.r = cor(slowStd, slowClim, use = "complete.obs"),
+      slope = coef(lm(slowStd ~ slowClim))[2],
+      fast.r = cor(std - slowStd, clim - slowClim, use = "complete.obs"),
+      trend = 100 * coef(lm(std ~ years))[2]))  # index units per century
+  }
+  # the share of the swing kept, against dividing by the true age trend
+  scores$slow.kept <- scores$slope / scores$slope[scores$method == "truth"]
+  scores
+}
+
+# average the scores over many stands, one row per method and window
+scoreTable <- function(scores) {
+  out <- aggregate(cbind(slow.r, slow.kept, fast.r, trend) ~ method + window,
+                   data = scores, FUN = mean)
+  out <- out[order(out$window, match(out$method, unique(scores$method))), ]
+  out[, 3:6] <- round(out[, 3:6], 2)
+  out
+}
+```
+
+Now the 200 stands. `ModNegExp` falls back to a straight line for a few cores and says so, which is why the warnings are turned off for this chunk.
+
+```{r}
+#| label: rc-living
+#| warning: false
+livingScores <- data.frame()
+for (window in c(80, 250)) {
+  for (seed in 1:100) {
+    stand <- sim.collection(seed = seed,
+                            climate = makeClimate(window, seed + 1000, 1400:2025))
+    widths <- stand$truth$rwl
+    age <- stand$truth$age[rownames(widths), names(widths)]
+    climate <- setNames(stand$truth$climate$climate, stand$truth$climate$year)
+    scores <- scoreMethods(widths, age, truePo(stand), climate)
+    scores$window <- window
+    livingScores <- rbind(livingScores, scores)
+  }
+}
+livingTable <- scoreTable(livingScores)
+livingTable[, c("method", "window", "slow.r", "slow.kept", "fast.r")]
+```
+
+```{r}
+#| label: rc-living-numbers
+#| include: false
+pct <- function(v) paste0(round(100 * v), "%")
+# a number to d decimals, without a minus sign on a value that rounds to 0
+num <- function(v, d = 2) {
+  v <- round(v, d)
+  v[v == 0] <- 0
+  sprintf(paste0("%.", d, "f"), v)
+}
+tabGet <- function(tab, m, w, col) tab[tab$method == m & tab$window == w, col]
+keptRange <- function(scores, m, w) {
+  v <- scores$slow.kept[scores$method == m & scores$window == w]
+  quantile(v, c(0.25, 0.75))
+}
+rcsIqr <- keptRange(livingScores, "rcs", 80)
+mneIqr <- keptRange(livingScores, "ModNegExp", 80)
+```
+
+For swings of decades to a century, `rcs` keeps `r pct(tabGet(livingTable, "rcs", 80, "slow.kept"))` of the swing's size, against `r pct(tabGet(livingTable, "ModNegExp", 80, "slow.kept"))` for `ModNegExp` and `r pct(tabGet(livingTable, "Spline", 80, "slow.kept"))` for the spline. For swings of centuries, `r pct(tabGet(livingTable, "rcs", 250, "slow.kept"))` against `r pct(tabGet(livingTable, "ModNegExp", 250, "slow.kept"))` and `r pct(tabGet(livingTable, "Spline", 250, "slow.kept"))`. Its slow part follows the slow climate at `r sprintf("%.2f", tabGet(livingTable, "rcs", 80, "slow.r"))` and `r sprintf("%.2f", tabGet(livingTable, "rcs", 250, "slow.r"))`. It costs a little at the other end. The year-to-year correlation is `r sprintf("%.2f", tabGet(livingTable, "rcs", 80, "fast.r"))` for `rcs` against `r sprintf("%.2f", tabGet(livingTable, "ModNegExp", 80, "fast.r"))` for `ModNegExp`, because a single curve fits each tree a little worse than its own curve would. RCS also varies from stand to stand: the middle half of the stands kept `r pct(rcsIqr[1])` to `r pct(rcsIqr[2])` of the 80-year swings, `ModNegExp` `r pct(mneIqr[1])` to `r pct(mneIqr[2])`.
+
+These are stands of living trees, all cored in 2025. That's a hard case for RCS, because the young rings come mostly from the early centuries and the oldest rings only from the recent ones. RCS was brought back for collections that mix living trees with dead ones, subfossil wood and old timbers, whose lifetimes are scattered through the centuries [@Briffa1992; @BriffaMelvin2011, p. 117]. The simulation can build one of those. Make four stands that died in 1250, 1500, 1750 and 2025, give them all the same climate, and put them together with `combine.rwl`. The disturbances and planted errors from chapter 2 are switched off, because the release and the stand event are tied to years in the last stand. Fifty collections for each kind of swing:
+
+```{r}
+#| label: rc-long
+#| warning: false
+endYears <- c(1250, 1500, 1750, 2025)
+longScores <- data.frame()
+for (window in c(80, 250)) {
+  for (seed in 1:50) {
+    climate <- makeClimate(window, seed + 2000, 800:2025)
+    widthsList <- list()
+    ageList <- list()
+    poList <- list()
+    for (g in seq_along(endYears)) {
+      stand <- sim.collection(seed = seed * 10 + g, climate = climate,
+                              end.year = endYears[g], release = NULL,
+                              event = NULL, errors = NULL,
+                              site = paste0("G", g))   # G1 to G4, unique names
+      widthsList[[g]] <- stand$truth$rwl
+      ageList[[g]] <- stand$truth$age
+      poList[[g]] <- truePo(stand)
+    }
+    widths <- combine.rwl(widthsList)
+    age <- combine.rwl(ageList)[rownames(widths), names(widths)]
+    po <- do.call(rbind, poList)    # stack the four offset tables
+    scores <- scoreMethods(widths, age, po, climate)
+    scores$window <- window
+    longScores <- rbind(longScores, scores)
+  }
+}
+longTable <- scoreTable(longScores)
+longTable[, c("method", "window", "slow.r", "slow.kept", "fast.r")]
+```
+
+```{r}
+#| label: rc-long-numbers
+#| include: false
+longCrn <- chron(as.rwi(widths / age))
+longSpan <- range(as.numeric(rownames(longCrn))[longCrn$samp.depth >= 10])
+```
+
+The chronology now runs from about `r longSpan[1]` to `r longSpan[2]` with 10 or more cores. `rcs` keeps `r pct(tabGet(longTable, "rcs", 80, "slow.kept"))` and `r pct(tabGet(longTable, "rcs", 250, "slow.kept"))` of the slow swings. `ModNegExp` keeps `r pct(tabGet(longTable, "ModNegExp", 80, "slow.kept"))` and `r pct(tabGet(longTable, "ModNegExp", 250, "slow.kept"))`, and the spline `r pct(tabGet(longTable, "Spline", 80, "slow.kept"))` and `r pct(tabGet(longTable, "Spline", 250, "slow.kept"))`. That is what RCS is for.
+
+### Offsets in the Simulation
+
+The simulation also settles the pith-offset question, because it can get the offsets wrong on purpose. Two ways. In the first, every offset is 10 rings too high. In the second, the cores miss the pith by as much as Gus Pearson's do, by dropping inner rings from each simulated core to match a draw from `gp.po`, and then `rcs` is run as if every core reached the pith. `dropInner` does the trimming.
+
+```{r}
+#| label: rc-offsets
+#| warning: false
+# remove the first k measured rings of each core, which moves its pith offset
+# out by k; k is drawn from Gus Pearson's offsets, leaving at least 60 rings
+dropInner <- function(widths, po) {
+  k <- sample(gp.po$pith.offset, ncol(widths), replace = TRUE) - 1L
+  for (i in seq_along(widths)) {
+    measured <- which(!is.na(widths[[i]]))
+    k[i] <- min(k[i], length(measured) - 60L)
+    widths[[i]][measured[seq_len(k[i])]] <- NA
+  }
+  po$pith.offset <- po$pith.offset + k
+  list(widths = widths, po = po)
+}
+
+offsetScores <- data.frame()
+for (seed in 1:100) {
+  stand <- sim.collection(seed = seed,
+                          climate = makeClimate(80, seed + 1000, 1400:2025))
+  climate <- setNames(stand$truth$climate$climate, stand$truth$climate$year)
+  trimmed <- dropInner(stand$truth$rwl, truePo(stand))
+  widths <- trimmed$widths
+  age <- stand$truth$age[rownames(widths), names(widths)]
+  age[is.na(widths)] <- NA
+  poShifted <- trimmed$po
+  poShifted$pith.offset <- poShifted$pith.offset + 10L
+  poNone <- trimmed$po
+  poNone$pith.offset <- 1L
+  for (offsets in c("true", "plus 10", "none")) {
+    po <- switch(offsets, "true" = trimmed$po, "plus 10" = poShifted,
+                 "none" = poNone)
+    scores <- scoreMethods(widths, age, po, climate)
+    scores <- scores[scores$method %in% c("truth", "rcs"), ]
+    scores$window <- offsets   # scoreTable groups by this column
+    offsetScores <- rbind(offsetScores, scores)
+  }
+}
+offsetTable <- scoreTable(offsetScores)
+offsetTable[offsetTable$method == "rcs",
+            c("window", "slow.r", "slow.kept", "trend")]
+```
+
+```{r}
+#| label: rc-offsets-numbers
+#| include: false
+offTruthTrend <- tabGet(offsetTable, "truth", "true", "trend")
+```
+
+Ten rings too many on every core changes almost nothing (compare the `plus 10` and `true` rows). The whole curve slides along with the cores, and each ring is still divided by about the value it would have been. Ignoring offsets that differ from core to core does cost something. The slow part follows the slow climate at `r sprintf("%.2f", tabGet(offsetTable, "rcs", "none", "slow.r"))` against `r sprintf("%.2f", tabGet(offsetTable, "rcs", "true", "slow.r"))` with the true offsets, and the chronology picks up a trend of `r sprintf("%.2f", tabGet(offsetTable, "rcs", "none", "trend") - offTruthTrend)` index units per century that the true chronology doesn't have. So estimate them if you can. An error of about the same size on every core costs next to nothing, because it's the differences between cores that matter.
+
+## What the Regional Curve Assumes
+
+The simulation flatters RCS. Every simulated tree ages on the same curve shape, a stem adding a fixed basal area each year, and how fast a tree grows has nothing to do with how old it gets. Those are two of the assumptions RCS makes. Trees in a forest break both.
+
+@BriffaMelvin2011 lay out the ways RCS goes wrong. Three of them matter for most collections.
+
+The first is trend-in-signal bias (p. 118-120). RCS takes the collection's average slope out of every tree. If the climate has a trend over the length of the chronology, some of that trend is in the average, and so some of it comes out. In a collection of living trees, where every old ring comes from recent years, this can take out a lot.
+
+The second is differing growth rates among trees growing at the same time (p. 121-122). One curve is too shallow for fast trees and too steep for slow ones. Divide a fast tree by it and its indices start high and fall. Divide a slow tree by it and they start low and rise. As long as fast and slow trees are mixed evenly through time, those slopes cancel in the chronology.
+
+The third is what Briffa and Melvin call modern-sample bias (p. 122-124, 128). In a living stand they often don't mix evenly. A tree has to grow slowly to grow old, because fast growers reach the size where trees die sooner, so the oldest trees in a collection tend to be slow ones (p. 122-123). And the only young trees big enough to core are the ones that grew fast. The early centuries of the chronology are made of slow trees, which RCS scores low, and the recent decades of fast ones, which it scores high. The result is a rising trend from the sampling alone (p. 128).
+
+The simulation can plant the first and the last. For trend-in-signal bias, give the climate a steady rise of two standard deviations from 1400 to 2025. For modern-sample bias, slow each tree down by an amount that depends on its age. Multiplying a tree's widths and its true age trend by the same factor is the same as changing how much basal area it adds each year, so `slowOldTrees` does just that.
+
+```{r}
+#| label: rc-bias-tools
+# slow the old trees and speed up the young ones: each tree's widths and age
+# trend are multiplied by exp(-b * z), where z is its age in standard units
+slowOldTrees <- function(stand, b) {
+  widths <- stand$truth$rwl
+  age <- stand$truth$age[rownames(widths), names(widths)]
+  treeAge <- max(time(widths)) - stand$truth$pith$pith + 1
+  factor <- exp(-b * (treeAge - mean(treeAge)) / sd(treeAge))
+  tree <- substr(names(widths), 1, nchar(names(widths)) - 1)
+  coreFactor <- factor[match(tree, stand$truth$pith$tree)]
+  for (i in seq_along(widths)) {
+    widths[[i]] <- round(widths[[i]] * coreFactor[i], 2)
+    age[[i]] <- age[[i]] * coreFactor[i]
+  }
+  list(widths = widths, age = age, factor = range(factor))
+}
+
+# white climate plus a straight-line rise of `rise` standard deviations
+trendClimate <- function(seed, years, rise) {
+  set.seed(seed)
+  setNames(rnorm(length(years)) +
+             rise * seq(-0.5, 0.5, length.out = length(years)), years)
+}
+```
+
+```{r}
+#| label: rc-bias
+#| warning: false
+trendScores <- data.frame()
+oldSlowScores <- data.frame()
+for (seed in 1:100) {
+  # a climate that rises through time
+  stand <- sim.collection(seed = seed,
+                          climate = trendClimate(seed + 1000, 1400:2025, 2))
+  widths <- stand$truth$rwl
+  age <- stand$truth$age[rownames(widths), names(widths)]
+  climate <- setNames(stand$truth$climate$climate, stand$truth$climate$year)
+  scores <- scoreMethods(widths, age, truePo(stand), climate)
+  scores$window <- "trend"
+  trendScores <- rbind(trendScores, scores)
+
+  # slow swings, and old trees that grew slowly
+  for (window in c(80, 250)) {
+    stand <- sim.collection(seed = seed,
+                            climate = makeClimate(window, seed + 1000, 1400:2025))
+    slowed <- slowOldTrees(stand, b = 0.2)
+    climate <- setNames(stand$truth$climate$climate, stand$truth$climate$year)
+    scores <- scoreMethods(slowed$widths, slowed$age, truePo(stand), climate)
+    scores$window <- window
+    oldSlowScores <- rbind(oldSlowScores, scores)
+  }
+}
+trendTable <- scoreTable(trendScores)
+trendTable[, c("method", "trend", "slow.kept")]
+oldSlowTable <- scoreTable(oldSlowScores)
+oldSlowTable[, c("method", "window", "slow.r", "trend")]
+```
+
+```{r}
+#| label: rc-bias-numbers
+#| include: false
+slowRange <- slowOldTrees(sim.collection(seed = 1), b = 0.2)$factor
+trendOf <- function(m) tabGet(trendTable, m, "trend", "trend")
+falseTrend <- function(m, w) {
+  tabGet(oldSlowTable, m, w, "trend") - tabGet(oldSlowTable, "truth", w, "trend")
+}
+```
+
+With a rising climate, the chronology made by dividing by the true age trend rises `r sprintf("%.3f", trendOf("truth"))` index units per century. `rcs` keeps `r sprintf("%.3f", trendOf("rcs"))` of that. `ModNegExp` keeps `r num(trendOf("ModNegExp"), 3)` and the spline `r num(trendOf("Spline"), 3)`, close to none. So RCS loses part of a trend that per-tree curves lose almost entirely. That's trend-in-signal bias, and here it takes `r pct(1 - trendOf("rcs") / trendOf("truth"))` of the trend.
+
+In the second run the oldest tree grows at `r sprintf("%.2f", slowRange[1])` times the stand's typical rate and the youngest at `r sprintf("%.2f", slowRange[2])`. That's a strong link between age and growth, stronger than most stands would have, chosen so the effect is easy to see. Compare the slow-part correlations with the stands above, where growth rate was unrelated to age. For 80-year swings `rcs` falls from `r sprintf("%.2f", tabGet(livingTable, "rcs", 80, "slow.r"))` to `r sprintf("%.2f", tabGet(oldSlowTable, "rcs", 80, "slow.r"))`, and for 250-year swings from `r sprintf("%.2f", tabGet(livingTable, "rcs", 250, "slow.r"))` to `r sprintf("%.2f", tabGet(oldSlowTable, "rcs", 250, "slow.r"))`. The chronology picks up a trend of `r sprintf("+%.2f", falseTrend("rcs", 80))` index units per century that the climate didn't put there. `ModNegExp` and the spline don't change at all, because each one scales a series to itself and never compares one tree's growth rate with another's.
+
+The C-method (`cms`, in [Basal Area](15BasalArea.qmd)) also lines series up by ring age with pith offsets, but fits one constant to each series instead of one curve to the collection. In the same simulation it kept most of the slow climate, about as much as `rcs`, and the link between age and growth didn't move it.
+
+### Fast and Slow at Gus Pearson
+
+Does Gus Pearson have the pattern? @Esper2003 make a single growth population the first requirement for RCS and suggest looking at the collection by groups before building anything (p. 85). In one of their collections, fast-growing living pines from a second site pushed the curve too high for the old, slow trees, and the chronology shifted after the early 1800s. They called that a failure of the method (p. 93).
+
+Gus Pearson has no second site to split off, but its cores can be sorted by how fast they grew. A fair measure has to compare trees at the same stage, so I use the ring age at which each core's radius reached 100 mm. The radius is the distance from the innermost ring to the pith (`gp.d2pith`, in mm) plus the widths, added up ring by ring.
+
+```{r}
+#| label: rc-fast-slow
+# the ring age at which each core's radius first reaches 100 mm
+ageAt100 <- sapply(names(gp.rwl), function(s) {
+  widths <- gp.rwl[[s]][!is.na(gp.rwl[[s]])]
+  radius <- gp.d2pith$d2pith[gp.d2pith$series == s] + cumsum(widths)
+  ringAge <- gp.po$pith.offset[gp.po$series == s] + seq_along(widths) - 1
+  ringAge[which(radius >= 100)[1]]
+})
+# fast, middle and slow thirds
+growthClass <- cut(ageAt100, quantile(ageAt100, c(0, 1/3, 2/3, 1)),
+                   include.lowest = TRUE, labels = c("fast", "middle", "slow"))
+table(growthClass)
+tapply(gpPithYear, growthClass, median)
+tapply(gpOuterAge, growthClass, median)
+```
+
+```{r}
+#| label: rc-fast-slow-numbers
+#| include: false
+classOf <- setNames(as.character(growthClass), names(gp.rwl))
+ageGrowthR <- cor(ageAt100, gpOuterAge)
+rwiByAge <- byRingAge(gpRcsRwi, gp.po)
+rwiByAge$class <- classOf[rwiByAge$series]
+early <- rwiByAge[rwiByAge$ring.age <= 50, ]
+earlyMean <- tapply(early$value, early$class, mean)
+gpPlain <- as.data.frame(gp.rwl)   # plain data frame, so rows stay put
+fastDepth1600 <- sum(!is.na(unlist(gpPlain["1600", classOf == "fast"])))
+fastDepth1900 <- sum(!is.na(unlist(gpPlain["1900", classOf == "fast"])))
+slowDepth1600 <- sum(!is.na(unlist(gpPlain["1600", classOf == "slow"])))
+```
+
+The fast third of the cores come from trees whose pith formed around `r round(median(gpPithYear[classOf == "fast"]))`, the slow third from trees whose pith formed around `r round(median(gpPithYear[classOf == "slow"]))`. The slow trees are the old ones, as Briffa and Melvin expect: the ring age at 100 mm correlates `r sprintf("%.2f", ageGrowthR)` with the age of the outer ring. In 1600 the collection has `r words(fastDepth1600)` fast cores and `r words(slowDepth1600)` slow ones. By 1900 it has `r words(fastDepth1900)` fast ones.
+
+Now divide by the one regional curve and look at the indices by ring age, as Briffa and Melvin did for Torneträsk (their Fig. 5.4c).
+
+```{r}
+#| label: rc-fast-slow-plot
+#| fig-cap: "Gus Pearson RCS indices by ring age, averaged over the fast and slow thirds of the cores. A single curve is too low for the fast trees and too high for the slow ones while they are young."
+classMeans <- aggregate(value ~ ring.age + class,
+                        data = rwiByAge[rwiByAge$class != "middle", ],
+                        FUN = mean)
+ggplot(classMeans[classMeans$ring.age <= 400, ],
+       aes(x = ring.age, y = value, linetype = class)) +
+  geom_hline(yintercept = 1, colour = "grey60") +
+  geom_line() +
+  labs(x = "Ring age (years from pith)", y = "Mean RCS index", linetype = NULL) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+
+Over their first 50 years of ring age, the fast cores average `r sprintf("%.2f", earlyMean["fast"])` and the slow cores `r sprintf("%.2f", earlyMean["slow"])`. That's the shape in Briffa and Melvin's figure. And because the slow cores dominate the early centuries and the fast ones the recent ones, it is the setup for a rising trend in the chronology. Whether Gus Pearson's chronology has one is the subject of the next section but one.
+
+## Smoothing the Curve
+
+A few choices inside `rcs` are worth knowing about.
+
+```{r}
+#| label: rc-options
+gpRcsAds <- rcs(gp.rwl, po = gp.po, method = "ads", rc.out = TRUE,
+                make.plot = FALSE)
+gpRcsMinN <- rcs(gp.rwl, po = gp.po, min.n = 10, rc.out = TRUE,
+                 make.plot = FALSE)
+gpRcsDiff <- rcs(gp.rwl, po = gp.po, ratios = FALSE, make.plot = FALSE)
+```
+
+```{r}
+#| label: rc-options-numbers
+#| include: false
+adsR <- cor(chron(gpRcsAds$rwi)$std[deep], gpRcsCrn$std[deep])
+minNEnd <- max(which(!is.na(gpRcsMinN$rc)))
+diffR <- cor(chron(gpRcsDiff)$std[deep], gpRcsCrn$std[deep])
+minNLost <- sum(is.na(unlist(gpRcsMinN$rwi)) & !is.na(unlist(gp.rwl)))
+```
+
+`method = "ads"` smooths the curve with the age-dependent spline from chapter 8 in place of the fixed spline. On Gus Pearson the two curves differ by `r sprintf("%.2f", abs(gpRcsAds$rc[100] - gpRc[100]))` mm at ring age 100 and `r sprintf("%.2f", abs(gpRcsAds$rc[400] - gpRc[400]))` mm at 400, and the chronologies correlate at `r sprintf("%.2f", adsR)`.
+
+`min.n` cuts the curve off where too few cores reach. With `min.n = 10` it ends at ring age `r minNEnd` instead of `r max(which(!is.na(gpRc)))`, and the `r minNLost` rings older than that get no index. `chron` averages the rest. I'd use it. The far end of the curve rests on a handful of old cores, and those cores are all the curve knows about very old rings.
+
+How many cores does a curve need? @Esper2003 thinned their 86 Gotland series at random to 75%, 50% and 25%. The curve held up. The chronology didn't, once it was down to one or two series in places, and they suggest at least five series in every period and more than 40 in all, for collections like theirs (p. 92-93). Gus Pearson has `r ncol(gp.rwl)`, and five or more in every year from `r min(gpYears[gpRcsCrn$samp.depth >= 5])`.
+
+Melvin's numbers from Torneträsk and Finnish Lapland point the same way. If 10 trees give a chronology a certain mean standard deviation after a 30-year high-pass filter, a 100-year high-pass needs 18 trees for the same, and an RCS chronology needs 62 [@BriffaMelvin2011, p. 140]. Slow variation takes more trees to pin down. More trees make the chronology less noisy. They don't remove the biases above (p. 140).
+
+Ratios or differences? `ratios = FALSE` subtracts the curve. Ratios inflate where the curve gets small, near 0.5 mm in Gotland [@Esper2003, p. 87; @CookPeters1997], and the Gus Pearson curve is `r sprintf("%.2f", gpRc[400])` mm at ring age 400. Here it makes little difference: the two chronologies correlate at `r sprintf("%.2f", diffR)`. [Detrending](08Detrending.qmd) has the longer story.
+
+## Gus Pearson Five Ways
+
+Here is the Gus Pearson chronology made with `rcs`, with and without pith offsets, and with three of the per-tree curves from chapter 8, smoothed with a 31-year running mean so the slow part shows.
+
+```{r}
+#| label: rc-gp-compare
+#| warning: false
+#| fig-cap: "Gus Pearson chronologies made five ways, as 31-year running means over the years with 10 or more cores."
+gpChrons <- list(
+  "rcs" = gpRcsCrn,
+  "rcs, no offsets" = gpRcsNoPoCrn,
+  "ModNegExp" = chron(detrend(gp.rwl, method = "ModNegExp")),
+  "AgeDepSpline" = chron(detrend(gp.rwl, method = "AgeDepSpline")),
+  "Spline" = chron(detrend(gp.rwl, method = "Spline")))
+comparePlot <- data.frame()
+for (m in names(gpChrons)) {
+  comparePlot <- rbind(comparePlot, data.frame(
+    year = gpYears[deep], method = m,
+    slow = smooth31(gpChrons[[m]]$std)[deep]))
+}
+comparePlot$method <- factor(comparePlot$method, levels = names(gpChrons))
+ggplot(comparePlot, aes(x = year, y = slow, colour = method)) +
+  geom_hline(yintercept = 1, colour = "grey60") +
+  geom_line(na.rm = TRUE) +
+  labs(x = "Year", y = "Index, 31-year running mean", colour = NULL) +
+  theme_minimal() +
+  theme(legend.position = "top")
+```
+
+```{r}
+#| label: rc-gp-numbers
+#| include: false
+slowSd <- sapply(gpChrons, function(crn) sd(smooth31(crn$std)[deep], na.rm = TRUE))
+blockMean <- function(crn, from, to) mean(crn$std[gpYears >= from & gpYears <= to])
+gpTrend <- sapply(gpChrons, function(crn) {
+  100 * coef(lm(crn$std[deep] ~ gpYears[deep]))[2]
+})
+names(gpTrend) <- names(gpChrons)
+```
+
+The per-tree curves are flatter, as chapter 8 would lead you to expect. The standard deviation of the smoothed chronology is `r sprintf("%.2f", slowSd["rcs"])` for `rcs`, `r sprintf("%.2f", slowSd["ModNegExp"])` for `ModNegExp`, `r sprintf("%.2f", slowSd["AgeDepSpline"])` for `AgeDepSpline` and `r sprintf("%.2f", slowSd["Spline"])` for the spline. They agree on when things happen and disagree on how big they were. From 1600 to 1649 `rcs` averages `r sprintf("%.2f", blockMean(gpRcsCrn, 1600, 1649))` and the spline `r sprintf("%.2f", blockMean(gpChrons[["Spline"]], 1600, 1649))`. From 1900 to 1949, `r sprintf("%.2f", blockMean(gpRcsCrn, 1900, 1949))` against `r sprintf("%.2f", blockMean(gpChrons[["Spline"]], 1900, 1949))`. Over the whole span `rcs` rises `r sprintf("%.2f", gpTrend["rcs"])` index units per century, `ModNegExp` `r num(gpTrend["ModNegExp"])` and the spline `r num(gpTrend["Spline"])`.
+
+Is that rise in the `rcs` chronology climate? It could be. It could also be the modern-sample bias from the last section, which Gus Pearson is set up for: slow old trees early, fast young trees late. Or it could be something that happened to the stand. Nothing in the ring widths can tell those apart. If the slow part of this chronology mattered to your question, the next step would be outside the widths: the stand's history, other chronologies from the region, a climate record. The fast and slow chronologies can at least be made separately and compared, which is the third exercise.
+
+## Choosing
+
+My opinions, and the reasons:
+
+- For most collections, a curve fitted to each tree, as in chapter 8. Most collections are one stand of living trees, which is where RCS is most likely to go wrong, and most questions are about years to decades, where per-tree curves do as well.
+- RCS when slow climate is the reason you're building the chronology, you have plenty of trees (Esper's 40 is a fair floor), their ages are spread widely, and best of all they didn't all live at the same time. That's the four-stand collection above, where RCS did best in the simulation by a wide margin.
+- Before trusting an RCS chronology, sort the trees by growth rate and look, as above. If fast and slow trees fall in different centuries, expect a trend that isn't climate. @BriffaMelvin2011 suggest separate curves for growth-rate classes (abstract, p. 113). `dplR` has no function for that, but `rcs` on each class, then `chron` on the combined indices, is a start. It has a cost, which they point out: some of the slow climate lives in the differences between the class means, and averaging the class chronologies throws it away (p. 140-141).
+- Pith offsets are worth estimating. An error that is about the same on every core does little harm.
+
+@Bunn2004 is my own simulation of the same question, from 2004. RCS beat negative exponential curves at multi-centennial scales overall, but in the runs with 15 trees the difference wasn't significant (squared coherency 0.76 against 0.79), while in the runs with 99 trees it was (0.90 against 0.81) (p. 85). At decadal and annual scales the two did about equally (p. 77). The simulation in this chapter agrees on both counts.
 
 ## Wrapping Up
 
+RCS keeps much more of the slow climate than a curve fitted to each tree. In the simulation it kept most of the slow climate in a stand of living trees and nearly all of it in a collection whose trees lived in different centuries. It does that by assuming every tree in the collection would have grown alike, and where that's wrong it makes trends of its own. When the oldest trees are the slow ones, as at Gus Pearson, RCS raises the recent end of the chronology whether the climate did or not. Pith offsets matter where they differ between cores.
+
+[Signal-Free](12SignalFree.qmd) goes after the trend-in-signal problem from the other side: it takes the common signal out of the series before fitting any curve, regional or not, and puts it back afterward.
+
 ## Exercises
 
+1. Run `rcs` on `gp.rwl` with `min.n = 5`, 10 and 20. Where does the curve end each time, and how many rings lose their index?
+2. Rerun the four-stand collection with every pith offset set to 1. Does ignoring the offsets cost more or less than in a single living stand?
+3. Fit `rcs` to the fast and slow thirds of Gus Pearson separately. How far apart are the two curves at ring age 50? Make a chronology from each and compare their trends.
+4. Change `b` in `slowOldTrees` to 0.1 and to 0.4. How big is the false trend each time?
+5. Repeat Esper's thinning experiment on Gus Pearson: drop half the trees at random (both cores of each), rebuild the curve and the chronology, and do it 20 times. Where do the chronologies disagree most?
+
 ## Further Reading
+
+- @BriffaMelvin2011 is the place to start. It covers where RCS came from and each of the biases in this chapter, with figures from Torneträsk, and the fixes the authors propose.
+- @Briffa1992 brought RCS back into dendroclimatology, on the Torneträsk pine chronology.
+- @Esper2003 test what RCS does when you change the pith offsets, the number of series and how indices are calculated, and when species or sites are mixed. Read it for the checks on whether a collection belongs under one curve.
+- @Cook1995 is the segment-length curse, the problem RCS answers.
+- @Bunn2004 compares RCS with negative exponential curves on simulated trees with a known signal.

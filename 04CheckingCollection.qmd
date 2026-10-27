@@ -21,6 +21,22 @@ co021 <- read.rwl("data/co021.rwl", format = "tucson")
 wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
 ```
 
+```{r}
+#| label: check-words
+#| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
+```
+
+`dplR`'s own `plot` methods draw some of the figures and `ggplot2` draws the rest.
+
 These are the files from the previous chapter, read the same way. That matters for `wa082`. The on-board copy holds a zero in 1900 where the file has no measurement, and this chapter is partly about that gap.
 
 ## Checking Mesa Verde
@@ -42,11 +58,11 @@ coRuns <- co021Findings[co021Findings$check == "RWL_CONSECUTIVE_ZERO", ]
 
 The top of the printout is the description. Mesa Verde's file has no header, so there is no site name or species to show, only the precision. The series average `r round(co021Check$meta$mean.length)` rings. The mean lag-one autocorrelation comes back in the next section. The last line of the description says the most. It is each series' correlation with a master built from all the other series, after a 32-year spline takes out the slow trend. At Mesa Verde that averages `r round(co021Check$meta$mean.cor, 2)`, with a standard deviation of `r round(co021Check$meta$sd.cor, 2)`, so every series agrees with the rest, and about equally well.
 
-Below the description are the findings. `rwl.check` runs `r nrow(rwl.check.catalogue())` checks in `r length(unique(rwl.check.catalogue()$group))` groups, and `rwl.check.catalogue()` lists them all with a line on each. Every finding has a severity. An error means the data can't be right as they stand: two series with identical measurements, a year in the future, a series that looks a year or more off. A warning means something will change a result or stop a function, and you have to decide what to do about it. A note is something you should know.
+Below the description are the findings. `rwl.check` runs `r words(nrow(rwl.check.catalogue()))` checks in `r words(length(unique(rwl.check.catalogue()$group)))` groups, and `rwl.check.catalogue()` lists them all with a line on each. Every finding has a severity. An error means the data can't be right as they stand: two series with identical measurements, a year in the future, a series that looks a year or more off. A warning means something will change a result or stop a function, and you have to decide what to do about it. A note is something you should know.
 
 Mesa Verde has no errors and no warnings. The `r nrow(co021Findings)` notes are of three kinds. `RWL_LOW_DEPTH` says the years before 1200 rest on fewer than two series, which is one core, 646118, on its own. `RWL_ZERO_RING` counts the absent rings: `r sum(co021 == 0, na.rm = TRUE)` of them, `r round(100 * mean(co021 == 0, na.rm = TRUE), 1)` percent of all the measurements. `RWL_CONSECUTIVE_ZERO` lists every place a series is missing more than one ring in a row, `r nrow(coRuns)` of them. The printout shows the first ten, and `as.data.frame(co021Check)` gives all of them as a table, one row per finding.
 
-Look at where the absent rings fall and some years keep coming back. In 1585, `r sum(co021["1585", ] == 0, na.rm = TRUE)` of the `r sum(!is.na(co021["1585", ]))` series have no ring at all, and `r sum(co021["1584", ] == 0 & co021["1585", ] == 0, na.rm = TRUE)` of them are missing both 1584 and 1585. Absent rings that line up across trees are dating evidence, and the crossdating chapters use them. The longest run at Mesa Verde is `r max(coRuns$n)` rings. Ten or more in a row would be a warning, `RWL_ZERO_RUN`, because a run that long is more likely a gap somebody filled with zeros than years the tree grew no ring at that core.
+Look at where the absent rings fall and some years keep coming back. In 1585, `r sum(co021["1585", ] == 0, na.rm = TRUE)` of the `r sum(!is.na(co021["1585", ]))` series have no ring at all, and `r sum(co021["1584", ] == 0 & co021["1585", ] == 0, na.rm = TRUE)` of them are missing both 1584 and 1585. Absent rings that line up across trees are dating evidence, and the crossdating chapters use them. The longest run at Mesa Verde is `r words(max(coRuns$n))` rings. Ten or more in a row would be a warning, `RWL_ZERO_RUN`, because a run that long is more likely a gap somebody filled with zeros than years the tree grew no ring at that core.
 
 Is `r round(100 * mean(co021 == 0, na.rm = TRUE), 1)` percent a lot? St. George and colleagues counted the absent rings in 2,359 Northern Hemisphere ring-width records from the ITRDB [@StGeorge2013]. Over all of them there was one absent ring for every 240 present, and 0.6 percent of Douglas-fir rings were absent. Mesa Verde has one for every `r round(sum(co021 > 0, na.rm = TRUE) / sum(co021 == 0, na.rm = TRUE))`. More than half of their records had no absent rings at all, and the ones with more than 2 percent were all in the American Southwest. Where many records in the Southwest lost a ring in the same year, the year was a severe drought. I haven't checked Mesa Verde's absent years against a drought record, so that's as far as I'll go here.
 
@@ -147,7 +163,7 @@ waDepth <- depth[depth$site == "wa082", ]
 firstWith <- function(d, k) min(d$year[d$n >= k])
 ```
 
-Mesa Verde has 5 series by `r firstWith(coDepth, 5)` and 10 by `r firstWith(coDepth, 10)`. It peaks at `r max(coDepth$n)` series from `r min(coDepth$year[coDepth$n == max(coDepth$n)])` to `r max(coDepth$year[coDepth$n == max(coDepth$n)])`, and it never has all `r ncol(co021)` at once, because 646118 had stopped long before the youngest series began. Hurricane Ridge has 10 series by `r firstWith(waDepth, 10)`, and all `r ncol(wa082)` only from `r min(waDepth$year[waDepth$n == ncol(wa082)])` to `r max(waDepth$year[waDepth$n == ncol(wa082)])`, except in 1900, when it has `r waDepth$n[waDepth$year == 1900]`. That one-year notch in the dashed line is 712011's gap. Sample depth counts measurements, so a year nobody measured comes off the count.
+Mesa Verde has five series by `r firstWith(coDepth, 5)` and 10 by `r firstWith(coDepth, 10)`. It peaks at `r max(coDepth$n)` series from `r min(coDepth$year[coDepth$n == max(coDepth$n)])` to `r max(coDepth$year[coDepth$n == max(coDepth$n)])`, and it never has all `r ncol(co021)` at once, because 646118 had stopped long before the youngest series began. Hurricane Ridge has 10 series by `r firstWith(waDepth, 10)`, and all `r ncol(wa082)` only from `r min(waDepth$year[waDepth$n == ncol(wa082)])` to `r max(waDepth$year[waDepth$n == ncol(wa082)])`, except in 1900, when it has `r waDepth$n[waDepth$year == 1900]`. That one-year notch in the dashed line is 712011's gap. Sample depth counts measurements, so a year nobody measured comes off the count.
 
 How many series is enough? That depends on how well they agree, which is why there is no single number. [Chronology Statistics](09ChronologyStats.qmd) works it out with the subsample signal strength, and [Chronology Building](10Chronologies.qmd) uses that to decide where a chronology should start. For now the figure says where the record is thin: the thirteenth century at Mesa Verde and most of the eighteenth at Hurricane Ridge.
 
@@ -214,7 +230,7 @@ None of these checks tells you whether the rings are dated correctly. Shift part
 
 ## Further Reading
 
-- @Wigley1984 is the paper behind "how many series is enough?" Their Figure 2 is a sample-depth plot much like the one in this chapter, for three English chronologies, and pages 206 and 207 work out how far back each one still stands in for the full collection. The answer runs from 4 cores at one site to 8 at another, depending on how well the cores agree, and they offer their 0.85 cutoff "only as a guide". [Chronology Statistics](09ChronologyStats.qmd) takes it up properly.
+- @Wigley1984 is the paper behind "how many series is enough?" Their Figure 2 is a sample-depth plot much like the one in this chapter, for three English chronologies, and pages 206 and 207 work out how far back each one still stands in for the full collection. The answer runs from four cores at one site to eight at another, depending on how well the cores agree, and they offer their 0.85 cutoff "only as a guide". [Chronology Statistics](09ChronologyStats.qmd) takes it up properly.
 - @StGeorge2013 is five pages on where absent rings turn up across the Northern Hemisphere, by genus, latitude and year. They counted the zeros in 2,359 files, after checking that it made no difference to count measurements of 0.001 mm as well, for investigators who mark an absent ring with the smallest value the format allows.
 - To add: Biondi and Qeadan (2008) on the Gini coefficient, once checked.
 - The `rwl.check` help page describes every check and the control values that tune them, including why the crossdating checks compare a series with its own collection instead of a fixed correlation.

@@ -26,6 +26,22 @@ co021Rwi <- detrend(co021, method = "Spline")
 wa082Rwi <- detrend(wa082, method = "Spline")
 ```
 
+```{r}
+#| label: crn-words
+#| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
+```
+
+`dplR`'s own `plot` methods draw some of the figures and `ggplot2` draws the rest.
+
 These are the same indices as in the last chapter, Mesa Verde (`co021`) and Hurricane Ridge (`wa082`), each detrended with a spline. Most of the work here is on Hurricane Ridge, because it is the collection where the decisions are hard.
 
 ## The Mean
@@ -67,7 +83,7 @@ round(gapValues, 2)
 c(mean = mean(gapValues), biweight = tbrm(gapValues))
 ```
 
-In `r gapYear` there are `r length(gapValues)` series. Most of them sit close together and a couple are far below. The arithmetic mean gets pulled toward the low ones. The biweight mean stays with the crowd.
+In `r gapYear` there are `r words(length(gapValues))` series. Most of them sit close together and a couple are far below. The arithmetic mean gets pulled toward the low ones. The biweight mean stays with the crowd.
 
 Is the crowd right? Not necessarily. Two cores with a narrow ring might be a measurement problem, or they might be the trees that got hit by something the others missed. The biweight mean makes a chronology that is harder to push around, which is usually what you want when you have twenty series and can't inspect every ring. With five series it can't tell an outlier from a third of your data. That is one more reason to care about the early years.
 
@@ -196,7 +212,7 @@ ggplot(earlyBoth, aes(x = year, y = std)) +
   theme_minimal()
 ```
 
-Why do they disagree? The depth rule counts cores and knows nothing else. It gives the same answer for a stand where the trees agree at 0.8 and a stand where they agree at 0.2, and it counts two cores from one tree as two. SSS counts trees and uses rbar. At Mesa Verde `r bothCutoffs["co021", "treesAtSss85"]` trees are already a good stand-in for all `r length(unique(co021Ids$tree))`. At Hurricane Ridge it takes `r bothCutoffs["wa082", "treesAtSss85"]`.
+Why do they disagree? The depth rule counts cores and knows nothing else. It gives the same answer for a stand where the trees agree at 0.8 and a stand where they agree at 0.2, and it counts two cores from one tree as two. SSS counts trees and uses rbar. At Mesa Verde `r words(bothCutoffs["co021", "treesAtSss85"])` trees are already a good stand-in for all `r length(unique(co021Ids$tree))`. At Hurricane Ridge it takes `r words(bothCutoffs["wa082", "treesAtSss85"])`.
 
 I use SSS, because a rule that ignores how well the trees agree is ignoring the thing that matters most. As the last chapter showed, SSS is relative to your own full sample, and 0.85 is a convention. If the answer to your research question depends on whether the chronology starts in `r bothCutoffs["wa082", "fiveSeries"]` or `r bothCutoffs["wa082", "sss85"]`, no cutoff will settle it. The trouble is in those years themselves: too few trees, agreeing too weakly.
 
@@ -410,7 +426,7 @@ stripYears <- stripRecord$years
 stripWorse <- stripYears$year[stripYears$eps.after < stripYears$eps.before]
 ```
 
-`r if (length(stripRecord$removed) == 1) "One series goes," else paste(length(stripRecord$removed), "series go,")` `r paste(stripRecord$removed, collapse = ", ")`, and EPS creeps from `r stripRecord$stats$eps[1]` to `r stripRecord$stats$eps[2]`. Don't stop reading there. The last lines of the printout say what that cost. From `r min(stripWorse)` to `r max(stripWorse)` the chronology has one tree fewer, and in those `r length(stripWorse)` years the EPS for the trees that are left is lower than it was. EPS over the whole span went up and a piece of the chronology got worse.
+`r if (length(stripRecord$removed) == 1) "One series goes," else paste(length(stripRecord$removed), "series go,")` `r paste(stripRecord$removed, collapse = ", ")`, and EPS creeps from `r stripRecord$stats$eps[1]` to `r stripRecord$stats$eps[2]`. Don't stop reading there. The last lines of the printout say what that cost. From `r min(stripWorse)` to `r max(stripWorse)` the chronology has one tree fewer, and in those `r words(length(stripWorse))` years the EPS for the trees that are left is lower than it was. EPS over the whole span went up and a piece of the chronology got worse.
 
 Here the damage is trivial. It won't always be. In the early years of a collection, where three or four trees carry everything, losing one of them is a bad trade for a gain in the third decimal place. Fowler and Boswijk checked for this year by year and threw out their own stripping in six of their thirty tries. The function can't make that call for you. The record of what it did rides along with the result as `attr(wa082Strip, "dplR.strip")`.
 
@@ -440,7 +456,7 @@ row.names(stripCompare) <- c("20-year spline",
 stripCompare
 ```
 
-From the same `r ncol(wa082)` series, stripping removes `r stripCompare$removed[1]`, `r stripCompare$removed[2]` or `r stripCompare$removed[3]`, depending on how it detrends. Look at the EPS before stripping to see why. After a 20-year spline the series agree well, so hardly any of them looks like a drag. Keep the slower variation and the trees disagree more, and the disagreement is there to be judged. If you run the 200-year version yourself, `dplR` will warn that `r sum(colSums(!is.na(wa082)) < 200)` of these series are shorter than 200 years. It is right to.
+From the same `r ncol(wa082)` series, stripping removes `r words(stripCompare$removed[1])`, `r words(stripCompare$removed[2])` or `r words(stripCompare$removed[3])`, depending on how it detrends. Look at the EPS before stripping to see why. After a 20-year spline the series agree well, so hardly any of them looks like a drag. Keep the slower variation and the trees disagree more, and the disagreement is there to be judged. If you run the 200-year version yourself, `dplR` will warn that `r sum(colSums(!is.na(wa082)) < 200)` of these series are shorter than 200 years. It is right to.
 
 Which answer do you use? The one that judges the series on what the chronology keeps. Detrend the way you mean to, then hand `strip.rwl` the indices.
 
@@ -458,7 +474,7 @@ stripRecord2 <- attr(wa082RwiStrip, "dplR.strip")
 stripYears2 <- stripRecord2$years
 ```
 
-Then read the cost before you believe it. This time `r length(stripRecord2$removed)` series are gone and a whole tree with them: `r stripRecord2$stats$trees[1]` trees became `r stripRecord2$stats$trees[2]`. There are fewer trees in `r sum(stripYears2$n.after < stripYears2$n.before)` of the `r nrow(stripYears2)` years. All of that bought an EPS of `r stripRecord2$stats$eps[2]`, up from `r stripRecord2$stats$eps[1]`.
+Then read the cost before you believe it. This time `r words(length(stripRecord2$removed))` series are gone and a whole tree with them: `r stripRecord2$stats$trees[1]` trees became `r stripRecord2$stats$trees[2]`. There are fewer trees in `r sum(stripYears2$n.after < stripYears2$n.before)` of the `r nrow(stripYears2)` years. All of that bought an EPS of `r stripRecord2$stats$eps[2]`, up from `r stripRecord2$stats$eps[1]`.
 
 Would I take that trade? I'd want to look at those cores first. A series that lowers EPS is one that disagrees with its neighbors, and EPS has no idea why. It might be a badly measured core. It might be the one tree on the wet side of the plot, in which case it is telling you something about the stand that the other trees are not. The [Chronology Statistics](09ChronologyStats.qmd) chapter goes through what EPS can and can't say, and Buras [-@Buras2017] is the short version. Use `strip.rwl` to find the series worth a second look. Let a second look at the cores decide what happens to them.
 

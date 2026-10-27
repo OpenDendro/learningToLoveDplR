@@ -1,243 +1,363 @@
 # Smoothing and Filtering
 
-In this chapter we cover smoothing and filtering a tree-ring chronology. We start in the time domain with moving averages, the Hanning filter, splines, and loess, and then filter by frequency with Butterworth filters from the `signal` package. The next chapter looks at autocorrelation and the frequency domain.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-27, replacing the 2022 text. Every number in the text is computed when the book builds. Open questions are in the backlog.
+:::
 
-## Introduction
+## Big Idea
 
-The Dendrochronology Program Library in `R` (`dplR`) is a package for dendrochronologists to handle data processing and analysis. This chapter gives an introduction to smoothing and filtering in `dplR` and looks at some functions in other packages.
+The urge to draw a smooth line through a chronology is almost irresistible. It's a sickness that dendro folks have. And there are a lot of ways to draw one: running means, Hanning windows, splines, loess, Butterworth filters. They all produce a curve that looks equally believable.
 
-However, this document does not purport to be any sort of authority on time series analysis at all! There are many wonderful  R-centric books on time series analysis that can tell you about the theory and practice of working with time-series data. 
+Each of them is a filter, and that's the idea behind this chapter. A smoother lets slow wiggles through and holds fast ones back, and for a cycle of any length you can ask how much of it survives. The answer, as a function of the cycle's length, is the filter's frequency response. Two smoothers with the same nominal window can have very different responses, and one of the most common ones turns some cycles upside down.
 
-This is kind of a greatest hits of time-series tools that are commonly used in dendro, and not a reference text of any kind.
+You have met a filter already. The spline in [Detrending](08Detrending.qmd) is one, used from the other side: the curve is the slow part and the index is what's left. So detrending is filtering too, and the segment-length curse is a statement about a frequency response.
 
-### Load libraries
+The way to find a response is the same trick the book uses everywhere. Plant something you know and see what comes back. Here the planted thing is a sine wave of known length. Feed it in, see how big it is coming out, and repeat for every length you care about. After that the chapter turns to `pass.filt`, `dplR`'s Butterworth filter, which is the tool I'd reach for when you want to split a chronology into slow and fast parts, and then to two places where filtered series mislead: the ends of the record, and correlations between smoothed series.
 
-We will be using `dplR` in here as well as a few other packages that are useful for working with time-series data. If you haven't installed these packages yet you will want to using the `install.packages()` function.
+General smoothing (loess, aggregating to coarser time steps, filling gaps) is in the Filtering and Smoothing chapter of my [time series book](https://timeseries.andybunn.org). This chapter sticks to what tree-ring work needs.
+
+## Packages
 
 ```{r}
+#| label: smo-setup
+#| message: false
 library(dplR)
-```
-
-
-## Data Sets
-
-Throughout this document we will use the on-board data set `co021` which gives the raw ring widths for Douglas fir *Pseudotsuga menziesii* at Mesa Verde in Colorado, USA. There are 35 series spanning 788 years.
-
-```{r}
+library(ggplot2)
 data(co021)
-co021.sum <- summary(co021)
-head(co021.sum)
-plot(co021, plot.type="spag")
+data(wa082)
+coCrn <- chron(detrend(co021, method = "Spline"))
+waCrn <- chron(detrend(wa082, method = "Spline"))
 ```
 
-These data are gorgeous with long segments (`r floor(mean(co021.sum$year))`), high interseries correlation (`r round(mean(co021.sum$ar1),2)`), and high first-order autocorrelation (`r round(mean(interseries.cor(co021)[, 1]),2)`).
+`ggplot2` draws the figures. `pass.filt` uses two functions from the `signal` package, `butter` and `filtfilt`, but you don't have to load `signal` to use it. `dplR` imports it. (If you do load it, its own `hanning` hides `dplR`'s, and `dplR::hanning` gets `dplR`'s back.)
 
-Let us make a mean-value chronology of the `co021` data after detrending
-each series with a frequency response of 50\% at a wavelength of 2/3 of
-each series's length. 
-
+The chronologies are Mesa Verde (`co021`) and Hurricane Ridge (`wa082`), each detrended with the default spline and averaged with `chron`, as in [Chronology Building](10Chronologies.qmd).
 
 ```{r}
-#| warning: false
-co021.rwi <- detrend(co021, method="Spline")
-co021.crn <- chron(co021.rwi)
+#| label: smo-words
+#| include: false
+# counts of zero to nine as words in the prose, larger ones as numerals
+words <- function(n) {
+  ifelse(n >= 0 & n <= 9,
+         c("zero", "one", "two", "three", "four", "five", "six", "seven",
+           "eight", "nine")[n + 1], as.character(n))
+}
 ```
 
-We can plot the chronology with a smoothing spline with a 20-year period:
+## Sine In, Sine Out
+
+Here is the experiment. Make a long cosine wave with a period of, say, 40 years. Smooth it. If the smoother keeps the cycle, what comes out is the same wave at the same size. If it removes the cycle, what comes out is flat. In between, it's the same wave, smaller. The ratio of the size coming out to the size going in is the response at a period of 40 years.
+
+`response` does that for one smoother and one period. It regresses the output on the input over the middle of a 2,000-year series, well away from the ends, and the slope is the ratio. A slope of 1 means the cycle passed untouched, 0 means it's gone, and a negative slope means the cycle came out upside down.
 
 ```{r}
-plot(co021.crn, add.spline=TRUE, nyrs=20)
+#| label: smo-response-fn
+# How much of a cycle of length `period` survives `smoother`: the slope of
+# the smoothed wave on the original over the middle 1,000 years
+response <- function(smoother, period, n = 2000) {
+  wave <- cos(2 * pi * (1:n) / period)
+  smoothed <- smoother(wave)
+  middle <- 501:1500
+  coef(lm(smoothed[middle] ~ wave[middle]))[2]
+}
 ```
 
-## Smoothing
-
-Very often one wants to smooth data to analyze or work only with particular aspects of the data. This kind of analysis is a big deal in time-series analysis. Smoothing is a way of isolating different frequencies of data but still thinking in the time domain. One such mark that we already alluded to above is the use of smoothing splines to detrend and filter tree-ring data. The urge to smooth a time series when we plot it is almost irresistible. It's a sickness that dendro folks have. There are many different ways of smoothing and we will look at couple here.  
-
-The `co021.crn` object has two columns, the first giving the chronology
-and the second the sample depth during that year. Let's grab the years and the standard chronology and store them in their own objects.
+Four smoothers, each set to 32 years. A running mean over 32 years uses `filter` from base R (`stats::filter`, with equal weights of 1/32). `hanning` is `dplR`'s Hanning window, which weights the middle of the window more than the edges. `caps` is the cubic smoothing spline `detrend` uses, here with `nyrs = 32`. And `pass.filt` is a low-pass Butterworth filter with a cutoff at 32 years. The `smoothers` list holds each one as a small function of one argument, so `response` can call any of them the same way.
 
 ```{r}
-yrs <- time(co021.crn)
-dat <- co021.crn$std
+#| label: smo-response
+smoothers <- list(
+  "Running mean" = function(x) as.vector(stats::filter(x, rep(1 / 32, 32))),
+  "Hanning" = function(x) hanning(x, n = 32),
+  "Spline" = function(x) caps(x, nyrs = 32),
+  "Butterworth" = function(x) pass.filt(x, W = 32, type = "low")
+)
+periods <- c(seq(2, 20, by = 0.5), seq(21, 100, by = 1), seq(105, 200, by = 5))
+
+# one row per smoother and period
+responses <- data.frame()
+for (s in names(smoothers)) {
+  for (p in periods) {
+    responses <- rbind(responses,
+                       data.frame(smoother = s, period = p,
+                                  response = response(smoothers[[s]], p)))
+  }
+}
+responses$smoother <- factor(responses$smoother, levels = names(smoothers))
 ```
-
-### Moving (running) average
-
-Centered moving averages (aka running averages) tend to be the first smoothing method that most people learn. Let's revisit them. These have the advantage of being dirt simple. Below we will see that they emphasize low frequency in the examples below (at 32, 64, and 128 years) but retain some jaggedness too.
-
-We will use the base `filter` function which is a straightforward convolution filter. As with any function always you can see the help file for details (`?filter`). 
 
 ```{r}
-ma32 <- filter(x=dat, filter=rep(x=1/32,times=32), sides=2)
-ma64 <- filter(x=dat, filter=rep(x=1/64,times=64), sides=2)
-ma128 <- filter(x=dat, filter=rep(x=1/128,times=128), sides=2)
-
-# Change plotting parameters
-par(mar=rep(2.5,4),mgp=c(1.2,0.25,0),tcl=0.5, xaxs="i",yaxs="i")
-
-my.cols <- c("#1B9E77", "#D95F02", "#7570B3")
-plot(yrs,dat,type="l",xlab="Year",ylab="RWI",col="grey")
-abline(h=1)
-lines(yrs,ma128, col = my.cols[1], lwd = 2)
-lines(yrs,ma64, col = my.cols[2], lwd = 2)
-lines(yrs,ma32, col = my.cols[3], lwd = 2)
-axis(3);axis(4)
+#| label: smo-response-plot
+#| fig-cap: "The frequency response of four smoothers, each set to 32 years, measured by passing cosine waves of each period through them. The dotted line is 32 years, and the dashed line is half the cycle kept."
+ggplot(responses, aes(x = period, y = response, colour = smoother)) +
+  geom_hline(yintercept = c(0, 0.5, 1), linetype = c(1, 2, 1),
+             colour = "grey60") +
+  geom_vline(xintercept = 32, linetype = 3) +
+  geom_line(linewidth = 0.8) +
+  scale_x_log10(breaks = c(2, 5, 10, 20, 32, 50, 100, 200)) +
+  labs(x = "Period (years)", y = "Share of the cycle kept",
+       colour = NULL) +
+  theme_minimal()
 ```
-
-### Hanning
-
-The Hanning filter is similar to the moving average in the sense that the curve emphasizes low frequency variability and loses the jaggedness over the moving average. It's also a  simple filter (look at the code by typing `hanning` at the `R` prompt) but it also is a start into thinking in the frequency domain. It's part of a family of functions called window functions that are zero-valued outside of some interval chosen by the user. It's used quite a bit by time-series wonks and it is implemented in `dplR` with the function `hanning`. I'll skip the theory here but it's a great precursor to the work we will do with spectral analysis below.
 
 ```{r}
-han32 <- hanning(dat,n=32)
-han64 <- hanning(dat,n=64)
-han128 <- hanning(dat,n=128)
-
-par(mar=rep(2.5,4),mgp=c(1.2,0.25,0),tcl=0.5, xaxs="i",yaxs="i")
-plot(yrs,dat,type="l",xlab="Year",ylab="RWI",col="grey")
-abline(h=1)
-lines(yrs,han128, col = my.cols[1], lwd = 2)
-lines(yrs,han64, col = my.cols[2], lwd = 2)
-lines(yrs,han32, col = my.cols[3], lwd = 2)
-axis(3);axis(4)
+#| label: smo-response-numbers
+#| include: false
+# the response of one smoother at one period, from the table
+r <- function(s, p) responses$response[responses$smoother == s &
+                                         responses$period == p]
+# the period at which a smoother keeps half the cycle (closest in the table)
+half <- function(s) {
+  d <- responses[responses$smoother == s & responses$period >= 10, ]
+  d$period[which.min(abs(d$response - 0.5))]
+}
+maRows <- responses[responses$smoother == "Running mean", ]
+maWorst <- maRows[which.min(maRows$response), ]
+hanWorst <- min(responses$response[responses$smoother == "Hanning"])
 ```
 
-Like the moving average the smooth is shorter than the input data. This is too bad because it is nice to preserve the ends of the data but there is much wringing of hands and gnashing of teeth about the "right" way of running a smoothing algorithm where the data are sparse. This end-member problem is the subject of a lot of work in the time-series literature.
+All four let long cycles through and stop short ones, and all four are labeled "32 years". After that they part ways.
+
+The spline and the Butterworth filter both keep exactly half the cycle at 32 years. That is how they are defined. The Butterworth falls off much more steeply on either side of that point. At 20 years it keeps `r sprintf("%.2f", r("Butterworth", 20))` against the spline's `r sprintf("%.2f", r("Spline", 20))`, and at 50 years `r sprintf("%.2f", r("Butterworth", 50))` against `r sprintf("%.2f", r("Spline", 50))`. A steep response is what you want when you mean to say "the part slower than 32 years" and have it mean that. The spline's gentle slope is why it makes a nice line on a plot. Neither is better in general.
+
+The Hanning window keeps half the cycle at about `r half("Hanning")` years, close to its nominal length, and it never goes much below zero (the worst is `r sprintf("%.3f", hanWorst)`).
+
+The running mean is the odd one. It keeps half the cycle at about `r half("Running mean")` years, so a "32-year running mean" smooths quite a bit more than its name suggests. And below 32 years its response goes negative. The worst case is a period of about `r maWorst$period` years, where it keeps `r sprintf("%.2f", maWorst$response)` of the cycle. The cycle comes out at a fifth of its size and upside down. *Methods of Dendrochronology* [@CookBook], which everyone calls the Cook Book, recommends against equally weighted moving averages for this reason [@Cook1990, p. 111].
+
+### A Cycle Turned Over
+
+What does an upside-down cycle look like? Plant a cycle of `r maWorst$period` years and run the 32-year mean over it.
 
 ```{r}
-head(data.frame(dat,ma32, han32), n = 20)
-tail(data.frame(dat,ma32, han32), n = 20)
+#| label: smo-flip
+#| fig-cap: "A planted cycle of about 22 years (gray) and its 32-year running mean (black). The running mean peaks where the cycle bottoms out."
+#| fig-height: 3
+yrs <- 1:200
+planted <- cos(2 * pi * yrs / maWorst$period)
+runMean <- smoothers[["Running mean"]](planted)
+flip <- data.frame(year = yrs, planted = planted, runMean = runMean)
+ggplot(flip, aes(x = year)) +
+  geom_line(aes(y = planted), colour = "grey60") +
+  geom_line(aes(y = runMean), linewidth = 0.8, na.rm = TRUE) +
+  labs(x = "Year", y = NULL) +
+  theme_minimal()
 ```
 
-### Splines
+Every high in the smooth sits on a low in the data. On a chronology the cycle is buried in noise and you'd never see the flip. You'd see a smooth line with bumps in it, and some of those bumps are cycles of 16 to 32 years turned upside down. (Cycles of 8 to 11 years flip too, though by much less.) If you want a running mean anyway (they are easy to explain), know that its bumps at those periods can't be trusted, and leave the decadal story to one of the other three.
 
-In the world of tree rings, you'll see frequent mention of cubic smoothing splines and typically a citation for something by Ed Cook who is the greatest quantitative dendrochronologist of all time. His work has left an enduring mark on nearly every aspect of quantitative dendrochronology. For splines, Cook and Peters [-@Cook1981] is the canonical citation but we would point you to Cook and Kairiukstis [@Cook1990] for an overview. `dplR` fits this spline with the `caps` function, which is a wrapper for Cook's Fortran code. If you have older scripts you will see `ffcsaps` in them. That was the original version, written in R and much slower. The name is deprecated and now hands its arguments to `caps` with a warning, so use `caps`.
+## The Spline From Both Sides
 
-The important argument for users is the `nyrs` argument which fits a spline of that many "years" to the data. All the functions in dplR assume annual resolution but they don't really care if you are using data with a different frequency.
+The spline's response has a formula, so the measurements above can be checked. Cook and Peters [-@Cook1981] gave the response of the cubic smoothing spline as
+
+$$u(f) = 1 - \frac{1}{1 + p\,\dfrac{\cos 2\pi f + 2}{6(\cos 2\pi f - 1)^2}}$$
+
+where $f$ is frequency (one over the period) and $p$ sets the stiffness [@Cook1990, p. 111]. You don't choose $p$ directly. You say what share of the cycle to keep at a period of `nyrs` years, which is `caps`'s `f` argument (0.5 unless you change it), and $p$ follows. `splineResponse` does the algebra.
 
 ```{r}
-spl128 <- caps(dat,nyrs=128)
-spl64 <- caps(dat,nyrs=64)
-spl32 <- caps(dat,nyrs=32)
-
-par(mar=rep(2.5,4),mgp=c(1.2,0.25,0),tcl=0.5, xaxs="i",yaxs="i")
-my.cols <- c("#1B9E77", "#D95F02", "#7570B3")
-plot(yrs,dat,type="n",xlab="Year",ylab="RWI",axes=FALSE)
-grid(col="black",lwd=0.5)
-abline(h=1)
-lines(yrs,dat,col="grey",lwd=1)
-lines(yrs,spl128,col=my.cols[1],lwd=2)
-lines(yrs,spl64,col=my.cols[2],lwd=2)
-lines(yrs,spl32,col=my.cols[3],lwd=2)
-axis(1);axis(2);axis(3);axis(4)
-legend("topright", c("dat", "128yrs", "64yrs", "32yrs"), 
-       lwd = 2, col = c("grey",my.cols),bg = "white")
-box()
+#| label: smo-cook-peters
+# The Cook and Peters (1981) response of a spline that keeps the share `f`
+# of a cycle of `nyrs` years
+splineResponse <- function(period, nyrs, f = 0.5) {
+  # solve u(1 / nyrs) = f for the stiffness p
+  w0 <- 2 * pi / nyrs
+  p <- (f / (1 - f)) * 6 * (cos(w0) - 1)^2 / (cos(w0) + 2)
+  # then the response at every period
+  w <- 2 * pi / period
+  1 - 1 / (1 + p * (cos(w) + 2) / (6 * (cos(w) - 1)^2))
+}
+measured <- responses$response[responses$smoother == "Spline"]
+predicted <- splineResponse(periods, nyrs = 32)
+max(abs(measured - predicted))
 ```
 
-### Loess
+The measured and predicted responses agree to `r floor(-log10(max(abs(measured - predicted))))` decimal places at every period. So `caps` is doing what the formula says.
 
-We will highlight a filter used commonly in time-series analysis but largely ignored in dendro. We've become increasingly fond of the loess smoother which uses a local, linear polynomial fit to smooth data. The parameter to adjust is the span `f`. Because `f` is the proportion of points used in the smoothing, the smaller the number the less smooth the curve will be. E.g., our series is 788 years long. If we want something that approaches a 25-year smooth we can take 25 over 788 and use 0.0317 of the points in the fit. 
+Now turn it around. `detrend` with `method = "Spline"` fits `caps` to each series and divides the series by it. The curve is the low-pass part. The index is what's left, the high-pass part, and its response is close to one minus the curve's. (Division and subtraction aren't quite the same thing, but near an index of 1 they are close.) By default the spline keeps half the cycle at 67% of the series length [@Cook1990, p. 114].
 
 ```{r}
-n <- length(yrs)
-f128 <- 128/n
-f128.lo <- lowess(x = yrs, y = dat, f = f128)
-f64 <- 64/n
-f64.lo <- lowess(x = yrs, y = dat, f = f64)
-f32 <- 32/n
-f32.lo <- lowess(x = yrs, y = dat, f = f32)
-
-par(mar=rep(2.5,4),mgp=c(1.2,0.25,0),tcl=0.5,xaxs="i",yaxs="i")
-plot(yrs,dat,type="n",xlab="Year",ylab="RWI",axes=FALSE)
-grid(col="black",lwd=0.5)
-abline(h=1)
-lines(yrs,dat,col="grey",lwd=1)
-lines(yrs,f128.lo$y,col=my.cols[1],lwd=2)
-lines(yrs,f64.lo$y,col=my.cols[2],lwd=2)
-lines(yrs,f32.lo$y,col=my.cols[3],lwd=2)
-axis(1);axis(2);axis(3);axis(4)
-legend("topright", c("dat", "f128", "f64", "f32"), 
-       lwd = 2, col = c("grey",my.cols),bg = "white")
-box()
+#| label: smo-detrend-side
+waLengths <- colSums(!is.na(wa082))
+typicalLength <- median(waLengths)
+defaultNyrs <- floor(0.67 * typicalLength)
+# the share of each cycle left in the index
+1 - splineResponse(c(25, 50, 100, 150, 200), nyrs = defaultNyrs)
 ```
-
-These smoothing lines above are essentially eye candy. We can use filtering for more sophisticated analysis.
-
-## High-pass, Low-pass, and Bandpass Filtering
-
-Another common technique used in tree-ring analysis is to filter data like we did above with moving averages, splines, and so on but doing so in the frequency domain explicitly rather than in the time domain. For instance, we might want to remove the high frequencies from a data set and leave the low frequencies (low-pass filtering) or vice versa (high-pass filtering). Or extract specific frequencies and discard others (band-pass and stop-pass filtering).
-
-Let's look at the `signal` library.^[Loading `signal` masks some functions, including `hanning` from `dplR`.]
 
 ```{r}
-library(signal)
+#| label: smo-detrend-side-numbers
+#| include: false
+indexKeeps <- function(p) 1 - splineResponse(p, nyrs = defaultNyrs)
+pct <- function(x) paste0(round(100 * x), "%")
 ```
 
-We can start low-pass filtering in `R` with the Butterworth filter. We will fit two 4th order filters with frequencies of 0.2 and 0.05.
+The typical Hurricane Ridge core is `r typicalLength` rings long, so its default spline has `nyrs` of `r defaultNyrs`. The index keeps `r pct(indexKeeps(50))` of a 50-year cycle, `r pct(indexKeeps(100))` of a 100-year cycle and `r pct(indexKeeps(200))` of a 200-year cycle. That last number is the segment-length curse from chapter 8 in one line. Most of a 200-year swing in climate goes out of a `r typicalLength`-ring core with the age trend, and averaging more cores doesn't bring it back [@Cook1995].
+
+The same spline is used a third time when you plot a chronology. `plot(coCrn, add.spline = TRUE)` draws `caps` through the chronology, with `nyrs` at a third of its length unless you give one. That's the low-pass side again, used to look at the chronology.
+
+## Butterworth Filters with pass.filt
+
+When I want to split a chronology into bands and then do something with the pieces, I use `pass.filt`. It wraps a Butterworth filter from the `signal` package, with the padding at the ends done for you (more on that below).
+
+Its arguments are few. `W` is the cutoff, given either as a frequency (cycles per year, less than 1) or as a period in years (more than 1), so `W = 0.05` and `W = 20` mean the same thing. `type` is `"low"`, `"high"`, `"pass"` or `"stop"`, and the last two take a pair of cutoffs. `n` is the order of the filter, which sets how steep the response is (4 by default; higher is steeper). `method = "ChebyshevI"` swaps in a Chebyshev filter, which is steeper still at the cost of some ripple in the band it keeps.
+
+`pass.filt` runs the filter forward through the series and then backward (`signal::filtfilt`). A filter run one way shifts the timing of what it keeps. Running it both ways cancels the shift, so a peak in the filtered series sits in the same year as the peak in the chronology. It also squares the response, which is why the Butterworth curve above keeps exactly half the cycle at the cutoff.
+
+Here is Mesa Verde in three pieces: periods longer than 32 years, periods from 5 to 20 years, and periods shorter than 5 years.
 
 ```{r}
-# here are two frequencies that we will use for demonstrating filtering
-f1 <- 0.2 # period of 5
-f2 <- 0.05 # period of 20
-
-# Initialize the butterworth filter.
-# Multiply freq by 2
-f1Low <- butter(n=4, W=f1*2, type="low")
-f2Low <- butter(n=4, W=f2*2, type="low")
-
-# We will use filtfilt do run the filter. 
-# But before that there is a wrinkle. We have to 
-# mirror and extend the data near the edge to 
-# avoid end effects. The matlab/octave versions do something 
-# like this behind the scenes I think. Regardless, it
-# is a simple form of padding.
-
-n <- length(dat)
-# create a pas that is adds a 1/4 of the length to the front and
-# back of the data. This can be tuned according to the freqs in question
-# and there is nothing special about 1/4
-pad <- floor(n/4)
-# pad the data
-datPad <- c(dat[pad:1],dat,dat[n:(n-pad)]) 
-
-# run the filter  
-datF1Low <- filtfilt(f1Low, datPad)
-datF2Low <- filtfilt(f2Low, datPad)
-# unpad the filtered data
-datF1Low <- datF1Low[(pad+1):(n+pad)]
-datF2Low <- datF2Low[(pad+1):(n+pad)]
-
-par(mar=rep(2.5,4),mgp=c(1.2,0.25,0),tcl=0.5,xaxs="i",yaxs="i")
-plot(yrs,dat,type="n",xlab="Year",ylab="",axes=FALSE)
-grid(col="black",lwd=0.5)
-abline(h=1)
-lines(yrs,dat,col="grey80",lwd=1)
-lines(yrs,datF1Low,col=my.cols[1],lwd=1.5)
-lines(yrs,datF2Low,col=my.cols[2],lwd=2)
-axis(1);axis(2);axis(3);axis(4)
-legend("topright", c("f < 0.2", "f < 0.05"), 
-       lwd = 2, col = c(my.cols[1:2]),bg = "white")
-box()
+#| label: smo-passfilt
+coStd <- coCrn$std
+coYears <- time(coCrn)
+coLow <- pass.filt(coStd, W = 32, type = "low")
+coBand <- pass.filt(coStd, W = c(5, 20), type = "pass")
+coHigh <- pass.filt(coStd, W = 5, type = "high")
 ```
-
-We could repeat this with high-pass filters by changing `type="high"` when we first make the filter. We could also filter to include only specified frequencies by providing the lower and upper bands. E.g., `butter(n=4, W=c(f2,f1)*2, type="pass")`.
 
 ```{r}
-f1f2Pass <- butter(n=4, W=c(f2,f1)*2, type="pass")
-datPass <- filtfilt(f1f2Pass, datPad)
-datPass <- datPass[(pad+1):(n+pad)]
-
-par(mar=rep(2.5,4),mgp=c(1.2,0.25,0),tcl=0.5,xaxs="i",yaxs="i")
-plot(yrs,datPass,type="n",xlab="Year",ylab="",axes=FALSE)
-grid(col="black",lwd=0.5)
-abline(h=0)
-lines(yrs,datPass,col=my.cols[3],lwd=1.5)
-axis(1);axis(2);axis(3);axis(4)
-legend("topright", "0.05 < f < 0.2", 
-       lwd = 2, col = c(my.cols[3]),bg = "white")
-box()
-
+#| label: smo-passfilt-plot
+#| fig-height: 6
+#| fig-cap: "The Mesa Verde chronology split by pass.filt. Top: the chronology (gray) and its low-pass part, periods longer than 32 years. Middle: periods from 5 to 20 years. Bottom: periods shorter than 5 years. The middle and bottom panels are centered on the chronology's mean."
+# the pieces stacked for ggplot, one panel each
+pieces <- rbind(
+  data.frame(year = coYears, value = coLow, band = "Longer than 32 years"),
+  data.frame(year = coYears, value = coBand, band = "5 to 20 years"),
+  data.frame(year = coYears, value = coHigh, band = "Shorter than 5 years")
+)
+pieces$band <- factor(pieces$band, levels = unique(pieces$band))
+raw <- data.frame(year = coYears, value = coStd,
+                  band = factor("Longer than 32 years", levels = levels(pieces$band)))
+ggplot(pieces, aes(x = year, y = value)) +
+  geom_line(data = raw, colour = "grey75", linewidth = 0.3) +
+  geom_line(linewidth = 0.5) +
+  facet_wrap(~band, ncol = 1, scales = "free_y") +
+  labs(x = "Year", y = "Index") +
+  theme_minimal()
 ```
 
-In the next chapter we look at the power spectra of these filtered series to check that the filters did what we thought they should.
+```{r}
+#| label: smo-passfilt-numbers
+#| include: false
+# share of the chronology's variance in each band
+share <- function(x, piece) var(piece) / var(x)
+waStd <- waCrn$std
+waLow <- pass.filt(waStd, W = 32, type = "low")
+coSlowShare <- share(coStd, coLow)
+waSlowShare <- share(waStd, waLow)
+coBandShare <- share(coStd, coBand)
+coHighShare <- share(coStd, coHigh)
+```
+
+The low-pass part carries `r pct(coSlowShare)` of the chronology's variance, the 5-to-20-year band `r pct(coBandShare)` and the fast band `r pct(coHighShare)`. (The bands don't cover everything, since 20 to 32 years is left out, and the edges of the bands overlap a little.) Hurricane Ridge puts `r pct(waSlowShare)` of its variance in periods longer than 32 years, about the same as Mesa Verde. Both chronologies were detrended with the default spline, and the slow share is what that spline left. Whether the slow part is climate or what's left of the age trend, the filter can't say.
+
+The pieces are ordinary vectors. You can correlate one with a climate record filtered the same way, or look at its spectrum, as [Memory and Cycles](14MemoryCycles.qmd) does to check that the filters did what they claim.
+
+## The Ends
+
+Every smoother has to do something at the ends of the record, where half its window hangs off into years that weren't measured. The running mean and the Hanning window give up and return `NA` there. The spline bends to fit what it has. `pass.filt` pads the series before filtering: it mirrors the first and last stretches of the chronology outward, filters the padded series, and then cuts the padding off. The pad is twice the longest period in `W`, so the longest period `pass.filt` can work with is half the length of the series. Ask Hurricane Ridge's `r nrow(waCrn)` years for a low-pass at `r ceiling(nrow(waCrn) / 2) + 1` years and `pass.filt` stops with an indexing error.
+
+Padding is a guess about years nobody measured. How much does that cost? Back to planting. Make a slow signal with a known shape, add noise, and low-pass the sum. The low-pass should return the slow signal, so the error in each year is how far it misses. The signal here is white noise put through a 64-year low-pass, scaled so its standard deviation is 0.5, and the noise has a standard deviation of 0.3. Repeat for 200 series of 300 years each and look at the error year by year.
+
+```{r}
+#| label: smo-ends
+set.seed(13)
+nYears <- 300
+nSeries <- 200
+errSpline <- matrix(NA, nSeries, nYears)
+errButter <- matrix(NA, nSeries, nYears)
+for (i in 1:nSeries) {
+  # a slow signal: white noise filtered at 64 years, with 200 extra years on
+  # each end so the pass.filt padding doesn't shape the signal itself
+  slow <- pass.filt(rnorm(nYears + 400), W = 64, type = "low")[201:(200 + nYears)]
+  slow <- 1 + 0.5 * (slow - mean(slow)) / sd(slow)
+  series <- slow + rnorm(nYears, sd = 0.3)
+  # how far each low-pass lands from the slow signal, year by year
+  errSpline[i, ] <- caps(series, nyrs = 32) - slow
+  errButter[i, ] <- pass.filt(series, W = 32, type = "low") - slow
+}
+# root mean square error in each year, across the 200 series
+rmseSpline <- sqrt(colMeans(errSpline^2))
+rmseButter <- sqrt(colMeans(errButter^2))
+```
+
+```{r}
+#| label: smo-ends-numbers
+#| include: false
+middleYears <- 101:200
+endRatio <- function(rmse) rmse[nYears] / mean(rmse[middleYears])
+# years back from the last year until the error is within 10% of the middle
+backIn <- function(rmse) {
+  limit <- 1.1 * mean(rmse[middleYears])
+  fromEnd <- rev(rmse)
+  which(fromEnd <= limit)[1] - 1
+}
+```
+
+In the middle of the record (years 100 to 200) the low-pass misses the slow signal by about `r sprintf("%.3f", mean(rmseButter[middleYears]))` with `pass.filt` and `r sprintf("%.3f", mean(rmseSpline[middleYears]))` with the spline. In the last year the misses are `r sprintf("%.3f", rmseButter[nYears])` and `r sprintf("%.3f", rmseSpline[nYears])`, about `r sprintf("%.1f", endRatio(rmseButter))` and `r sprintf("%.1f", endRatio(rmseSpline))` times larger. The error is back within 10% of its middle-of-the-record level `r words(backIn(rmseButter))` years from the end with `pass.filt` and `r words(backIn(rmseSpline))` with the spline. The two methods handle the end differently and come out about the same.
+
+So the last decade or two of a smoothed chronology is the least certain part of the smooth, and it is the part people most want to read ("is growth going down?"). The curve doesn't look any less sure of itself there. The time series book has a longer look at the same problem with loess.
+
+## Smoothed Series and Correlation
+
+Smoothing makes a series autocorrelated on purpose. Each smoothed value shares most of its window with its neighbors, so a 100-year series smoothed at 20 years has the information of far fewer than 100 independent years. Correlations between smoothed series don't know that. The usual test treats every year as independent and is far too easily impressed.
+
+How easily? Two series of white noise have a true correlation of zero. Make 1,000 pairs, 100 years each (about the length of an instrumental climate record), and correlate them raw, then after a low-pass at 10 years, then at 20 years. A correlation of about 0.197 is significant at the 5% level for 100 independent years, so about 5% of the raw pairs should pass.
+
+```{r}
+#| label: smo-cor
+set.seed(13)
+nPairs <- 1000
+rRaw <- numeric(nPairs)
+r10 <- numeric(nPairs)
+r20 <- numeric(nPairs)
+for (i in 1:nPairs) {
+  a <- rnorm(100)
+  b <- rnorm(100)
+  rRaw[i] <- cor(a, b)
+  r10[i] <- cor(pass.filt(a, W = 10, type = "low"),
+                pass.filt(b, W = 10, type = "low"))
+  r20[i] <- cor(pass.filt(a, W = 20, type = "low"),
+                pass.filt(b, W = 20, type = "low"))
+}
+# critical r for 100 independent years at the 5% level, two-sided
+rCrit <- qt(0.975, df = 98) / sqrt(98 + qt(0.975, df = 98)^2)
+# share of pairs that pass the usual test
+c(raw = mean(abs(rRaw) > rCrit), low10 = mean(abs(r10) > rCrit),
+  low20 = mean(abs(r20) > rCrit))
+```
+
+The raw pairs pass `r pct(mean(abs(rRaw) > rCrit))` of the time, close to the 5% they should. Smoothed at 10 years, `r pct(mean(abs(r10) > rCrit))` pass, and at 20 years `r pct(mean(abs(r20) > rCrit))`. One pair in `r words(round(1 / mean(abs(r20) > 0.5)))` of the 20-year smooths correlates above 0.5, and there's nothing in either series to correlate. Smoothed chronologies against smoothed climate is exactly this setup, and two curves that wander together over a century are easy to find. Correlate the unfiltered series, or test the smoothed correlation with a method that respects the autocorrelation (a block bootstrap, or a test with reduced degrees of freedom). The time series book covers both.
+
+## Choosing
+
+My opinions, for what they're worth.
+
+To draw a line through a chronology for people to look at, the spline is fine. It has a known response, `plot` draws it for you, and its gentle slope makes a pleasant line. Say what `nyrs` you used.
+
+To split a chronology into bands and analyze the bands, use `pass.filt`. Its response is steep and it doesn't shift the timing of anything. Give `W` in years. It's easier to read in a methods section.
+
+Don't use a running mean for anything at periods shorter than its window. It flips cycles there. If you must use one, know that it smooths more than its name suggests, about `r round(half("Running mean") / 32, 1)` times the window to its half-response point.
+
+Whatever you use, say in the methods what it keeps half of. "A 32-year spline", "a low-pass Butterworth filter at 32 years" and "a 32-year running mean" sound alike and smooth differently.
+
+And be suspicious of the last couple of decades of any smooth, and of any correlation between smoothed series.
+
+## Wrapping Up
+
+A smoother is a filter with a frequency response, and you can measure it by passing waves of known length through it. The spline `dplR` uses matches the Cook and Peters formula. The same response, seen from the other side, is why detrending removes slow climate along with the age trend. `pass.filt` splits a chronology into bands with a steep response and no shift in timing.
+
+Filtering doesn't tell you where a slow wiggle came from. Climate, leftover age trend and stand history can all land in the same band. The ends of a smooth are guesses, and smoothed series correlate with each other far more easily than the usual test assumes. [Memory and Cycles](14MemoryCycles.qmd) moves into the frequency domain directly, with spectra and wavelets, and uses them to check the filters from this chapter.
+
+## Exercises
+
+1. Measure the response of `caps(x, nyrs = 32, f = 0.2)` with `response`, and predict it with `splineResponse(periods, nyrs = 32, f = 0.2)`. What does `f` change? Where is the half-response point now?
+2. Add `pass.filt` with `n = 2` and `n = 8` to `smoothers` and redraw the response figure. How does the order change the steepness? Do the same with `method = "ChebyshevI"`.
+3. Band-pass Hurricane Ridge from 5 to 20 years and correlate it with Mesa Verde's band over the years they share. Then correlate the unfiltered chronologies. Which correlation would you report, and how would you test it?
+4. Rerun the correlation experiment with 300-year series and a 32-year low-pass. Then make the white noise red (`arima.sim(list(ar = 0.5), n = 100)`) and run it with no smoothing at all. What does that say about correlating two raw chronologies with strong persistence?
+5. In the end-effect experiment, how far from the end does the error stay above the middle-of-the-record level if the cutoff is 64 years instead of 32?
+
+## Further Reading
+
+- @Cook1981 introduced the smoothing spline to tree rings and gave its frequency response. It's short and still the place to see why a spline suits trees in a closed forest.
+- Section 3.3 of the Cook Book [@Cook1990, p. 110-115] compares digital filters for detrending, including the Gaussian filter, the spline and the case against equally weighted moving averages, and explains the 67%-of-length rule for the spline's stiffness.
+- @Cook1995 is the segment-length curse, the high-pass side of this chapter.
+- The Filtering and Smoothing chapter of my [time series book](https://timeseries.andybunn.org) has the general material: loess, the edge problem in more detail, aggregation and gap filling.

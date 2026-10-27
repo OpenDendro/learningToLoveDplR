@@ -35,10 +35,13 @@ As any dendrochronologist will tell you, detrending is a dark art. I'll give you
 #| message: false
 library(dplR)
 library(ggplot2)
+library(knitr)
 source("R/sim-collection.R")
 co021 <- read.rwl("data/co021.rwl", format = "tucson")
 wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
 ```
+
+`ggplot2` draws most of the figures. `knitr` is here for `kable`, which prints one small table of filled-in rings as a formatted table.
 
 Hurricane Ridge is read from its ITRDB file, so series 712011 still has no measurement for 1900. That gap has been open since [Reading and Writing](03ReadingWriting.qmd).
 
@@ -148,7 +151,7 @@ for (method in c("Mean", "Linear", "Spline", "Chron")) {
 }
 # as a formatted table, with empty cells where there's nothing to show
 options(knitr.kable.NA = "")
-knitr::kable(fillTable)
+kable(fillTable)
 ```
 
 ```{r}
@@ -441,6 +444,8 @@ Every method gets the year-to-year climate, and they all get it about equally we
 
 `ModNegExp` is the best a curve could hope to do here, because its shape is the shape the simulated trees age with, and it still loses more than half of the slow climate. It varies a lot from stand to stand, too: the middle half of the stands kept between `r pct(quantile(mneKept80, 0.25))` and `r pct(quantile(mneKept80, 0.75))`. The trees in every stand are `r treeAges[1]` to `r treeAges[2]` years old. Fit any curve to a series that short and a swing lasting most of a century is, as far as the curve can tell, part of that tree's trend. That's the curse.
 
+How much should that worry you? Malcolm Hughes thinks less than the curse's reputation suggests. Climate change over centuries is likely to be small next to year-to-year and decadal variation, he argues, and with series two to four centuries long the curse has little effect on climate signals up to "even a single century" [@Hughes2011ch2, p. 29]. The simulated trees are that kind of collection, and they still lost more than half of swings lasting decades to a century. The two views meet in how much slow variation the climate has. I gave the slow part half the climate's variance, which is generous. The share a curve throws away doesn't depend on that, but how much the loss matters to your chronology does. If the slow part of the real climate at your site is small, so is what the curse costs you.
+
 ```{r}
 #| label: det-curse-plot
 #| fig-cap: "The slow part of the climate in one simulated stand (points) and the slow part of three chronologies made from it (lines), each a 31-year running mean. Dividing by the true age trend follows the climate. The fitted curves keep the timing of the swings and lose much of their size."
@@ -637,12 +642,12 @@ plot(waIndices, plot.type = "image")
 
 ## Choosing a Method
 
-Here's what I do, and why.
+There is no objective way to choose a detrending method. All of them have tradeoffs and none of them are the right choice every time. It's a grim fact. But here is how I tend to approach it.
 
-- For dating work and for climate at scales of a few decades or less, the default spline. It fits almost any series, it is less likely than a stiff curve to end far below the last rings (it can still happen, which is what the summary is for), and the segment-length curse is a problem you don't have at those scales.
-- For open-grown trees whose decline looks like a negative exponential, `ModNegExp`. It keeps more of the slow variation than a spline because it can't bend. Look at every curve. Where the fit falls back to a line or meets a late release, its ratios can blow up, and stabilized residuals after `powt` are the safer route.
+- For dating work and for climate at scales of a few decades or less, I use the default spline. It fits almost any series, it is less likely than a stiff curve to end far below the last rings (it can still happen, which is what the summary is for), and the segment-length curse is less of a problem at those scales.
+- I use the modified negative exponential or Hugershoff for open-grown trees whose decline looks like a negative exponential. It keeps more of the slow variation than a spline because it can't bend. But I also look at every curve. Where the fit falls back to a line or meets a late release, its ratios can blow up, and stabilized residuals after `powt` can be the safer route.
 - If the slow climate is what you're after, nothing fitted to one tree at a time will give it to you. That's the next part of the book.
-- Never a flexible curve (a short spline, `Friedman`) on a chronology you mean to interpret at decadal scales, unless you've decided that variation at those scales is noise for your question. That can be the right call, for a stand full of disturbance. Say that you made it.
+- I rarely use a flexible curve (a short spline, or `Friedman`) on a chronology I mean to interpret at decadal scales. TAn exception to that is if I've decided that variation at those scales is noise for the question at hand. That can be the right call, for a stand full of disturbance for instance.
 
 Whatever you choose, say which method and settings you used. Someone else would make a different choice for a defensible reason, and they need to know yours to compare.
 

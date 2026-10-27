@@ -5,6 +5,8 @@ Not written yet.
 
 Planned: `bai.in`, `bai.out`, the `bai` class, and a short note on `bakker`.
 
+Also planned (moved from 11 Regional Curves, 2026-10-26): the C-method, `cms` [Biondi and Qeadan 2008, not yet in the bib or read]. Its curve (`biologicalTrend` in dplR's `R/cms.R`) is a radius that grows with the square root of age, the stem that adds a fixed basal area each year, with one constant per series fitted from the widths, ring ages and pith offsets (`gp.po`). Numbers from the 11 checks, 2026-10-25: on `gp.rwl` the `cms` chronology correlates 0.99 with `rcs` and 0.98 with `ModNegExp`; SD of its 31-year running mean 0.20. In the simulation it kept 91% and 84% of the slow swing (80- and 250-year swings) in a living stand, 84% and 68% in the four-generation collection (`rcs` 98% and 97%), 0.051 of a 0.093 per-century climate trend, and the growth-longevity link didn't touch it. Confirm the theory against the paper before drafting.
+
 Source: new.
 :::
 

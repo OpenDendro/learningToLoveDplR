@@ -24,6 +24,20 @@ wa082 <- read.rwl("data/wa082.rwl", format = "tucson")
 wa082 <- wa082[, names(wa082) != "712011"]
 ```
 
+```{r}
+#| label: floater-words
+#| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
+```
+
 ## Making a Floater
 
 The easiest floater to learn on is one where you know the answer. Take 200 rings from a dated series, throw away their years, and take the whole series out of the collection so it can't match itself.
@@ -77,7 +91,7 @@ wrong <- fo$floaterCorStats$first != 1650
 sum(fo$floaterCorStats$p[wrong] < 0.01)
 ```
 
-`r sum(fo$floaterCorStats$p[wrong] < 0.01)` wrong positions out of `r sum(wrong)` have p below 0.01. That's about what you'd expect from chance across `r nTried` tries: each p-value answers the question of whether this one position could be noise, and a search asks that question hundreds of times. Something will clear the bar.
+`r words(sum(fo$floaterCorStats$p[wrong] < 0.01), cap = TRUE)` wrong positions out of `r sum(wrong)` have p below 0.01. That's about what you'd expect from chance across `r nTried` tries: each p-value answers the question of whether this one position could be noise, and a search asks that question hundreds of times. Something will clear the bar.
 
 What to read instead is how far the best stands above the rest. At Mesa Verde the gap between the best and the runner-up is wide, `r sprintf("%.2f", positions$r[1])` against `r sprintf("%.2f", positions$r[2])`. Here is the same floater test on Hurricane Ridge.
 

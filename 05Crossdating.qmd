@@ -24,9 +24,22 @@ So why a chapter on doing it in code? Because the app is `dplR` underneath, and 
 #| label: xdate-setup
 #| message: false
 library(dplR)
-library(ggplot2)
 source("R/plant-dating-errors.R")
 source("R/sim-collection.R")
+```
+
+```{r}
+#| label: xdate-words
+#| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
 ```
 
 `R/plant-dating-errors.R` is a short script in the book's repository. It reads `co021` and misdates two of its series.
@@ -193,7 +206,7 @@ wa082Report <- suppressWarnings(xdate.report(read.rwl("data/wa082.rwl", format =
 wa082Corr <- weighted.mean(wa082Report$stats$corr, wa082Report$stats$n.years, na.rm = TRUE)
 ```
 
-`rbar` is the between-tree correlation I built in, `corr` the average correlation with the master that the report would print at the top, `found` the share of stands where SIM03A got a B flag at lag -1, and the last three columns the false flags and the number of segments tested, per stand. At the default strength the series correlate with the master at about `r sprintf("%.2f", wt(0.4, "corr"))`, against `r sprintf("%.2f", wa082Corr)` for Hurricane Ridge, and the missing ring is found every time, with about `r round(wt(0.4, "falseB"))` false B flag per stand among `r round(wt(0.4, "segments"))` segments. Halve the shared signal and the master correlation drops to `r sprintf("%.2f", wt(0.2, "corr"))`. The report still finds the missing ring in `r round(100 * wt(0.2, "found"))` percent of stands, and it now raises `r round(wt(0.2, "falseB"))` B flags and `r round(wt(0.2, "falseA"))` A flags on series that are dated correctly. At `r sprintf("%.2f", wt(0.1, "corr"))` it finds the error `r round(100 * wt(0.1, "found"))` percent of the time, under `r round(wt(0.1, "falseB"))` false B flags and `r round(wt(0.1, "falseA"))` false A flags per stand.
+`rbar` is the between-tree correlation I built in, `corr` the average correlation with the master that the report would print at the top, `found` the share of stands where SIM03A got a B flag at lag -1, and the last three columns the false flags and the number of segments tested, per stand. At the default strength the series correlate with the master at about `r sprintf("%.2f", wt(0.4, "corr"))`, against `r sprintf("%.2f", wa082Corr)` for Hurricane Ridge, and the missing ring is found every time, with about `r words(round(wt(0.4, "falseB")))` false B flag per stand among `r round(wt(0.4, "segments"))` segments. Halve the shared signal and the master correlation drops to `r sprintf("%.2f", wt(0.2, "corr"))`. The report still finds the missing ring in `r round(100 * wt(0.2, "found"))` percent of stands, and it now raises `r round(wt(0.2, "falseB"))` B flags and `r round(wt(0.2, "falseA"))` A flags on series that are dated correctly. At `r sprintf("%.2f", wt(0.1, "corr"))` it finds the error `r round(100 * wt(0.1, "found"))` percent of the time, under `r words(round(wt(0.1, "falseB")))` false B flags and `r words(round(wt(0.1, "falseA")))` false A flags per stand.
 
 So read a report with the collection's strength in mind. In a collection like Mesa Verde a B flag is very likely a dating problem. In a weak one most B flags are noise, and the size of the gain is a better guide than the letter. The report helps: a B flag whose best correlation is itself below the critical value is marked "weak at every lag", and I left those out of the counts above. [Fixing Errors](06FixingErrors.qmd) is about what to do with a flag once you have one.
 

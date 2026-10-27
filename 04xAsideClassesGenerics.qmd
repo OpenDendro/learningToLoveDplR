@@ -10,8 +10,11 @@ First draft, 2026-10-22. Reads `co021` from the file in `data/`. Every number in
 #| label: class-setup
 #| message: false
 library(dplR)
+library(tibble)
 co021 <- read.rwl("data/co021.rwl", format = "tucson")
 ```
+
+`tibble` is here for one function, `as_tibble`, at the end, to show what happens to a collection when it leaves `dplR`.
 
 ## A Label on a Data Frame
 
@@ -123,7 +126,7 @@ The years live in the row names, and plenty of R outside `dplR` throws row names
 
 ```{r}
 #| label: class-tibble
-head(row.names(tibble::as_tibble(co021)), 3)
+head(row.names(as_tibble(co021)), 3)
 ```
 
 The years are gone, replaced by row numbers, and nothing complains. Before you hand a collection to something else, move the years into a column of their own.

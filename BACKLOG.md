@@ -2,46 +2,120 @@
 
 Working notes for the rewrite. Not part of the book.
 
-## Start here (updated 2026-10-23)
+## Start here (updated 2026-10-27)
 
-State of the repo: the rewrite is on the `quarto-rewrite` branch; `main` is still the 2024 bookdown version. Last commit 4081754 (05x repaired). Uncommitted: 08, the `Cook1995` and `CookPeters1997` bib entries, rendered output in `docs/`, and this file. The writing spec (`CLAUDE.md`) is local and not in the repo. The book needs dplR 1.8.1 dev (installed from the local checkout); 08 needs the extreme-index check in `summary.rwi` (dplR dev 205caac, 2026-10-23).
+State of the repo: the rewrite is on the `quarto-rewrite` branch; `main` is still the 2024 bookdown version. Last commit de8b0a2 (2026-10-25, Andy's wording pass on 04, 08, 09 and 10); before it baeaa7d (red-noise climate, 2026-10-23) and b78d2c6 (08). Everything through 10 is committed. Uncommitted as of 2026-10-26: the 11 draft (and its `_freeze`), the `cms` plan in 15, three new entries in `dplR.bib` (Briffa1992, BriffaMelvin2011, Esper2003), and the style sweep of 02 to 10 (numbers and Packages, with their re-rendered `_freeze`). Also uncommitted: the Hughes citation edits (2026-10-27) and the 13 Smoothing and Filtering draft (2026-10-27). 12 Signal-Free is outlined. `docs/` is built by CI and ignored; this file is listed in `.gitignore` but tracked. The writing spec (`CLAUDE.md`) is local and not in the repo. The book needs dplR 1.8.1 dev, installed from the local checkout. 08 needs the extreme-index check in `summary.rwi` (dplR dev 205caac). 04's `check-bracket` needs the `rwl.stats` empty-column fix, still uncommitted in dplR dev (R/rwl.stats.R, man, NEWS, new test) as of 2026-10-25.
 
 The folder moved from `workshopMaterials/dplR-workshop` to `openDendro/learningToLoveDplR`; the GitHub repo was renamed from `OpenDendro/dplR-workshop` to `OpenDendro/learningToLoveDplR` on 2026-10-13, and the old name no longer resolves.
 
-### Where each chapter stands (2026-10-23)
+### Where each chapter stands (2026-10-25)
 
 | File | Chapter | Status |
 |---|---|---|
 | 00 | Preface | rewritten 2026-10-19 |
 | 01 | Where dplR Comes From | first draft 2026-10-19 |
-| 02 | An Additive Model of Tree Growth | third draft 2026-10-19; two-panel stand-event figure 2026-10-21 |
+| 02 | An Additive Model of Tree Growth | third draft 2026-10-19; stand-event figure 2026-10-21; bedrock steps and red climate 2026-10-23 |
 | 03, 03x | Reading and Writing; Tucson Format aside | first drafts 2026-10-20/21 |
-| 04, 04x | Checking a Collection; Classes and Generics aside | first drafts 2026-10-21/22; 04 uses `rwl.check` |
+| 04, 04x | Checking a Collection; Classes and Generics aside | first drafts 2026-10-21/22; 04 uses `rwl.check`; Andy's wording pass on 04 2026-10-25 |
 | 05, 05x | Crossdating a Collection; Gleichläufigkeit aside | first drafts 2026-10-22/23 |
-| 06 | Finding and Fixing an Error | first draft 2026-10-22 |
+| 06 | Finding and Fixing an Error | first draft 2026-10-22; reworked for red climate 2026-10-23 |
 | 07, 07x | Dating a Floater; Crossdating Statistics aside | first drafts 2026-10-23 |
-| 08 | Detrending | first draft 2026-10-23 |
-| 09, 10 | Chronology Statistics; Chronology Building | full drafts 2026-10-13, code explained 2026-10-22; still to be read against the spec |
-| 11 | Regional Curves | stub |
-| 12 | Signal-Free | 2024 text on `ca533`, nine chunks fail |
-| 13, 14 | Smoothing and Filtering; Memory and Cycles | 2022 text, to trim |
-| 15, 16 | Basal Area; Events | stubs |
+| 08 | Detrending | first draft 2026-10-23; Andy's wording pass on Big Idea 2026-10-25 |
+| 09, 10 | Chronology Statistics; Chronology Building | full drafts 2026-10-13; read against the spec 2026-10-23; Andy's wording pass 2026-10-25 |
+| 11 | Regional Curves | first draft 2026-10-26 |
+| 12 | Signal-Free | outline 2026-10-26 (2024 text in git at de8b0a2) |
+| 13 | Smoothing and Filtering | first draft 2026-10-27, around `pass.filt` |
+| 14 | Memory and Cycles | 2022 text, to trim |
+| 15, 16 | Basal Area; Events | stubs; 15 gets `cms` (moved from 11, 2026-10-26) |
 | 17, 18 | dplPy; Conclusion | stubs |
 | A1, A2, A3 | Setup and Packages; Data Sources; Acknowledgements | A1 rewritten 2026-10-19; A2 partly written; A3 as is |
 | new | Quick Reference appendix | decided 2026-10-15, not started |
 | new | Climate part (two chapters) | proposed 2026-10-13, undecided; check `co021` and `wa082` against PRISM first |
 
-Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. No chapter has been rendered as part of the whole book, only alone.
+Ring Widths (03 to 04x), Crossdating (05 to 07x) and Standardization (08 to 10) have complete first drafts. The whole book was rendered once, 2026-10-23: no unresolved citations, no broken internal links; the only code errors were 04's deliberate `summary` on empty columns (now a warning), 08's deliberate `detrend` stop, and 12's known failures.
 
 ### Next
 
-1. Andy to read 02 (bedrock steps and red climate, 2026-10-23), then back to 08.
-2. Commit 02, 04x, 05, 06, 07, 07x, 08 and `R/sim-collection.R`.
-3. 08 Detrending: first draft 2026-10-23; Andy to read, especially Choosing a Method.
-4. 09 and 10 read against the spec, 2026-10-23 (see the entry below).
-5. Whole book rendered once, 2026-10-23: no unresolved citations, no broken internal links; the only code errors are 04's deliberate `summary` on empty columns, 08's deliberate `detrend` stop, and 12's known failures.
+1. Andy to read the 11 draft (2026-10-26, entry below).
+2. 08: Andy to finish reading, especially Choosing a Method (the ModNegExp opinion waits on Ed or Kevin) and the `powt` universal-power question.
+3. Andy to read the 13 draft (2026-10-27, entry below).
+4. 12 Signal-Free: outlined and cut down 2026-10-26 (entry below). Can be drafted now in its light form; the bias material waits on the signal-free paper.
+5. Not known from the repo: whether Andy has finished reading 02 since the red-climate rework.
 
 - Done 2026-10-23 (Andy: "fix that"), from the whole-book render: `rwl.stats()`, and so `summary()` of an rwl, used to stop on an all-NA column (which `[` keeps on purpose) with "'ts' object must have one or more observations". Of 14 functions tried on `co021[time(co021) <= 1300, ]`, these were the only two that failed. Now the series keeps its row with year 0 and NA statistics, and a warning names it and points to `window()`/`subset()`. dplR dev: R/rwl.stats.R, man/rwl.stats.Rd, NEWS, new tests/testthat/test-rwl.stats.R; R CMD check OK. 04's `check-bracket` chunk now shows the warning, and the text was rewritten (the trap is now that not every function says so).
+
+### 13 Smoothing and Filtering, first draft 2026-10-27
+
+- Andy: "Yes, outline and draft 13 Smoothing and Filtering around pass.filt." Outline and draft in one pass; the 2022 text is in git at de8b0a2. Renders (read from the running `quarto preview`), every number inline, about 20 seconds.
+- Sections: Big Idea (every smoother is a filter; detrending is the high-pass side), Packages (`dplR`, `ggplot2`; `signal` not loaded, so no `hanning` clash and no footnote needed), Sine In Sine Out (the response of a running mean, `hanning`, `caps` and `pass.filt`, each at 32 years, measured by passing cosines through them), A Cycle Turned Over, The Spline From Both Sides (Cook and Peters formula checked against `caps`; the index's response under the default 67%n spline; `plot.crn`'s `add.spline` at a third of the length), Butterworth Filters with pass.filt (arguments, filtfilt, `co021` in three bands), The Ends (padding; 200-series end-error simulation), Smoothed Series and Correlation (1,000 pairs of white noise), Choosing, Wrapping Up, five exercises, Further Reading.
+- Trimmed against the time series book (timeseries.andybunn.org, Filtering and Smoothing chapter): loess, aggregation, gap filling and the long edge discussion are pointed to there instead of repeated. Check that the URL is live before the book goes public.
+- Results, all in the text: the spline and Butterworth both keep 50% at 32 years; Butterworth 0.02 vs spline 0.13 at 20 years, 0.97 vs 0.86 at 50. Hanning n = 32 keeps half at about 31 years, worst -0.026. The 32-year running mean keeps half at about 53 years and keeps -0.22 of a 22-year cycle (negative lobe at periods 16 to 32, a smaller one at 8 to 11). `caps` matches the Cook and Peters formula to 12 decimal places. Typical `wa082` core 207 rings, default nyrs 138: the index keeps 98% of a 50-year cycle, 78% of 100, 18% of 200. `co021` variance: 19% at periods over 32 years, 26% at 5 to 20, 40% under 5; `wa082` 18% over 32. End error in the last year about 1.8 (`pass.filt`) and 2.0 (spline) times the middle-of-record error. Correlations of independent white noise, 100 years: 6% pass the 5% test raw, 40% after a 10-year low-pass, 58% after 20; about one in nine 20-year pairs above 0.5.
+- For Andy:
+  - (a) The Cook Book citation for "equally weighted moving averages are not recommended" is p. 111, from `workspace/references/notes/CookBook.md`; the text layer there is garbled, so the page wasn't rechecked.
+  - (b) A Cook Book line on filtered reconstructions having "too few degrees of freedom to be significant" (Fritts, section 4.7, p. 215 or 216) would fit Smoothed Series and Correlation. Left out because the page couldn't be pinned down.
+  - (c) dplR `pass.filt`: a period longer than half the series stops with "only 0's may be mixed with negative subscripts" (the mirror pad is twice the longest period). Loud, but the message says nothing useful. A plain `stop` naming the limit would be easy. The chapter states the limit in prose and doesn't show the error. Change dplR?
+  - (d) `pass.filt` with mixed units (`W = c(0.05, 5)`) treats both as periods and stops in `signal::butter`. Rare, but same kind of fix.
+  - (e) Choosing is my opinion throughout, in your voice.
+- 14 still says "In the last chapter we low-pass filtered the chronology at a frequency of 0.2 and band-pass filtered it between 0.05 and 0.2". 13 now low-passes at 32 years and band-passes 5 to 20; fix that sentence when 14 is trimmed.
+
+### Hughes et al. (2011) citations, 2026-10-27
+
+- Andy: "Yes, make the edits in 02, 08, 09, 11 and 12 and add the bib entries." Source notes: `workspace/references/notes/HughesBook.md`; every quote and number below was checked against the book's text layer.
+- `dplR.bib`: new `Hughes2011ch2`, `Vaganov2011`, `CookPederson2011`; `Hughes2011` title now has its subtitle.
+- 02: tree memory, cambial starting cells [@Vaganov2011, p. 45] and stored carbon in oaks [@CookPederson2011, p. 102-103].
+- 08: new paragraph after the curse simulation, Hughes's view that the curse matters little up to a century [@Hughes2011ch2, p. 29], set against the simulation (half the climate variance slow).
+- 09: What EPS Does Not Say (Cook and Pederson p. 81; Briffa and Melvin p. 140 on EPS and interannual agreement); Mean Sensitivity (Mohonk, p. 96, 100); Further Reading entry.
+- 11: Melvin's 10/18/62 replication numbers [@BriffaMelvin2011, p. 140]; the cost of growth-rate class curves (p. 140-141).
+- 12 outline: Briffa and Melvin's RCS stopping rule (p. 143) and "largely 'arbitrary'" slope (p. 129).
+- Only 09 was re-rendered. For later: Swetnam and Brown (ch 9) for 16; biological cycles and persistence for 14; Meko and Woodhouse (ch 8) for the climate part.
+
+### 12 Signal-Free, outline 2026-10-26
+
+- Outline in `12SignalFree.qmd` (Andy: "Sure", to outlining 12 next). It replaces the 2024 text on `ca533`; that text is in git (`git show de8b0a2:12SignalFree.qmd`) and its walk-through and animation can come back in The Loop. Sections: Big Idea, Packages, Trend Distortion, The Loop, What It Recovers, What It Adds, When It Stops, Hurricane Ridge and Campito, Choosing, Wrapping Up, four exercises, Further Reading.
+- Read for it: @melvin2008 in full (pages cited in the outline), Wilce (2024) thesis (abstract, methods, discussion), CRUST `stand.f90` (`cur_detrend`, `det_sf_cur`), dplR `R/ssf.R`.
+- Experiments (scripts now in `workspace/ssfPaper/`; the draft rebuilds what it needs): 100 living stands from `sim.collection` (release, event and errors off) for each of three climates: the 80-year slow swing from 08, a late rise (flat, then a ramp of 2 over the last century on top of white noise), and red noise AR(1) 0.5 with no trend. Methods: true index, `Spline`, `ssf`, `ssf` with ratio rescaling, `AgeDepSpline`, `ssf(method = "AgeDepSpline")`. Scored on years with 10 or more cores, 31-year running means as in 08 and 11; "late end error" is the mean of the last 50 years minus the rest, minus the same for the truth.
+- Main finding: `ssf` keeps about twice the slow swing that `Spline` does (57% against 27%), and adds a false late rise on a climate with no trend (+0.10, in 88% of stands; +0.19 with the age-dependent spline). The rise grows with each iteration (+0.014 at the start, +0.080 after five, about +0.11 by ten with a lower threshold), and the stopping rule, which looks only at high frequencies, doesn't see it. Same direction as Wilce (2024), whose simulator was additive; the book's is multiplicative, so the bias isn't from that mismatch.
+- For Andy:
+  - (a) dplR `ssf`, step 3: with division it puts the signal-free series back on its mean by adding a constant (`(sf - mean(sf)) + mean(rw)`). Melvin and Briffa treat indices as fractional deviations, and CRUST rescales by a ratio (`fx = fx * sum(tx)/sum(fx)` in `cur_detrend`). The `[1]` error message in `ssf` itself says the added constant is what pushes narrow rings below zero. Patched copy with a ratio (scratch only, dplR not touched): false late rise +0.06 instead of +0.10, `gp.rwl` runs (15 iterations) instead of failing at iteration 1; `co021` still fails. Change dplR? Decided 2026-10-26: settle it in the paper first.
+  - (b) dplR `ssf`, small bug: the zero check after the first iteration calls `chron(sfRWI_Array[,,], biweight = FALSE)`, the whole array instead of `[,,1]`. Only reached when the first signal-free chronology has a zero.
+  - (c) Real collections: `wa082` (filled) runs; `ca533` runs with `recode.zeros = TRUE`; `gp.rwl` only with (a); `co021` not at all. The outline uses `wa082` and `ca533`. `gp.rwl` would tie to 11 if (a) goes in. Still open.
+  - (d) Add Wilce (2024) to `dplR.bib`? The outline cites it as `@Wilce2024`. Still open, along with how the chapter names the paper in preparation (author list, wording).
+- Mechanism of the false rise (a high end divides the signal-free widths down, the next curve bends to meet them, indices go up) is my reading, not checked. For the paper, not the chapter.
+- Plan, 2026-10-26 (Andy: "yes"): the signal-free paper from Wilce's thesis (Annie Wilce, with Kevin and Swetnam; top of Andy and Kevin's list) leads, and 12 follows it. Reasons: the bias results above are paper results and the book is public, so showing them first would pre-empt the paper; whether `ssf` rescales by a constant or a ratio should be settled in the paper (tested against CRUST, then changed in dplR with a citation), not changed under the paper for the chapter; and the book's multiplicative `sim.collection` is the kind of simulator the thesis said was needed next, so the paper could use it. The outline was cut the same day: What It Recovers is one small `Spline` against `ssf` run; What It Adds became Reading the Recent End, which cites Melvin and Briffa (p. 84) on arbitrary slopes and points to the paper in preparation with no numbers from the scratch runs; ratio-rescaling results, simulation failure counts and the red-noise exercises came out. Revise 12 once the paper settles `ssf`.
+- For the paper, from these runs: the multiplicative test of Wilce's late bias, the growth of the bias with iterations and the stopping rule's blindness to it, additive against ratio rescaling (bias and failures), and the open check against CRUST itself (no `gfortran` on this Mac; a faithful R copy of CRUST's `cur_detrend` loop would do). The scripts and the 100-stand results are in `workspace/ssfPaper/` (README there says what each does), copied 2026-10-26.
+
+### 11 Regional Curves, first draft 2026-10-26
+
+- Style rules added to `CLAUDE.md` 2026-10-26 (Andy): spell out zero through nine (labels and measurements keep numerals; the exceptions are listed in the spec), and every package a chapter uses gets a line in its Packages section. Applied to 11: a `words` helper for inline counts, `library(cowplot)` with a sentence on `plot_grid`. Swept 01 to 10 the same day. Packages: 02 loads `cowplot`, 04x `tibble`, 08 `knitr` (for `kable`), each with a sentence, and `ggplot2` now gets a line wherever it's loaded; 05 loaded `ggplot2` without using it, so that line is gone. Numbers: two literal digits in 04, and every inline count that printed as a single digit now goes through the same `words` helper, defined in a hidden `*-words` chunk after each chapter's setup (`cap = TRUE` at the start of a sentence). Kept as numerals on purpose: lags and year shifts ("9 years away" in 02, "shifted 9 years" in 06), averages with decimals, and labels (tree 10, lag -1, column numbers). Andy confirmed lags and shifts stay numerals, now in the spec. Found in passing and fixed: 06 printed two bin names raw ("1852.1871", "1842.1861") where the rest of the chapter uses `binRange`.
+
+- Drafted from the outline (Andy: "Ok draft it?"). Sections: Big Idea, Packages, Lining Up by Age, What the Pith Offsets Do, The Curse Lifted? (with Offsets in the Simulation), What the Regional Curve Assumes (with Fast and Slow at Gus Pearson), Smoothing the Curve, Gus Pearson Five Ways, Choosing, Wrapping Up, five exercises, Further Reading. Every number inline. Simulations: 100 living stands per swing length, 50 four-generation collections per swing length (outline used 100), 100 stands each for the offset, trend and slow-old-tree runs. About three minutes to render.
+- Visible helpers, each explained: `byRingAge`, `makeClimate` (as in 08), `truePo`, `scoreMethods`, `scoreTable`, `num` (prints 0 for values that round to zero, to avoid "-0.000"), `dropInner`, `slowOldTrees`, `trendClimate`.
+- Render trouble, 2026-10-26, explained: a `quarto preview` was running from Andy's terminal, and it re-renders a chapter whenever the file changes. Renders I started at the same time collided with it in the same folder (rmarkdown couldn't reopen `11RegionalCurves.qmd` after knitting; earlier, a missing `site_libs` stylesheet). The chapter is fine. Renaming `version` and `tabulate` (now `offsets`, `scoreTable`) was a guess and not the fix, though the new names are clearer. While preview is running, let it do the rendering and read `docs/` instead of rendering a second time.
+- Rendered numbers checked against the text 2026-10-26: all hold. Living stands kept 86%/90% (rcs) vs 43%/33% (ModNegExp); four generations 96%/97% vs 38%/21%; offsets ignored, slow r 0.85 vs 0.89 and a -0.08 per-century trend; climate trend 0.090 per century, rcs keeps 0.060 (loses 33%); old-slow trees, rcs slow r 0.89 to 0.65 and 0.88 to 0.59, false trend +0.17; Gus Pearson fast vs slow first-50-ring index 1.20 vs 0.50.
+- Changed from the outline after checking: the curve peaks at ring age 23 (2.27 mm), and only 3 cores reach ring age 1 and 13 reach 10, so the text says not to lean on the juvenile rise. The ecological line about young ponderosa widening their rings was cut (unchecked). The pith-estimation sentence follows Esper (curvature of the inner rings, then rings from growth rate) and no longer mentions templates.
+- For Andy: (a) Choosing is my opinion throughout. (b) "A tree has to grow slowly to grow old" is Briffa and Melvin's argument (p. 122-123), given as theirs. (c) The `b = 0.2` growth-age link is strong on purpose (oldest tree at 0.66 of typical, youngest 1.24); exercise 4 varies it. (d) The Bunn et al. (2004) paragraph is in your voice ("my own simulation").
+
+### 11 Regional Curves, outline 2026-10-25 (superseded by the draft above)
+
+- Outline in `11RegionalCurves.qmd`, replacing the stub (Andy: "Outline 11 Regional Curves: gp.rwl, the segment-length simulation, pith offsets, rcs/ads/cms"). Sections: Big Idea, Packages, Lining Up by Age, What the Pith Offsets Do, The Curse Lifted?, What the Regional Curve Assumes, Smoothing the Curve, The C-Method, Gus Pearson Six Ways, Choosing, Wrapping Up, four exercises, Further Reading. Renders alone; all citations resolve.
+- "ads" in the request read as both `rcs(method = "ads")` (the smoothing section) and `detrend(method = "AgeDepSpline")` (a comparison chronology). Say if a different "ads" was meant.
+- Experiments behind the numbers (scripts were scratch, not kept; the draft rebuilds them). All use `truth$rwl` and `truth$age`, score years with 10 or more cores, and split slow from fast with 08's 31-year running mean; "kept" is the slope of the slow chronology on the slow climate as a share of the true-age-trend slope, as in 08. 100 stands per run.
+  - living: 08's `det-curse` setup (makeClimate, 80- and 250-year swings, seed + 1000) plus `rcs` with true offsets (from `truth$pith` and each core's first year), `rcs` with no `po`, `rcs` with offsets +10, and `cms`.
+  - longevity: the living stands with each tree's widths and age trend multiplied by exp(-0.2 z), z the standardized tree age (same as changing its `bai`). Oldest tree grows at 0.54 of the youngest's rate.
+  - trend: white climate plus a linear trend from -1 to +1 SD over 1400 to 2025; `trend` scored as the chronology's linear slope per century against the truth's (0.093).
+  - trunc: 80-year swings; each core loses k inner rings, k drawn from `gp.po$pith.offset` - 1 (capped to leave 60 rings), so offsets spread like Gus Pearson's.
+  - long: four `sim.collection` stands (seed * 10 + g, `end.year` 1250, 1500, 1750, 2025; release, event and errors off; sites G1 to G4) sharing one climate on 800 to 2025, joined with `combine.rwl`.
+- `gp.rwl` checks: fast/middle/slow thirds by the ring age at which `gp.d2pith` plus cumulative width reaches 100 mm (21/18/19 cores); RCS index by ring age per third; chronologies by seven methods. All numbers in the outline.
+- Findings worth flagging before drafting:
+  - In the simulation, RCS on a single living stand keeps most of the slow climate (88% and 86%), far more than the field's usual warning about living-only collections would suggest. That's because the simulation has none of the biases: one age-trend shape for every tree, growth rate unrelated to age. The longevity run shows what one of them does. The chapter has to say this or it oversells RCS. Ties to the circularity item under the simulated collection entry.
+  - A constant error in the pith offsets does nothing; spread does.
+  - `gp.rwl` shows the growth-longevity pattern of Briffa and Melvin's Fig. 5.4c (first 50 rings: fast third 1.17, slow third 0.52).
+  - `rcs` on `gp.rwl` has a rising trend (+0.07 per century) that per-tree curves don't. Climate, modern-sample bias or stand history can't be separated from the widths.
+- New bib entries: `Briffa1992` (checked against the PDF's first page), `BriffaMelvin2011` (title, pages 113-145 and series from the PDF; editors from the PDF footer), `Esper2003` (checked against the readable PDF Andy added 2026-10-26). Still needed: Biondi and Qeadan (2008) for `cms`, and `Briffa1996` if the chapter cites it.
+- For Andy: (a) done 2026-10-26, see below. (b) Biondi and Qeadan (2008) isn't in `workspace/references`; the C-method section needs it. (c) Whether to show a crude sub-RCS (fit `rcs` to each growth class); dplR has no function for it. (d) GPNA stand history (Biondi 1996, 1999) for the post-1900 rise and the post-1950 drop; nothing about fire exclusion goes in without a source. (e) "Choosing" is my opinion.
+- Esper et al. (2003) read 2026-10-26 (Andy replaced the scan with a readable copy). Added to the outline, with pages: `rcs`'s default smoothing is theirs (biweight mean, spline at 10% of length, 50% response; p. 85); the three homogeneity plots (p. 85) and the mixed-site failure (p. 93); pith offsets on Gotland, with vs without and times 2 and 4 (p. 90), and how offsets are estimated (p. 87-90); thinning to 75/50/25% and their at-least-5-per-period, more-than-40-in-all rule (p. 92-93); ratios inflating near a 0.5 mm curve (p. 87). Same checks run on `gp.rwl`: with vs without offsets mean absolute difference 0.053 against 0.253 for the chronology's deviation from its mean; offsets x4 r 0.975 with the real ones, 0.938 with none; ratios vs residuals r 0.976; 5 or more series from 1581; series mean width vs outer ring age r -0.85 (partly the age trend itself, as the outline says). One reading to check: Esper's 0.182 "between the chronologies themselves" (p. 90), which I took as the chronology's own spread.
+- Decided 2026-10-26 (Andy): the C-method moves from 11 to 15 Basal Area (it models a stem adding a fixed basal area). 11 keeps one sentence comparing it with RCS; the `cms` numbers and the plan are in the 15 stub's callout. Biondi and Qeadan (2008) is now for 15.
+- `[` on an `rwl` with columns selected trims leading all-`NA` rows (two `gp.rwl` series: 351 rows of 421; `co021[, 1:2]` starts at 1250, not 1176). Andy, 2026-10-25: a feature. Columns are kept, empty rows at the edges are trimmed. Nothing to change in dplR; 04's `[` text is about columns and stands.
 
 ### 09 and 10 read against the spec, 2026-10-23
 
@@ -58,6 +132,7 @@ Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. 
 
 ### Waiting on Andy
 
+- ILL: Biondi and Qeadan (2008), requested 2026-10-26 for the C-method, now in 15 Basal Area; Andy will add it to `workspace/references` when it arrives. Then add its bib entry and write The C-Method from it.
 - ILL: Huber (1943), Eckstein and Bauch (1969); don't cite them directly. Buras and Wilmking (2015) arrived 2026-10-23 (`Buras2015_glk.pdf`) and 05x was corrected against it: Schweingruber's 1983 error was the case where both series show no change (scored as disagreement), not the one-series case; glk is computed as 1 - Gegenläufigkeit as in Eckstein and Bauch; CDendro and dplR corrected; rare, effect usually small (p. 29).
 - `Douglass1929` volume (56), issue (6) and end page (770) are unchecked.
 - Lines written in Andy's voice and flagged in the chapter entries below (search "For Andy").
@@ -181,7 +256,7 @@ Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. 
 - Further Reading, 2026-10-21: Wigley et al. (1984), checked against pp. 206-207 (Fig. 2 depth plot for Clovelly, Hesleyside and Radley; 4 to 8 cores needed depending on common variance; 0.85 "only as a guide"), and St George et al. (2013, new bib entry `StGeorge2013`, read in full). Black et al. (2016) was tried and dropped from 04: it is a crossdating paper, already cited in 02, and belongs in 05 to 07. Its summary of St George is off on one point: it says the Southwest averages 2% absent, where St George says records above 2% occur only in the Southwest.
 - The Report now has a paragraph from St George: 1 absent per 240 present over 2,359 NH records, Pseudotsuga 0.6%, over half the records with none, >2% only in the Southwest, widespread Southwest absent years coincide with severe drought. `co021` is 1 in 27 (inline). The old "I won't guess" line is replaced by: Mesa Verde's absent years not checked against a drought record. Possible exercise or 05 material: compare `co021`'s absent years with a drought reconstruction. St George's Fig. 4 lists 1580 among the most widespread years; `co021`'s is 1584-1585, not checked against their data.
 - St George also bears on 03 and 03x: the Tucson standard marks absent rings with zero, some investigators use the smallest nonzero value, and counting 0.001 mm as absent made no difference in their results.
-- Still open from before: the Gini attribution to Biondi and Qeadan (2008).
+- Gini attribution, 2026-10-27: the paper is Biondi and Qeadan (2008), "Inequality in paleorecords", *Ecology* 89(4): 1056-1067 (Andy; details from Crossref; it is the reference on the `gini.coef` help page). Not their *Tree-Ring Research* paper on `cms`. Bib entry `BiondiQeadan2008` added. Still unchecked: 04's claim that they proposed Gini as a replacement for mean sensitivity. The PDF isn't in references/.
 - Reworked 2026-10-21 for the `rwl.report` deprecation (dplR 1.8.1 dev, commit 4666e8f): The Report and Looking for Trouble are replaced by Checking Mesa Verde and Checking Hurricane Ridge, one `rwl.check` call per collection, printed once. The text reads the new description (no header for `co021`; site, species, investigator for `wa082`; mean length; correlation with the master 0.89 against 0.54, over 22 of 23 series at `wa082`), then the findings. The comparison now uses `rwl.check`'s master correlation in place of `interseries.cor`, and says A2 ranks on a close cousin (`xdate.report`'s interseries correlation). Section order: checks, Series Statistics, Seeing the Collection, the gap, Trimming. 04 now needs dev dplR (installed from the local checkout 2026-10-21) for the new description.
 
 ### 03x The Tucson Format, first draft 2026-10-21
@@ -218,7 +293,7 @@ Ring Widths (03 to 04x) and Crossdating (05 to 07x) have complete first drafts. 
 - Dev dplR: nothing in 03 needs 1.8.1. 04 needs none of it now that filling moved to 08; 08's Closing the Gap needs it for `fill.internal.NA(fill = "Chron")` and `series =`, and for the filled object keeping class `rwl`. `RWL_ZERO_RUN` doesn't fire on either collection. The column-73 stop marker fix matters only if the broken file for 03x plants one.
 - Decided 2026-10-19 (Andy): 712011's 1900 gap stays open through crossdating and is filled at the start of 08 Detrending, where `detrend` first refuses it. The "Closing the Gap" outline moved from 04 to 08; 04 keeps a short section, "The Gap in 712011", pointing forward. Checked 2026-10-19 with the gap open: `xdate.report` lists 712011 under `excluded` (the `nyrs` spline needs an unbroken series); `corr.rwl.seg` gives it no correlation for 1875-1924 or 1900-1949; `ccf.series.rwl` loses 1900-1949; `interseries.cor` works (0.66) with a warning. The crossdating chapters use `co021`, so little is lost. 04's exercise on fills became one on what `xdate.report` says about 712011.
 - Not explained yet (now in 08's outline): `Chron` fills 1900 at 0.24 against 0.45 (1899) and 0.39 (1901); `Linear` 0.42, `Spline` 0.47. The other series' mean spline index in 1900 is about 0.82, so a narrow year, but that doesn't obviously give half the neighbors. Work through the method before 04 says why.
-- For Andy to check: Biondi and Qeadan (2008) for the Gini coefficient, from memory of the help page, not in `dplR.bib`. Further Reading for 03 has no Tucson-format citation yet.
+- For Andy to check: Biondi and Qeadan (2008) for the Gini coefficient, from memory of the help page. Source found 2026-10-27 (see the 04 notes above); bib entry added. Further Reading for 03 has no Tucson-format citation yet.
 - dplR, found 2026-10-19, not fixed: after `fill.internal.NA(fill = "Chron")` on `wa082`, `rwl.check` reports precision as 0.002 mm (it infers precision from the filled value; the file is 0.01 mm). And the read record on the filled object still lists the gap as holding `-999` with `fill.internal.NA` NULL, so nothing records that the year was filled or how.
 
 ### Chapter 1 and the name-conflicts aside, 2026-10-19
@@ -540,7 +615,7 @@ See "Next" at the top. The simulation question was settled (it lives in the book
 ## Planned revisions to carried-over chapters
 
 - 05Crossdating: done 2026-10-22, rewritten around `xdate.report`.
-- 13SmoothingFiltering: lead with `pass.filt` and fold the manual `signal` padding code. If 13 still loads `signal` after that, its footnote should say `hanning` now means `signal`'s and `dplR::hanning` gets dplR's back. That is all that is left of the name-conflicts aside.
+- 13SmoothingFiltering: done 2026-10-27, rewritten around `pass.filt`; `signal` is no longer loaded, and the Packages section has a parenthetical on the `hanning` clash.
 ## Known problems in carried-over chapters
 
 - 10Chronologies: `strip.rwl()` stops with an error in CRAN dplR 1.8.0 and works in 1.8.1 dev. The stripping section was rewritten on 2026-10-13 around the dependence on detrending. It uses `nyrs`, stripping of indices and the `dplR.strip` attribute, all added to 1.8.1 dev that day (pushed by 2026-10-15), and its inline numbers stop the render without them. `error: true` is off. Install dev dplR before rendering; the rest of the chapter is still the old text.
