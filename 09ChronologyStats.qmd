@@ -485,6 +485,37 @@ The correlation is `r round(cor(sensBoth$fromSdAr1, sensBoth$sens), 3)` across a
 
 Cook and Pederson came at it from another direction. Seven species at Mohonk Lake in New York, all living with the same climate, had mean sensitivities from 0.11 to 0.25, so it can't be read as a direct measure of how sensitive a species is to climate [@CookPederson2011, p. 96]. And of the statistics they tried as predictors of how much ring-width variance a climate response function explained, mean sensitivity did worst (r of 0.10 and 0.16, against 0.64 and 0.55 for effective rbar) [@CookPederson2011, p. 100]. Seven species isn't many, and they say so.
 
+What about the Gini coefficient, the `gini` column in `rwl.stats`? Biondi and Qeadan noticed that mean sensitivity only ever compares a ring with its neighbor. They extended it to rings two, three, or any number of years apart, and showed that adding up the comparisons at every lag gives the Gini coefficient [@BiondiQeadan2008, p. 1058-1061]. That sounds like a statistic about the order of the rings. Shuffle a series and see.
+
+```{r}
+#| label: stats-gini-shuffle
+# The same rings in three orders: as grown, shuffled at random, and sorted
+# smallest to largest. sample(x) returns the values of x in a random order.
+oneSeries <- na.omit(co021Rwi[, 1])
+set.seed(42)
+c(asGrown = gini.coef(oneSeries),
+  shuffled = gini.coef(sample(oneSeries)),
+  sorted = gini.coef(sort(oneSeries)))
+```
+
+The three are identical. Adding up every lag compares each ring with every other ring once, and that sum doesn't depend on which ring came first. It measures spread, which the standard deviation divided by the mean (the coefficient of variation) already does.
+
+```{r}
+#| label: stats-gini-cv
+# The Gini coefficient and the coefficient of variation for every series.
+giniCv <- function(rwi, site) {
+  data.frame(
+    site = site,
+    gini = apply(rwi, 2, gini.coef),
+    cv = apply(rwi, 2, sd, na.rm = TRUE) / apply(rwi, 2, mean, na.rm = TRUE)
+  )
+}
+giniBoth <- rbind(giniCv(co021Rwi, "co021"), giniCv(wa082Rwi, "wa082"))
+cor(giniBoth$gini, giniBoth$cv)
+```
+
+A correlation of `r round(cor(giniBoth$gini, giniBoth$cv), 3)`, and `r round(min(sapply(split(giniBoth, giniBoth$site), function(d) cor(d$gini, d$cv))), 2)` or better within each collection. The Gini coefficient is a fine measure of inequality in incomes, where the order doesn't matter. For a tree-ring series it is the coefficient of variation on another scale, with the autocorrelation left out. Report the standard deviation, the mean and `ar1`.
+
 ## Wrapping Up
 
 There are two ingredients, agreement and depth. rbar is the first. EPS is both, and it moves when either one does, so read it next to rbar and the number of trees and never alone. SSS holds the agreement fixed and shows you the depth.
@@ -508,4 +539,5 @@ The [next chapter](10Chronologies.qmd) builds chronologies and puts these statis
 - @CookPederson2011 tells the history from Schulman's coefficient to EPS in two pages (p. 80-81), then compares these statistics across seven species growing side by side. Its appendix gives the formulas `rwi.stats` uses.
 - @Buras2017 is a three-page comment on how EPS gets misused and why SSS is the statistic to use for truncating a chronology.
 - @Bunn2013 has the simulations behind my opinion of mean sensitivity.
+- @BiondiQeadan2008 extends mean sensitivity to every lag and arrives at the Gini coefficient. The derivation is on pages 1058 to 1061 and is worth following if you like the link to geostatistics (mean sensitivity at one lag is a relative madogram, the absolute-value cousin of the variogram).
 - @Cook1990 and @Fritts2001 are where to go if the ideas of signal and noise in a tree-ring series are new to you.

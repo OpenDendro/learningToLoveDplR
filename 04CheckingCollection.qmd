@@ -91,7 +91,7 @@ wa082Stats <- summary(wa082)
 head(wa082Stats)
 ```
 
-Mean, median, standard deviation, skew and kurtosis are what they always are. Two columns are more particular to tree rings. `ar1` is the lag-one autocorrelation, how much a ring resembles the one before it. `gini` is the Gini coefficient, a measure of how unequal the rings in a series are, which Biondi and Qeadan proposed as a replacement for mean sensitivity. The arithmetic is the one economists use on incomes.
+Mean, median, standard deviation, skew and kurtosis are what they always are. Two columns are more particular to tree rings. `ar1` is the lag-one autocorrelation, how much a ring resembles the one before it. `gini` is the Gini coefficient, a measure of how unequal the rings in a series are. The arithmetic is the one economists use on incomes. Biondi and Qeadan extended mean sensitivity from neighboring rings to rings any number of years apart and proposed the Gini coefficient as a one-number summary of the lot [@BiondiQeadan2008]. [Chronology Statistics](09ChronologyStats.qmd) says what I think of it.
 
 `ar1` is the column I look at first, because it tells you how much memory the trees carry from one year to the next, and that memory is what prewhitening removes before crossdating.
 
@@ -111,10 +111,6 @@ ggplot(ar1, aes(x = site, y = ar1)) +
 ```
 
 Both collections carry a lot of memory, Hurricane Ridge more on average (median `r round(median(wa082Stats$ar1), 2)` against `r round(median(co021Stats$ar1), 2)`). Some of that is the age trend. A series that declines slowly over two centuries is autocorrelated whether or not the tree remembers anything, so this is memory and trend together. Detrending separates them.
-
-:::{.callout-note title="For Andy"}
-The Gini sentence cites Biondi and Qeadan (2008) from memory of the dplR help page. The paper is not in `dplR.bib` yet. Check the claim and add the entry, or cut the attribution.
-:::
 
 ## Seeing the Collection
 
@@ -232,5 +228,5 @@ None of these checks tells you whether the rings are dated correctly. Shift part
 
 - @Wigley1984 is the paper behind "how many series is enough?" Their Figure 2 is a sample-depth plot much like the one in this chapter, for three English chronologies, and pages 206 and 207 work out how far back each one still stands in for the full collection. The answer runs from four cores at one site to eight at another, depending on how well the cores agree, and they offer their 0.85 cutoff "only as a guide". [Chronology Statistics](09ChronologyStats.qmd) takes it up properly.
 - @StGeorge2013 is five pages on where absent rings turn up across the Northern Hemisphere, by genus, latitude and year. They counted the zeros in 2,359 files, after checking that it made no difference to count measurements of 0.001 mm as well, for investigators who mark an absent ring with the smallest value the format allows.
-- To add: Biondi and Qeadan (2008) on the Gini coefficient, once checked.
+- @BiondiQeadan2008 is where the `gini` column comes from. Their example is the Gini coefficient of 766 chronologies from the western US, by species and by century.
 - The `rwl.check` help page describes every check and the control values that tune them, including why the crossdating checks compare a series with its own collection instead of a fixed correlation.

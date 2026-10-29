@@ -1,224 +1,401 @@
 # Memory and Cycles
 
-In this chapter we look at the temporal structure of a chronology. We start with autocorrelation and AR and ARMA models, and then move to the frequency domain with spectral analysis using `redfit` and with wavelets. As in the last chapter, this is a greatest hits of time-series tools that are commonly used in dendro, and not a reference text of any kind.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-28, replacing the 2022 text. Every number in the text is computed when the book builds. Open questions are in the backlog.
+:::
 
-## Data
+## Big Idea
 
-We will use the same chronology as in the last chapter, built from the on-board `co021` ring widths.
+A tree remembers last year. A good year leaves it with more stored carbon, more buds, more needles and a bigger cambium to start the next season, and so a wide ring tends to follow a wide ring. You met that memory in [Chronology Building](10Chronologies.qmd), where the residual and ARSTAN chronologies take some or all of it out.
+
+This chapter looks at memory from the other side, as something that shapes how a chronology wiggles. Memory makes slow wiggles. A series with persistence wanders up and down over decades with nothing driving it, and to the eye those wanders look like cycles. The urge to find cycles in tree rings is as old as the field. A. E. Douglass was an astronomer interested in sunspots when he started measuring Flagstaff pines in 1901 [@Cook1990, p. 1].
+
+So the question for any cycle you find in a chronology is whether it is more than memory alone would make. That's what `redfit` asks. It compares a chronology's spectrum with the spectrum of red noise, the noise that memory produces, and marks the periods that stand above it. The chapter plants cycles in red noise to see what `redfit` finds, runs it on red noise with no cycle at all to see what it finds anyway, and then turns to wavelets, which ask the same question one stretch of years at a time.
+
+The general material (the ACF and PACF, ARMA models, the periodogram, and wavelets from first principles) is in the Autocorrelation, ARMA, Spectral Analysis and Wavelets chapters of my [time series book](https://timeseries.andybunn.org). This chapter sticks to what is particular to tree rings.
+
+## Packages
 
 ```{r}
 #| label: mem-setup
+#| message: false
 library(dplR)
+library(ggplot2)
 data(co021)
-co021.rwi <- detrend(co021, method="Spline")
-co021.crn <- chron(co021.rwi)
-yrs <- time(co021.crn)
-dat <- co021.crn$std
-n <- length(yrs)
+data(wa082)
+coCrn <- chron(detrend(co021, method = "Spline"))
+waCrn <- chron(detrend(wa082, method = "Spline"))
+coStd <- coCrn$std
+waStd <- waCrn$std
 ```
 
-## Characterizing Temporal Structure
+`ggplot2` draws most of the figures. Everything else is `dplR` and base R: `acf`, `ar` and `arima` from the `stats` package that comes with R, and `redfit`, `morlet` and `wavelet.plot` from `dplR`.
 
-### ACF and PACF
-Let's start with a quick exploratory data analysis into the time-series process. We will start our analysis on the chronology by looking at its autocorrelation structure using R's `acf` and `pacf` functions.
-
-```{r}
-par(mfcol=c(1, 2))
-acf(dat)
-pacf(dat)
-```
-
-The ACF function indicates significant autocorrelation out to a lag of about 10 years (which is not uncommon in tree-ring data) while the PACF plot suggests that the persistence after lag 4 is due to the propagation of the  autocorrelation at earlier lags. And one could very well argue that the best model here is an `AR(2)` model given the low value of the PACF at lags 3 and 4. After all, you can get three opinions by asking one statistician to look a time series. But we digress.
-
-We now have the first bit of solid information about the time-series properties of these data, it looks like they fit an `AR(4)` model. 
-
-### AR and ARMA
-
-But, `R` being `R`, there are many other ways to check this. The easiest way is to use the `ar` function which fits an autoregressive models up to a specified order and selects the final model by AIC.
-
+The chronologies are the standard chronologies of Mesa Verde (`co021`) and Hurricane Ridge (`wa082`), each detrended with the default spline, as in [Chronology Building](10Chronologies.qmd). `coStd` and `waStd` are the chronologies as plain vectors.
 
 ```{r}
-dat.ar <- ar(dat,order.max = 10)
-dat.ar
-```
-
-Indeed, `ar` selects an `AR(4)` model based on AIC. But as our tea-leaf gazing above indicates, an `AR(2)` model is very close when we look at the AIC values.
-
-```{r}
-plot(0:10,dat.ar$aic,type="b",xlab="AR Order",ylab="AIC",
-     main="Difference in AIC between each model and the best-fitting model")
-
-```
-
-A strong argument can be made that a model with fewer parameters (e.g., an `AR(2)` might serve to characterize the data better than a model with more parameters.
-
-We could also fit these models as `ARIMA` models individually using the `arima` function. That function will fit a model with components (p, d, q) as the AR order, the degree of difference, and the MA order. Thus, we could fit `AR(1)` to `AR(4)` models:
-
-```{r}
-ar1 <- arima(dat,order=c(1,0,0))
-ar2 <- arima(dat,order=c(2,0,0))
-ar3 <- arima(dat,order=c(3,0,0))
-ar4 <- arima(dat,order=c(4,0,0))
-# example output
-ar1
-```
-
-And then compare the Bayesian Information Criterion (BIC) values:
-```{r}
-BIC(ar1,ar2,ar3,ar4)
-```
-
-Here we find evidence for an `AR(2)` model over the AR(4) mode that the `ar` function chose. Clearly there is some wiggle room here.
-
-So as we've seen, in addition to AR models we can fit their more complicated cousins, ARIMA models, as well. We can do the same sort of automatic selection of the model order by automatically fitting an ARIMA model using the `auto.arima` function in the package `forecast`. As with `ar`, this will choose a model that minimizes an information criterion after searching over user given constraints. We will use the default search parameters and use BIC to select the model.
-
-```{r}
-library(forecast)
-dat.arima <- auto.arima(dat, ic="bic")
-summary(dat.arima)
-```
-
-Even more confusion! Instead of an `AR(p)` model, `auto.arima` went for an 
-`ARMA(1,1)` model (aka `ARIMA(1,0,1)`). The parsimony principle certainly likes a nice simple `ARMA(1,1)` model. Note that we could look at the residuals, model coefficients, etc. quite easily. And indeed the residuals are quite clean as we would expect.
-
-```{r}
-acf(residuals(dat.arima))
-```
-
-
-This is clearly an incredibly shallow look at a deep topic. Hopefully these will get you started with different tools to characterize temporal structure in data. There are many more resources available and techniques we haven't covered (e.g., GARCH modeling). 
-
-## Frequency Domain
-
-Any time series can be broken down into a (possibly infinite) set of sine and cosine functions. So, a messy looking series like `co021.crn` is the sum of oscillating functions. The act of breaking these down is exactly what a Fourier transform does. Fourier transforms are everywhere -- think JPEGs and MP3s. But we can use them to see what frequencies are important or dominant in a time series. 
-
-Someday we will work up the courage to write a tutorial on fast Fourier transforms for dendro using `R`. It's hard to know where to start with tackling the subject though as many of the tools that people want for dendro start with `fft(dat)` but don't end there. With tree-ring data we often use spectral analysis as a way of detecting periodic signals that are corrupted by noise. 
-
-### Power via Spectral Analysis and Wavelets
-
-Given the above rationale, we will limit ourselves here to some of the tools that are used in dendro without building these up from the fast Fourier transform itself. In `dplR`, we've implemented two of the most common ways that dendrochronologists go about this and there are a host of other approaches in `R` that we won't get to here.
-
-The `redfit` function in `dplR` is a port of Schulz's REDFIT (version 3.8e) program and estimates the red-noise spectrum of a time series [@Schulz2002] with optional testing of that spectrum against a red-noise background using Monte Carlo simulations. 
-
-```{r}
-redf.dat <- redfit(dat, nsim = 1000)
-
-par(tcl = 0.5, mar = rep(2.2, 4), mgp = c(1.1, 0.1, 0),xaxs="i")
-
-plot(redf.dat[["freq"]], redf.dat[["gxxc"]],
-     ylim = range(redf.dat[["ci99"]], redf.dat[["gxxc"]]),
-     type = "n", ylab = "Spectrum", xlab = "Frequency (cycles per year)",
-     axes = FALSE)
-grid()
-lines(redf.dat[["freq"]], redf.dat[["gxxc"]], col = "black",lwd=1.5)
-lines(redf.dat[["freq"]], smooth.spline(redf.dat[["ci99"]],spar = 0.8)$y, col = "#D95F02")
-lines(redf.dat[["freq"]], smooth.spline(redf.dat[["ci95"]],spar = 0.8)$y, col = "#7570B3")
-lines(redf.dat[["freq"]], smooth.spline(redf.dat[["ci90"]],spar = 0.8)$y, col = "#E7298A")
-freqs <- pretty(redf.dat[["freq"]])
-pers <- round(1 / freqs, 2)
-axis(1, at = freqs, labels = TRUE)
-axis(3, at = freqs, labels = pers)
-mtext(text = "Period (year)", side = 3, line = 1.1)
-axis(2); axis(4)
-legend("topright", c("dat", "CI99", "CI95", "CI90"), lwd = 2,
-       col = c("black", "#D95F02", "#7570B3", "#E7298A"),
-       bg = "white")
-box()
-```
-
-Using the Mesa Verde chronology we see that there are frequencies in that time series that are significantly different from a red-noise assumption in the interannual (<3 years) and at low frequencies (multidecadal).
-
-Another popular way to visualize a tree-ring chronology in the frequency domain is through a continuous wavelet transform. In `dplR`, there is are functions for calculating the transform via `wavelet` and plotting the result via `wavelet.plot`.
-
-
-```{r}
-out.wave <- morlet(y1 = dat, x1 = yrs, p2 = 8, dj = 0.1,
-                   siglvl = 0.99)
-wavelet.plot(out.wave, useRaster=NA, reverse.y = TRUE)
-```
-
-The wavelet plot shows a similar story as the plot from `redfit` with significant variation at interannual to multidecadal scales.
-
-### Extracting signals
-
-Another common task we'll mention here is extracting specific frequency components from a time series to look at different aspects of say, high vs low frequency growth. One approach to doing this is to use wavelets again but here we will decompose a time series into its constituent voices using a discrete wavelet transform with the `mra` function in the package `waveslim`.
-
-```{r}
-library(waveslim)
-nPwrs2 <- trunc(log(n)/log(2)) - 1
-dat.mra <- mra(dat, wf = "la8", J = nPwrs2, method = "modwt",
-               boundary = "periodic")
-yrsLabels <- paste(2^(1:nPwrs2),"yrs",sep="")
-
-par(mar=c(3,2,2,2),mgp=c(1.25,0.25,0),tcl=0.5,xaxs="i",yaxs="i")
-plot(yrs,rep(1,n),type="n", axes=FALSE, ylab="",xlab="",
-     ylim=c(-3,38))
-title(main="Multiresolution decomposition",line=0.75)
-axis(side=1)
-mtext("Years",side=1,line = 1.25)
-Offset <- 0
-dat.mra2 <- scale(as.data.frame(dat.mra))
-for(i in nPwrs2:1){
-  x <- dat.mra2[,i] + Offset
-  lines(yrs,x)
-  abline(h=Offset,lty="dashed")
-  mtext(names(dat.mra)[[i]],side=2,at=Offset,line = 0)
-  mtext(yrsLabels[i],side=4,at=Offset,line = 0)
-  Offset <- Offset+5
+#| label: mem-words
+#| include: false
+# counts of zero to nine as words in the prose, larger ones as numerals
+words <- function(n) {
+  ifelse(n >= 0 & n <= 9,
+         c("zero", "one", "two", "three", "four", "five", "six", "seven",
+           "eight", "nine")[n + 1], as.character(n))
 }
-box()
+pct <- function(x) paste0(round(100 * x), "%")
 ```
 
-Here the Mesa Verde chronology is shown via an additive decomposition for each power of 2 from $2^1$ to $2^8$. Note that each voice is scaled to itself by dividing by its standard deviation in order to present them on the same y-axis. If the `scale` function were to be removed (and we leave that as an exercise to the reader) the variations between voices would be greatly reduced. Note the similarity in the continuous and discrete wavelet plots for the variation in the 64-year band around the year 1600 and the lower frequency variation at 128 years around the year 1400.
+## Where the Memory Comes From
 
-### Spectra of filtered series
-
-In the last chapter we low-pass filtered the chronology at a frequency of 0.2 and band-pass filtered it between 0.05 and 0.2 using Butterworth filters. To satisfy ourselves that the filters did what we thought they should, let's look at the power spectra of the filtered data. The `pass.filt` function in `dplR` wraps the same Butterworth filter, including the padding, so we can rebuild both series in two lines.
+The ACF, the autocorrelation function, is the correlation of a series with itself shifted by one year, two years, and so on. Here it is for both chronologies out to 15 years.
 
 ```{r}
-#| label: mem-pass-filt
-datF1Low <- pass.filt(dat, W = 0.2, type = "low")
-datPass <- pass.filt(dat, W = c(0.05, 0.2), type = "pass")
+#| label: mem-acf
+#| fig-cap: "The autocorrelation of the Mesa Verde and Hurricane Ridge chronologies at lags of 1 to 15 years. The dashed lines are the usual 95% limits for white noise of each length."
+#| fig-height: 3
+# acf(..., plot = FALSE) returns the correlations; [-1] drops lag 0, which is always 1
+lags <- 1:15
+acfBoth <- data.frame(
+  site = rep(c("co021", "wa082"), each = length(lags)),
+  lag = rep(lags, 2),
+  acf = c(acf(coStd, lag.max = 15, plot = FALSE)$acf[-1],
+          acf(waStd, lag.max = 15, plot = FALSE)$acf[-1]),
+  limit = rep(1.96 / sqrt(c(length(coStd), length(waStd))), each = length(lags))
+)
+ggplot(acfBoth, aes(x = lag, y = acf)) +
+  geom_hline(yintercept = 0, colour = "grey60") +
+  geom_hline(aes(yintercept = limit), linetype = 2) +
+  geom_hline(aes(yintercept = -limit), linetype = 2) +
+  geom_segment(aes(xend = lag, yend = 0), linewidth = 1) +
+  facet_wrap(~site) +
+  labs(x = "Lag (years)", y = "Autocorrelation") +
+  theme_minimal()
 ```
-
-Here is the spectrum of the low-pass series:
 
 ```{r}
-#| label: mem-redfit-low
-redf.dat <- redfit(datF1Low, mctest=FALSE)
-par(tcl = 0.5, mar = rep(2.2, 4), mgp = c(1.1, 0.1, 0),xaxs="i")
-plot(redf.dat[["freq"]], redf.dat[["gxxc"]],
-     xlim=c(0,0.25),
-     type = "n", ylab = "Spectrum", xlab = "Frequency (cycles per year)",
-     axes = FALSE)
-grid()
-lines(redf.dat[["freq"]], redf.dat[["gxxc"]], col = "black",lwd=1.5)
-freqs <- pretty(redf.dat[["freq"]])
-pers <- round(1 / freqs, 2)
-axis(1, at = freqs, labels = TRUE)
-axis(3, at = freqs, labels = pers)
-mtext(text = "Period (year)", side = 3, line = 1.1)
-axis(2); axis(4)
-box()
+#| label: mem-acf-numbers
+#| include: false
+coAcf <- acf(coStd, lag.max = 15, plot = FALSE)$acf[-1]
+waAcf <- acf(waStd, lag.max = 15, plot = FALSE)$acf[-1]
+coLimit <- 1.96 / sqrt(length(coStd))
+# the last lag still above the white-noise limit, counting from lag 1 without a gap
+lastRun <- function(a, limit) {
+  above <- a > limit
+  if (!above[1]) return(0)
+  which(!above)[1] - 1
+}
 ```
 
-And here is the power spectrum of the band-pass data:
+Mesa Verde's lag-one autocorrelation is `r round(coAcf[1], 2)`, and it decays slowly. It stays above the white-noise limit for the first `r words(lastRun(coAcf, coLimit))` lags. Hurricane Ridge starts at `r round(waAcf[1], 2)`. Its limit is wider, because the chronology is `r length(waStd)` years long against Mesa Verde's `r length(coStd)`.
+
+Where does it come from? Some of it is the tree. The number of cells the cambium starts a season with depends on how the tree grew the year before, and that "might be responsible for autocorrelation in tree-ring series that appear, at first sight, to have no climate cause" [@Vaganov2011, p. 45]. Stored carbon carries over too. In oaks it stays in the tree for three to five years [@CookPederson2011, p. 102-103]. Some of it is the climate, which has memory of its own. Wet years come in runs, and the simulated climate in [An Additive Model of Tree Growth](02CoresToRecord.qmd) does the same. And some of it is left-over age trend or stand history that detrending didn't take out. The ACF can't tell you which. It only tells you how much.
+
+One more distinction is worth keeping straight. A tree that responds to last summer's drought as well as this one's has a lagged climate response. That's not the same as memory. Cook and Pederson found that the prior-year response survives prewhitening, so it isn't the autocorrelation showing up again [@CookPederson2011, p. 102-103]. Prewhitening takes out persistence. It doesn't take out a lagged response, and it shouldn't.
+
+## How Much Memory?
+
+How many years back does the memory reach? One way to ask is to fit autoregressive models of increasing order and see which one fits best for its size. An AR(1) model predicts this year from last year, an AR(2) from the last two, and so on. `ar` fits orders 0 to 10 and picks one with AIC, the Akaike information criterion, a measure of fit with a penalty for each extra coefficient.
 
 ```{r}
-#| label: mem-redfit-pass
-redf.dat <- redfit(datPass, mctest=FALSE)
-par(tcl = 0.5, mar = rep(2.2, 4), mgp = c(1.1, 0.1, 0),xaxs="i")
-plot(redf.dat[["freq"]], redf.dat[["gxxc"]],
-     xlim=c(0,0.25),
-     type = "n", ylab = "Spectrum", xlab = "Frequency (cycles per year)",
-     axes = FALSE)
-grid()
-lines(redf.dat[["freq"]], redf.dat[["gxxc"]], col = "black",lwd=1.5)
-freqs <- pretty(redf.dat[["freq"]])
-pers <- round(1 / freqs, 2)
-axis(1, at = freqs, labels = TRUE)
-axis(3, at = freqs, labels = pers)
-mtext(text = "Period (year)", side = 3, line = 1.1)
-axis(2); axis(4)
-box()
+#| label: mem-ar
+coAr <- ar(coStd, order.max = 10)
+coAr$order
+# AIC of each order, as the difference from the best one
+round(coAr$aic, 1)
 ```
+
+AIC picks an AR(`r coAr$order`) model for Mesa Verde. But look at the differences. AR(2) and AR(3) are within a few units of it.
+
+BIC, the Bayesian information criterion, charges more for each coefficient. `arima` fits one model at a time. The loop fits AR(0) to AR(5) and keeps each model's BIC.
+
+```{r}
+#| label: mem-bic
+# order = c(p, 0, 0) is an AR(p) model; BIC is lower for a better model
+coBic <- numeric(6)
+for (p in 0:5) {
+  coBic[p + 1] <- BIC(arima(coStd, order = c(p, 0, 0)))
+}
+names(coBic) <- paste0("AR(", 0:5, ")")
+round(coBic - min(coBic), 1)
+```
+
+```{r}
+#| label: mem-bic-numbers
+#| include: false
+bicBest <- which.min(coBic) - 1
+```
+
+BIC picks AR(`r bicBest`). And neither has to be an AR model at all. An ARMA(1,1) model adds one moving-average term to an AR(1).
+
+```{r}
+#| label: mem-arma
+coArma <- arima(coStd, order = c(1, 0, 1))
+coArma
+BIC(coArma) - min(coBic)
+```
+
+The ARMA(1,1) beats the best AR model on BIC by `r round(min(coBic) - BIC(coArma), 1)`, with only two coefficients. So the same chronology is an AR(`r coAr$order`), an AR(`r bicBest`) or an ARMA(1,1), depending on how you ask. You can get three opinions by asking one statistician to look at a time series.
+
+The ARMA(1,1) is the one I find most interesting, because of its shape. Its AR coefficient is `r round(coef(coArma)["ar1"], 2)`, a long memory, and its MA coefficient is `r round(coef(coArma)["ma1"], 2)`, which cancels most of that memory at lag one. That is the model you get when a slow, persistent wander is buried in a lot of year-to-year noise: the slow part reaches years back, and the noise hides it from the lag-one correlation. The ACF's slow decay is the same thing seen another way. Something slow is in the chronology, and an AR(1) model, which is all that `redfit` assumes, has trouble with it.
+
+Does it matter which you pick? For prewhitening before crossdating, hardly. Any of these takes most of the persistence out. `chron.ars` picks its pooled order by AIC, following ARSTAN [@cook1985]. For the spectra in the rest of the chapter it matters more, and I'll come back to it.
+
+## Spectra with redfit
+
+A spectrum splits the variance of a series among cycles of different lengths. White noise has a flat spectrum: every period gets about the same share. Memory tilts it. A series that remembers last year moves slowly, so long periods get more of the variance and short ones less. That tilted shape is called red noise, by analogy with light.
+
+`redfit` is a port of Schulz and Mudelsee's REDFIT program [@Schulz2002]. It estimates the spectrum, fits an AR(1) model to the series, and works out how high the spectrum of that AR(1) noise could reach by chance. It was written for records with uneven spacing, like sediment cores. Tree rings are annual, so that part doesn't matter here. The red-noise test is what makes it useful. The `ci` columns are the levels that AR(1) noise would exceed at each frequency 5% or 1% of the time. `nsim = 1000` builds those levels from 1,000 simulated AR(1) series.
+
+```{r}
+#| label: mem-redfit
+set.seed(14)
+coRf <- redfit(coStd, nsim = 1000)
+coRf$rho
+```
+
+`rho` is the AR(1) coefficient `redfit` fit, `r round(coRf$rho, 2)`. The figure puts period on the x axis instead of frequency, since years are easier to think in.
+
+```{r}
+#| label: mem-redfit-plot
+#| fig-cap: "The spectrum of the Mesa Verde chronology (black) against the levels that AR(1) red noise exceeds 5% (dashed) and 1% (dotted) of the time. Period is on a log scale."
+#| fig-height: 3.5
+# one row per frequency; period is 1 / frequency
+coSpec <- data.frame(period = 1 / coRf$freq, spec = coRf$gxxc,
+                     ci95 = coRf$ci95, ci99 = coRf$ci99)
+ggplot(coSpec, aes(x = period)) +
+  geom_line(aes(y = ci95), linetype = 2) +
+  geom_line(aes(y = ci99), linetype = 3) +
+  geom_line(aes(y = spec)) +
+  scale_x_log10(breaks = c(2, 3, 5, 10, 20, 50, 100, 200)) +
+  labs(x = "Period (years)", y = "Spectrum") +
+  theme_minimal()
+```
+
+```{r}
+#| label: mem-redfit-numbers
+#| include: false
+coAbove <- coSpec$spec > coSpec$ci95
+coAbove99 <- coSpec$spec > coSpec$ci99
+# periods above the 95% level, in two groups
+coLongAbove <- coSpec$period[coAbove & coSpec$period > 10]
+coShortAbove <- coSpec$period[coAbove & coSpec$period <= 10]
+```
+
+`r sum(coAbove)` of the `r nrow(coSpec)` frequencies in the spectrum rise above the 95% level, and `r sum(coAbove99)` above the 99% level. They come in two groups. One is the slow end, periods from about `r round(min(coLongAbove))` years up. The other is the fast end, periods of `r round(min(coShortAbove), 1)` to `r round(max(coShortAbove), 1)` years.
+
+Should you believe them? Two things should make you careful. The first is that there are `r nrow(coSpec)` frequencies, and at the 95% level some of them pass by chance. (`redfit` computes the spectrum at four times as many frequencies as the series has independent ones, by default, so neighbors are not independent either.) The second is that the test is only as good as the noise it compares against, and AR(1) noise may not be the right noise for this chronology. The next two sections take those in turn.
+
+## Red Noise Without a Cycle
+
+The way to find out how often noise passes is to give `redfit` noise and count. Here are 100 series of AR(1) noise, each as long as the Mesa Verde chronology, with the same lag-one autocorrelation. There are no cycles in them. For each series the loop records the share of frequencies above the 95% level, and whether any frequency at all gets above the 99% level. `nsim = 500` builds the levels from 500 simulations each time, which is plenty for the 95% level and a little rough for the 99%.
+
+```{r}
+#| label: mem-null-ar1
+set.seed(141)
+nSeries <- 100
+nYears <- length(coStd)
+ar1Share <- numeric(nSeries)
+ar1Any99 <- logical(nSeries)
+for (i in 1:nSeries) {
+  noise <- arima.sim(list(ar = coRf$rho), n = nYears)
+  rf <- redfit(noise, nsim = 500)
+  ar1Share[i] <- mean(rf$gxxc > rf$ci95)
+  ar1Any99[i] <- any(rf$gxxc > rf$ci99)
+}
+c(share95 = mean(ar1Share), any99 = mean(ar1Any99))
+```
+
+On average `r pct(mean(ar1Share))` of the frequencies in pure AR(1) noise pass the 95% level, which is what it should be. But `r pct(mean(ar1Any99))` of the series have at least one frequency above the 99% level. A single peak above the line, at a period you didn't name before you looked, says very little.
+
+Mesa Verde has `r pct(mean(coAbove))` of its frequencies above the 95% level, more than AR(1) noise would give. Now try the noise the ARMA(1,1) model describes, with Mesa Verde's two coefficients. It has no cycles in it either, only a slow memory that an AR(1) can't capture.
+
+```{r}
+#| label: mem-null-arma
+set.seed(142)
+armaShare <- numeric(nSeries)
+armaShareLong <- numeric(nSeries)
+for (i in 1:nSeries) {
+  noise <- arima.sim(list(ar = coef(coArma)["ar1"], ma = coef(coArma)["ma1"]),
+                     n = nYears)
+  rf <- redfit(noise, nsim = 500)
+  above <- rf$gxxc > rf$ci95
+  armaShare[i] <- mean(above)
+  # the share above the line among periods longer than 40 years
+  armaShareLong[i] <- mean(above[1 / rf$freq > 40])
+}
+c(share95 = mean(armaShare), longShare95 = mean(armaShareLong))
+```
+
+```{r}
+#| label: mem-null-numbers
+#| include: false
+coLongShare <- mean(coAbove[coSpec$period > 40])
+```
+
+ARMA(1,1) noise passes the AR(1) test at `r pct(mean(armaShare))` of its frequencies, and at `r pct(mean(armaShareLong))` of the periods longer than 40 years. Mesa Verde passes at `r pct(coLongShare)` of those long periods, and `r pct(mean(armaShareLong >= coLongShare))` of the ARMA(1,1) series do as well or better. So a memory longer than AR(1), with no cycle in it, lifts a large part of the slow end over the line. That slow end might be climate, or trend that detrending left behind, or memory that an AR(1) model doesn't describe, and the spectrum can't tell those apart. The fast end, periods of `r round(min(coShortAbove), 1)` to `r round(max(coShortAbove), 1)` years, is where ARMA(1,1) noise passes the AR(1) test about as often as it should, so that's where I'd look first.
+
+## Planting a Cycle
+
+What does a cycle that is there look like? Take AR(1) noise like Mesa Verde's and add an 11-year cosine, the length of the sunspot cycle, small enough that it carries only 5% of the variance. Run `redfit` on 100 of them and count how often a frequency within half a year of 11 years gets above the 95% level.
+
+```{r}
+#| label: mem-plant
+set.seed(143)
+share <- 0.05
+# a cosine with amplitude a has variance a^2 / 2; the noise has variance 1
+amplitude <- sqrt(2 * share / (1 - share))
+found <- logical(nSeries)
+for (i in 1:nSeries) {
+  noise <- arima.sim(list(ar = coRf$rho), n = nYears,
+                     sd = sqrt(1 - coRf$rho^2)) # scaled to variance 1
+  planted <- noise + amplitude * cos(2 * pi * (1:nYears) / 11)
+  rf <- redfit(planted, nsim = 500)
+  near11 <- abs(1 / rf$freq - 11) < 0.5
+  found[i] <- any(rf$gxxc[near11] > rf$ci95[near11])
+}
+mean(found)
+```
+
+`redfit` finds the planted cycle in `r pct(mean(found))` of the series. A steady cycle puts all its variance at one period, so even a small one makes a narrow spike. That's the shape to look for: a narrow peak at a period you can name for a reason, and not a broad rise across a band of periods. Exercise 2 asks how small the cycle can get.
+
+## Wavelets
+
+A spectrum averages over the whole record. If a cycle is strong for two centuries and absent for the rest, the spectrum dilutes it. A wavelet transform computes something like a spectrum in a window that slides along the series, and the window scales with the period, wide for slow cycles and narrow for fast ones. `morlet` does the transform and `wavelet.plot` draws it.
+
+```{r}
+#| label: mem-wavelet
+#| fig-cap: "Morlet wavelet power of the Mesa Verde chronology. Darker colors are more power. The black contours enclose power above the 95% significance level against white noise, and the hatched area outside the cone of influence is too close to the ends to trust."
+#| fig-height: 6
+coYears <- time(coCrn)
+coWave <- morlet(y1 = coStd, x1 = coYears, p2 = 8, dj = 0.1, siglvl = 0.95)
+wavelet.plot(coWave, useRaster = NA, reverse.y = TRUE)
+```
+
+`p2 = 8` asks for periods up to about 2^8^ = 256 years, and `dj = 0.1` sets ten steps between each doubling of the period.
+
+The contours look busy. Patches of significant power turn up at periods from 2 years to more than a century, scattered through time. Before reading them, know what they are tested against. By default `morlet` compares the power with white noise. A chronology with memory has more power at long periods than white noise does, so against white noise the long periods pass easily. The `lag1` argument sets the lag-one autocorrelation of the red noise to test against instead, and `lag1 = NULL` estimates it from the chronology. (The argument is new in `dplR` 1.8.1. Before that the test was always against white noise, following one of the options in Torrence and Compo's method [@TorrenceCompo1998].)
+
+```{r}
+#| label: mem-wavelet-red
+#| fig-cap: "The same wavelet power as the last figure, with the contours from a test against red noise with the chronology's own lag-one autocorrelation."
+#| fig-height: 6
+coWaveRed <- morlet(y1 = coStd, x1 = coYears, p2 = 8, dj = 0.1,
+                    siglvl = 0.95, lag1 = NULL)
+wavelet.plot(coWaveRed, useRaster = NA, reverse.y = TRUE)
+```
+
+How much less passes? Count the share of the plane inside the cone of influence that passes each test.
+
+```{r}
+#| label: mem-wavelet-count
+# Power has one row per year and one column per period; Signif has one
+# level per period. sweep divides each column by its level.
+passWhite <- sweep(coWave$Power, 2, coWave$Signif, "/") >= 1
+passRed <- sweep(coWaveRed$Power, 2, coWaveRed$Signif, "/") >= 1
+# inside the cone of influence: the period is shorter than the coi that year
+inside <- outer(coWave$coi, coWave$period, ">")
+longPeriod <- outer(rep(TRUE, length(coStd)), coWave$period > 32)
+c(white = mean(passWhite[inside]), red = mean(passRed[inside]),
+  whiteLong = mean(passWhite[inside & longPeriod]),
+  redLong = mean(passRed[inside & longPeriod]))
+```
+
+Against white noise, `r pct(mean(passWhite[inside]))` of the plane inside the cone passes at the 95% level. Against red noise it's `r pct(mean(passRed[inside]))`. At periods over 32 years the drop is from `r pct(mean(passWhite[inside & longPeriod]))` to `r pct(mean(passRed[inside & longPeriod]))`, so about half the long-period patches in the first figure are what memory alone would make.
+
+Why the long periods? The spectrum of AR(1) noise with lag-one autocorrelation $r$, relative to white noise of the same variance, is
+
+$$
+\frac{1 - r^2}{1 - 2r\cos(2\pi/p) + r^2}
+$$
+
+at period $p$, and the red-noise level is the white one multiplied by that. Mesa Verde's $r$ is `r round(coAcf[1], 2)`, so the red level is below the white one at periods shorter than about `r round(2 * pi / acos(coAcf[1]), 1)` years and above it at longer ones, up to `r round((1 + coAcf[1]) / (1 - coAcf[1]), 1)` times as high at the longest.
+
+And the same warning as for `redfit` applies, more so. Each point on the plane is a separate test, so at the 95% level about 5% of the plane passes in noise, and the patches come in blobs, since neighboring points share most of their data. A wavelet plot is a good way to see when a cycle you already have reason to expect comes and goes. It's a poor way to discover one.
+
+## Checking the Filters
+
+The last chapter split Mesa Verde with `pass.filt` into periods longer than 32 years and periods from 5 to 20. Did the filters do that? Divide the spectrum of each filtered series by the spectrum of the chronology, frequency by frequency, and what's left is how much of each period's variance the filter kept.
+
+```{r}
+#| label: mem-filter-check
+coLow <- pass.filt(coStd, W = 32, type = "low")
+coBand <- pass.filt(coStd, W = c(5, 20), type = "pass")
+# gxx is the raw spectrum; all three share the same frequencies.
+# mctest = FALSE skips the red-noise levels, which this check does not need.
+lowRf <- suppressWarnings(redfit(coLow, mctest = FALSE))
+bandRf <- redfit(coBand, mctest = FALSE)
+kept <- data.frame(
+  period = rep(1 / coRf$freq, 2),
+  filter = rep(c("Low-pass, 32 years", "Band-pass, 5 to 20 years"),
+               each = length(coRf$freq)),
+  kept = c(lowRf$gxx / coRf$gxx, bandRf$gxx / coRf$gxx)
+)
+```
+
+`suppressWarnings` hides a warning from `redfit` on the low-pass series: it is so smooth that the AR(1) fit fails, and `redfit` sets `rho` to zero. That doesn't matter here, since the red-noise levels aren't used.
+
+```{r}
+#| label: mem-filter-check-plot
+#| fig-cap: "The share of the Mesa Verde chronology's variance at each period kept by the two filters from the last chapter. The dotted lines are 5, 20 and 32 years, and the dashed line is a quarter."
+#| fig-height: 3.5
+ggplot(kept, aes(x = period, y = kept, colour = filter)) +
+  geom_hline(yintercept = 0.25, linetype = 2, colour = "grey60") +
+  geom_vline(xintercept = c(5, 20, 32), linetype = 3) +
+  geom_line(linewidth = 0.8) +
+  scale_x_log10(breaks = c(2, 5, 10, 20, 32, 50, 100, 200)) +
+  labs(x = "Period (years)", y = "Share of variance kept", colour = NULL) +
+  theme_minimal()
+```
+
+```{r}
+#| label: mem-filter-numbers
+#| include: false
+keptAt <- function(f, p) {
+  d <- kept[kept$filter == f, ]
+  d$kept[which.min(abs(d$period - p))]
+}
+```
+
+Both filters do what they say. The low-pass keeps essentially everything slower than about 60 years and nothing faster than about 20. The band-pass keeps the middle and drops both ends. At the cutoffs the share kept is close to a quarter (`r sprintf("%.2f", keptAt("Low-pass, 32 years", 32))` at 32 years for the low-pass). A quarter, where the last chapter said the filter keeps half the cycle? A spectrum measures variance, which goes with the square of the cycle's size, and half squared is a quarter.
+
+## Cycles with a Cause
+
+After all those warnings, do tree rings have cycles at all? They do, and the clearest come from insects. The larch budmoth in the European Alps defoliates larch about every 9.3 years, a rhythm that shows in the rings for more than a millennium, and western spruce budworm outbreaks in the American West put half or more of the variance of regional host-tree records into cycles of about 25 to 35 years [@SwetnamBrown2011, p. 274]. Swetnam and Brown point out that cycles of that strength are virtually never seen in ring widths from trees the insects don't eat. Those are the cycles that pass every test in this chapter: a narrow period, a mechanism, and a strength well beyond what memory makes. [Events](16Events.qmd) has more on reading insects and fire in the rings.
+
+## Choosing
+
+My opinions, for what they're worth.
+
+Look at the ACF of a chronology before you do anything else with it. It tells you how much memory there is, and you'll want to know that before prewhitening, before reading a spectrum, and before correlating it with anything.
+
+Don't spend long choosing an AR order. AIC, BIC and an ARMA model can disagree on the same chronology, and for prewhitening any of them does the job.
+
+Use `redfit` to test a cycle you had a reason to look for, at a period you named first. Treat a single peak at a period you found by looking as a lead and not a result, and expect a few in any spectrum. Be most careful at the slow end, where a memory longer than AR(1) can lift a whole band of periods over the line.
+
+Test wavelet power against red noise, with `lag1 = NULL` in `morlet`. The default tests against white noise, which is a low bar for tree rings. Either way, use the plot to see when something comes and goes.
+
+## Wrapping Up
+
+Trees remember, and memory shows up in a chronology as autocorrelation and as a red spectrum, with more variance at long periods. Some of the memory is biological, some is climate's own persistence, and some is left-over trend. The ACF doesn't separate them. How many years the memory reaches depends on how you ask, and the Mesa Verde chronology fits an AR(`r coAr$order`), an AR(`r bicBest`) or an ARMA(1,1).
+
+`redfit` tests a spectrum against AR(1) red noise. It found a planted cycle that carries 5% of the variance in `r pct(mean(found))` of the tries, and it also finds peaks in noise with no cycle at all. The test is only as good as its noise. `morlet` tests against white noise unless you give it `lag1`, and white noise flatters a chronology with memory at long periods. Spectra and wavelets can show you that a period is unusual. Whether it is a cycle, and what drives it, takes a mechanism from outside the chronology.
+
+[Basal Area](15BasalArea.qmd) turns from the chronology back to the trees.
+
+## Exercises
+
+1. Run the ACF and `ar` on the residual chronology of Mesa Verde (`chron(detrend(co021, method = "Spline"), prewhiten = TRUE)$res`). How much memory is left? Then run `redfit` on it. Which of the peaks from this chapter survive?
+2. In the planting experiment, try a cycle with 2% and 1% of the variance. Where does `redfit` stop finding it? Try a 60-year cycle at 5%.
+3. Make 100 series of white noise as long as Mesa Verde and run `morlet` on each. What share of the plane inside the cone passes? Now make them AR(1) with `ar = 0.26` and count again with `lag1 = 0` and with `lag1 = NULL`.
+4. Run `redfit` on Hurricane Ridge (`waStd`). It's `r length(waStd)` years long. How does a shorter record change the spectrum and the levels?
+5. Detrend Mesa Verde with a 32-year spline instead of the default, build the chronology and run `redfit` again. What happens at the slow end, and why? ([Smoothing and Filtering](13SmoothingFiltering.qmd) has the spline's response.)
+
+## Further Reading
+
+- @Schulz2002 is the REDFIT paper. It explains the red-noise test, the bias correction and the Monte Carlo levels, and is short.
+- @Cook1990 has the history. Douglass, the astronomer, started the field while looking for sunspots in tree rings (p. 1).
+- @TorrenceCompo1998 is the method behind `morlet` and `wavelet.plot`, written for readers who want to use a wavelet transform without first studying the mathematics. Its section 4 has the red-noise test.
+- @Vaganov2011 describes how the cambium works and why last year's growth sets up this year's (p. 42-46).
+- @CookPederson2011 separates lagged climate responses from autocorrelation (p. 102-103).
+- @SwetnamBrown2011 reviews insect and fire reconstructions, including the budworm and budmoth cycles (p. 274), and is the best case I know for a cycle in tree rings with a known cause.
+- The Autocorrelation, ARMA, Spectral Analysis and Wavelets chapters of my [time series book](https://timeseries.andybunn.org) build these tools from the ground up, including a discrete wavelet decomposition of `co021` with `waveslim`.

@@ -1,21 +1,424 @@
 # Basal Area Increment
 
-:::{.callout-note title="Stub"}
-Not written yet.
-
-Planned: `bai.in`, `bai.out`, the `bai` class, and a short note on `bakker`.
-
-Also planned (moved from 11 Regional Curves, 2026-10-26): the C-method, `cms` [Biondi and Qeadan 2008, not yet in the bib or read]. Its curve (`biologicalTrend` in dplR's `R/cms.R`) is a radius that grows with the square root of age, the stem that adds a fixed basal area each year, with one constant per series fitted from the widths, ring ages and pith offsets (`gp.po`). Numbers from the 11 checks, 2026-10-25: on `gp.rwl` the `cms` chronology correlates 0.99 with `rcs` and 0.98 with `ModNegExp`; SD of its 31-year running mean 0.20. In the simulation it kept 91% and 84% of the slow swing (80- and 250-year swings) in a living stand, 84% and 68% in the four-generation collection (`rcs` 98% and 97%), 0.051 of a 0.093 per-century climate trend, and the growth-longevity link didn't touch it. Confirm the theory against the paper before drafting.
-
-Source: new.
+:::{.callout-note title="Draft"}
+First draft, 2026-10-28, replacing the stub. Every number in the text is computed when the book builds. Open questions are in the backlog.
 :::
 
 ## Big Idea
 
+A ring width is one dimension of something that grows in three. Each year a tree lays a new sheath of wood over the whole stem, and at breast height that sheath is a ring of area. Spread the same area around a bigger stem and the ring gets thinner. So a tree that adds exactly the same amount of wood every year still makes narrower and narrower rings, and much of the age trend that [Detrending](08Detrending.qmd) works so hard to remove is geometry.
+
+Basal area increment, BAI, undoes the geometry. It's the area of each ring, worked out from the widths and the size of the stem. Ecologists use it because it's closer to what they want to know: how much wood a tree put on, and whether that went up or down. Ring area has done better than ring width in studies of tree mortality and competition [@BiondiQeadan2008cms, p. 92], and foresters use it widely [@BriffaMelvin2011, p. 141].
+
+The C-method takes the same geometry and turns it into a detrending curve. If a tree adds a constant area each year, its ring widths should fall in a shape you can write down, with one number per series to fit. Biondi and Qeadan worked that out and called it the C-method [@BiondiQeadan2008cms]. `cms` does it.
+
+Neither is free of trends. A constant ring area is an assumption, and at Gus Pearson it doesn't hold for the first century of a tree's life or for the twentieth century of the stand's. This chapter computes ring areas two ways, checks them against each other, plants a stem with a known answer for the C-method, and then looks at what both show at Gus Pearson.
+
 ## Packages
+
+```{r}
+#| label: bai-setup
+#| message: false
+library(dplR)
+library(ggplot2)
+data(gp.rwl)
+data(gp.po)
+data(gp.d2pith)
+data(gp.dbh)
+```
+
+`ggplot2` draws the figures. Everything else is `dplR` and base R.
+
+The data are the ponderosa pines from the Gus Pearson Natural Area in northern Arizona that [Regional Curves](11RegionalCurves.qmd) used, `r ncol(gp.rwl)` cores from `r ncol(gp.rwl) / 2` trees. Ring areas need more than the widths, and `gp.rwl` comes with all of it: pith offsets (`gp.po`), the distance from each core's innermost ring to the pith in mm (`gp.d2pith`), and each tree's diameter and bark thickness in cm (`gp.dbh`). Biondi and Qeadan sampled two size classes at Gus Pearson. `gp.rwl` is the larger class, trees over 50 cm in diameter in 1990, which they call yellow pines (its years, ring count and absent rings match that column of their Table 1) [@BiondiQeadan2008cms, p. 87].
+
+```{r}
+#| label: bai-words
+#| include: false
+# counts of zero to nine as words in the prose, larger ones as numerals
+words <- function(n) {
+  ifelse(n >= 0 & n <= 9,
+         c("zero", "one", "two", "three", "four", "five", "six", "seven",
+           "eight", "nine")[n + 1], as.character(n))
+}
+pct <- function(x) paste0(round(100 * x), "%")
+```
+
+## From Width to Area
+
+Think of the stem as a circle. At the end of year $t$ its radius is $R_t$, and the ring that year has width $w_t = R_t - R_{t-1}$. The ring's area is the difference between two circles:
+
+$$
+BAI_t = \pi R_t^2 - \pi R_{t-1}^2 = \pi\left(w_t^2 + 2 w_t R_{t-1}\right)
+$$
+
+The $2 w_t R_{t-1}$ term is the one that matters. The same area needs a smaller $w_t$ when $R_{t-1}$ is bigger.
+
+How much smaller? Here is a stem that adds 1,000 mm² every year from the pith. Each year's width is whatever it takes to add that area to the circle so far, and the loop works it out one year at a time.
+
+```{r}
+#| label: bai-constant-stem
+area <- 1000                  # mm^2 a year
+nYears <- 300
+stemWidths <- numeric(nYears)
+radius <- 0                   # radius at the end of last year, mm
+for (t in 1:nYears) {
+  # the new radius encloses one more year's area: pi * R^2 = pi * radius^2 + area
+  newRadius <- sqrt(radius^2 + area / pi)
+  stemWidths[t] <- newRadius - radius
+  radius <- newRadius
+}
+round(stemWidths[c(1, 10, 50, 100, 200, 300)], 2)
+```
+
+```{r}
+#| label: bai-constant-stem-numbers
+#| include: false
+diamMm <- 2 * radius
+```
+
+The first ring is `r round(stemWidths[1], 1)` mm wide, the tenth is `r round(stemWidths[10], 2)` mm, and by year 300 it's `r round(stemWidths[300], 2)` mm, with the same wood going on every year. The stem is `r round(diamMm / 10)` cm across by then. That falling curve is what the C-method uses as its age trend.
+
+## Inside Out and Outside In
+
+To get an area from a width you need the radius, and a core doesn't measure it directly. There are two ways to get it, and `dplR` has a function for each.
+
+`bai.in` works from the pith outward. It needs the distance from the innermost measured ring to the pith (`gp.d2pith`), and it adds the widths onto that. `bai.out` works from the bark inward. It needs the diameter inside the bark, and it subtracts the widths from that. The two give the same answer only if the rings plus the distance to the pith add up to the radius under the bark.
+
+Do they? `gp.dbh` has each tree's diameter at breast height and its bark thickness, both in cm. Taking the bark off both sides of the stem and converting to mm gives a diameter inside the bark, and half of that is the radius each core should reach.
+
+```{r}
+#| label: bai-radius-check
+gp.dbh[1:3, ]
+# radius under the bark, mm: diameter less the bark on both sides, halved
+radiusFromDbh <- (gp.dbh$DBH - 2 * gp.dbh$BARK) * 10 / 2
+# radius from the core: every ring plus the distance from the last ring to the pith
+radiusFromCore <- colSums(gp.rwl, na.rm = TRUE) + gp.d2pith$d2pith
+summary(radiusFromCore / radiusFromDbh)
+```
+
+```{r}
+#| label: bai-radius-numbers
+#| include: false
+radiusRatio <- radiusFromCore / radiusFromDbh
+gpIds <- read.ids(gp.rwl, stc = c(0, 2, 1))
+# the two cores of a tree, as a share of their mean
+coreGap <- sapply(split(radiusFromCore, gpIds$tree),
+                  function(x) abs(diff(x)) / mean(x))
+```
+
+On average they match (a ratio of `r round(mean(radiusRatio), 2)`), but core by core they range from `r round(min(radiusRatio), 2)` to `r round(max(radiusRatio), 2)`. Some of that is the stem, which isn't a circle. The two cores of a tree differ in length by a median of `r pct(median(coreGap))`, and by as much as `r pct(max(coreGap))`. Some of it is the distance to the pith, which is a guess whenever the core misses the pith. And every value of `BARK` is the same, `r unique(gp.dbh$BARK)` cm, which looks more like a single estimate for the stand than a measurement of each tree.
+
+When the core is longer than the radius, `bai.out` runs out of stem before it runs out of rings.
+
+```{r}
+#| label: bai-in-out
+#| warning: true
+diamUnderBark <- data.frame(series = gp.dbh$ID,
+                            diam = (gp.dbh$DBH - 2 * gp.dbh$BARK) * 10)
+gpBaiIn <- bai.in(gp.rwl, d2pith = gp.d2pith)
+gpBaiOut <- bai.out(gp.rwl, diam = diamUnderBark)
+# ring areas below zero, and the series they are in
+sum(gpBaiOut < 0, na.rm = TRUE)
+names(gpBaiOut)[colSums(gpBaiOut < 0, na.rm = TRUE) > 0]
+```
+
+```{r}
+#| label: bai-in-out-numbers
+#| include: false
+tooLong <- names(gp.rwl)[colSums(gp.rwl, na.rm = TRUE) > diamUnderBark$diam / 2]
+```
+
+A ring with a negative area is nonsense. These are the innermost rings of cores that were longer than the stem's radius, so subtracting their widths went past the middle. `bai.out` warns and names the `r length(tooLong)` series whose widths add up to more than the radius. The `r words(length(tooLong) - sum(colSums(gpBaiOut < 0, na.rm = TRUE) > 0))` that aren't in the list of negatives have inner areas that are too small but still above zero, which is harder to spot. (The warning is new in `dplR` 1.8.1. Earlier versions gave the same areas without a word.) Near the bark the two methods agree better, since the outer rings are a small part of either radius.
+
+Bakker's proportional method splits the difference [@Bakker2005]. It scales each core's rings so that, with the distance to the pith, they add up to the radius from the diameter, and so it can't go negative. `bakker` takes the pith offset, the distance to the pith and the diameter in cm for each series, in that order.
+
+```{r}
+#| label: bai-bakker
+gpAncillary <- data.frame(series = names(gp.rwl),
+                          PO = gp.po$pith.offset,
+                          d2pith = gp.d2pith$d2pith,
+                          diam = gp.dbh$DBH - 2 * gp.dbh$BARK)
+gpBakker <- bakker(gp.rwl, gpAncillary)
+sum(gpBakker$baiBakker_raw < 0, na.rm = TRUE)
+```
+
+No negative areas. Which of the three should you use? If the cores reach the pith or close to it, `bai.in` is the simplest and depends only on the core. If they don't, and you trust the diameters, `bakker` uses everything you have. I'd use `bai.out` alone only when there's no estimate of the distance to the pith, and then check the inner rings for negative areas. The rest of the chapter uses `bai.in`, since most Gus Pearson cores come close to the pith (the median distance is `r median(gp.d2pith$d2pith)` mm).
+
+## What the Ring Areas Show
+
+Average the ring areas of all the cores by calendar year and you have the stand's growth, in mm² a year.
+
+```{r}
+#| label: bai-stand
+#| fig-cap: "Mean basal area increment of the Gus Pearson cores by year (black), with its 21-year running mean (gray), from 1700, when 26 cores are in. The number of cores is on the right axis's scale, as the dashed line."
+#| fig-height: 3.5
+gpYears <- time(gpBaiIn)
+standBai <- data.frame(
+  year = gpYears,
+  bai = rowMeans(gpBaiIn, na.rm = TRUE),
+  cores = rowSums(!is.na(gpBaiIn))
+)
+# a centered 21-year running mean with stats::filter
+standBai$smooth <- as.vector(stats::filter(standBai$bai, rep(1 / 21, 21)))
+standBai <- standBai[standBai$year >= 1700, ]
+ggplot(standBai, aes(x = year)) +
+  geom_line(aes(y = bai)) +
+  geom_line(aes(y = smooth), colour = "grey50", linewidth = 1) +
+  geom_line(aes(y = cores * 40), linetype = 2) +
+  scale_y_continuous(sec.axis = sec_axis(~ . / 40, name = "Cores")) +
+  labs(x = "Year", y = expression(BAI~(mm^2))) +
+  theme_minimal()
+```
+
+```{r}
+#| label: bai-stand-numbers
+#| include: false
+decadeMean <- function(from, to) {
+  mean(standBai$bai[standBai$year >= from & standBai$year <= to])
+}
+peakDecade <- decadeMean(1910, 1919)
+lastDecade <- decadeMean(1981, 1990)
+```
+
+Growth climbs into the early twentieth century, averaging `r round(peakDecade)` mm² a year over 1910 to 1919, and then falls by more than half, to `r round(lastDecade)` mm² over the 1980s. Every core is in by then, so that drop isn't sample depth. Biondi and Qeadan describe a stand-wide decline in growth through the twentieth century that earlier studies at Gus Pearson had found, and they connect it to the stand getting denser as young trees filled in after fires stopped [@BiondiQeadan2008cms, p. 86, 90-92]. The rings alone can't separate that from climate. The stand history is what makes density the likely cause.
+
+Now the same ring areas lined up by cambial age, the way [Regional Curves](11RegionalCurves.qmd) lined up widths. Each ring's age is its position in the series plus the pith offset, less one.
+
+```{r}
+#| label: bai-by-age
+#| fig-cap: "Mean basal area increment of the Gus Pearson cores by cambial age, with the number of rings at each age as the dashed line on the right axis's scale. Ages with fewer than 10 rings are left out."
+#| fig-height: 3.5
+# one row per ring: its series, its cambial age and its area
+ringRows <- data.frame()
+for (i in seq_along(gpBaiIn)) {
+  areas <- gpBaiIn[[i]]
+  measured <- which(!is.na(areas))
+  ringRows <- rbind(ringRows, data.frame(
+    series = names(gpBaiIn)[i],
+    age = gp.po$pith.offset[i] - 1 + seq_along(measured),
+    year = gpYears[measured],
+    bai = areas[measured]
+  ))
+}
+# mean area and number of rings at each age
+byAge <- aggregate(bai ~ age, data = ringRows, FUN = mean)
+byAge$rings <- aggregate(bai ~ age, data = ringRows, FUN = length)$bai
+byAge <- byAge[byAge$rings >= 10, ]
+ggplot(byAge, aes(x = age)) +
+  geom_line(aes(y = bai)) +
+  geom_line(aes(y = rings * 40), linetype = 2) +
+  scale_y_continuous(sec.axis = sec_axis(~ . / 40, name = "Rings")) +
+  labs(x = "Cambial age (years)", y = expression(BAI~(mm^2))) +
+  theme_minimal()
+```
+
+`aggregate` with the formula `bai ~ age` splits the ring areas by age and applies `FUN` to each group, once for the mean and once to count them.
+
+```{r}
+#| label: bai-by-age-numbers
+#| include: false
+ageMean <- function(from, to) mean(byAge$bai[byAge$age >= from & byAge$age <= to])
+```
+
+By age, the ring areas rise for about the first century, from `r round(ageMean(1, 20))` mm² over the first 20 years to `r round(ageMean(80, 120))` mm² around age 100, and then stay near that level out past age 300. That's close to the shape Biondi and Qeadan assume for mature trees: a rise, then an area that holds [@BiondiQeadan2008cms, p. 83].
+
+The two figures don't contradict each other, but they do warn you. The age curve pools rings grown in different centuries. A ring at age 200 might be from the 1700s or the 1900s, and the stand's growth halved between 1915 and 1985. Briffa and Melvin make the point for regional curves of BAI: ring areas avoid some of the problems of ring widths but still carry the biases from trees that grew at different rates at the same time and from modern samples [@BriffaMelvin2011, p. 141]. A flat curve by age is an average over trees and centuries.
+
+## The C-Method
+
+Start from the ring area formula and suppose the area is the same every year. Biondi and Qeadan drop the $\pi$ and call what's left $c$:
+
+$$
+w_t^2 + 2 w_t R_{t-1} = c
+$$
+
+So $c$ is the ring area divided by $\pi$ [@BiondiQeadan2008cms, p. 84-85]. With the radius built up from the pith one ring at a time, the expected width at cambial age $t$ comes out as
+
+$$
+E(w_t) = \sqrt{c\,(t + 1)} - \sqrt{c\,t}
+$$
+
+which is the falling curve from the constant stem earlier in the chapter. Turned around, each ring gives an estimate of $c$ from its width and age, and `cms` takes the median of those estimates for each series [@BiondiQeadan2008cms, p. 86]. One number per series, no curve fitting, and the pith offsets tell it each ring's age.
+
+### A Stem with a Known Answer
+
+Does `cms` get back what went in? Feed it the stem that added 1,000 mm² a year from the pith. It should find $c$ = 1000/$\pi$ and an index of 1 everywhere. Then give the stem a juvenile period, with the area rising over the first 50 years before it levels off at 1,000.
+
+```{r}
+#| label: bai-cms-check
+# widths of a stem that adds areaByYear[t] mm^2 in year t, from the pith
+widthsFromAreas <- function(areaByYear) {
+  widths <- numeric(length(areaByYear))
+  radius <- 0
+  for (t in seq_along(areaByYear)) {
+    newRadius <- sqrt(radius^2 + areaByYear[t] / pi)
+    widths[t] <- newRadius - radius
+    radius <- newRadius
+  }
+  widths
+}
+constantArea <- rep(1000, 300)
+# a juvenile ramp: from 100 up to 1000 over the first 50 years, then flat
+rampArea <- c(seq(100, 1000, length.out = 50), rep(1000, 250))
+twoStems <- data.frame(constant = widthsFromAreas(constantArea),
+                       ramp = widthsFromAreas(rampArea),
+                       row.names = 1701:2000)
+twoStems <- as.rwl(twoStems)
+# both cores start at the pith, so the first ring has cambial age 1
+stemPo <- data.frame(series = names(twoStems), pith.offset = c(1, 1))
+stemCms <- cms(twoStems, stemPo, c.hat.i = TRUE)
+stemCms$c.hat.i
+1000 / pi
+```
+
+```{r}
+#| label: bai-cms-check-plot
+#| fig-cap: "C-method indices of the two planted stems by age. Both stems add the same area every year after age 50. The dotted line is age 50, where the juvenile ramp ends."
+#| fig-height: 3
+stemIndex <- data.frame(age = rep(1:300, 2),
+                        stem = rep(c("Constant area", "Juvenile ramp"), each = 300),
+                        index = c(stemCms$rwi$constant, stemCms$rwi$ramp))
+ggplot(stemIndex, aes(x = age, y = index, linetype = stem)) +
+  geom_hline(yintercept = 1, colour = "grey60") +
+  geom_vline(xintercept = 50, linetype = 3) +
+  geom_line() +
+  coord_cartesian(ylim = c(0.5, 1.5)) +
+  labs(x = "Age (years)", y = "C-method index", linetype = NULL) +
+  theme_minimal()
+```
+
+```{r}
+#| label: bai-cms-check-numbers
+#| include: false
+constIndex <- stemCms$rwi$constant
+rampIndex <- stemCms$rwi$ramp
+# the first age from which the constant stem's index stays within 1% of 1
+within1 <- min(which(sapply(seq_along(constIndex),
+                            function(k) all(abs(constIndex[k:300] - 1) < 0.01))))
+```
+
+For the constant stem, `cms` finds `r round(stemCms$c.hat.i["constant"], 1)` against a true `r round(1000 / pi, 1)`, and the index is within 1% of 1 from age `r within1` on. Before that it's high, and the first ring, at `r round(constIndex[1], 2)`, is off the top of the figure. The cause is a matter of counting. `cms` gives the first ring an age of 1, and the formula at age 1 expects the second ring of a stem grown from the pith. (Biondi and Qeadan treat the year before as the tree's potential for growth, $w_0 = \sqrt{c}$, which is exactly the planted stem's first ring [@BiondiQeadan2008cms, p. 85].) By age 10 the index is `r round(constIndex[10], 2)`, so it matters only near the pith.
+
+The stem with a juvenile period is harder. The index starts low (`r round(rampIndex[1], 2)` at age 1, a low of `r round(min(rampIndex), 2)` at age `r which.min(rampIndex)`, `r round(rampIndex[10], 2)` at age 10), peaks at `r round(max(rampIndex), 2)` at age `r which.max(rampIndex)`, when the ramp ends, and then drifts down for the rest of the series. It averages `r round(mean(rampIndex[51:150]), 2)` over ages 51 to 150 and `r round(mean(rampIndex[251:300]), 2)` over the last 50 years, while the stem was adding a steady 1,000 mm² every one of those years. Its $c$ comes out at `r round(stemCms$c.hat.i["ramp"], 1)`, above the truth. The slow early years leave the stem smaller than the curve assumes, so the rings after the ramp are wider than expected, and the median takes $c$ up to meet them. A juvenile period is a trend the method can't see, and it leaves a false hump and a slow decline in the index. Biondi and Qeadan note that the curve drops faster in the early years than trees with a juvenile period do, and that this can make outliers [@BiondiQeadan2008cms, p. 93].
+
+### Gus Pearson
+
+```{r}
+#| label: bai-cms-gp
+gpCms <- cms(gp.rwl, gp.po, c.hat.t = TRUE, c.hat.i = TRUE)
+summary(gpCms$c.hat.i)
+```
+
+The constants run from `r round(min(gpCms$c.hat.i))` to `r round(max(gpCms$c.hat.i))` with a mean of `r round(mean(gpCms$c.hat.i))`, close to the 225 to 1,269 and 563 that Biondi and Qeadan report for these trees [@BiondiQeadan2008cms, p. 91]. The numbers are in mm², but remember the dropped $\pi$. Multiply by $\pi$ to get a ring area.
+
+How does that compare with the ring areas from `bai.in`? If each tree had added $\pi c$ every year since the pith, its radius now would be $\sqrt{c \times \text{age}}$.
+
+```{r}
+#| label: bai-cms-radius
+# cambial age of each core's last ring
+lastAge <- gp.po$pith.offset - 1 + colSums(!is.na(gp.rwl))
+radiusFromC <- sqrt(gpCms$c.hat.i * lastAge)
+summary(radiusFromC / radiusFromCore)
+```
+
+For the median core, the radius the C-method implies is `r pct(median(radiusFromC / radiusFromCore) - 1)` larger than the one measured, which is the planted stem's story again. The trees grew slowly through their first century (the age curve above), so they are smaller than a stem that added its later area from the start.
+
+Here is one series with its C-method curve and the modified negative exponential that `detrend` fits. `c.hat.t = TRUE` returns each series' curve by cambial age.
+
+```{r}
+#| label: bai-cms-one
+#| fig-cap: "Ring widths of core 22A (gray) with its C-method curve (black) and a modified negative exponential (dashed), by year."
+#| fig-height: 3
+oneSeries <- "22A"
+oneWidths <- gp.rwl[[oneSeries]]
+measured <- !is.na(oneWidths)
+oneFrame <- data.frame(year = gpYears[measured], width = oneWidths[measured])
+# the C-method curve is the widths divided by the index
+oneFrame$cms <- oneFrame$width / gpCms$rwi[[oneSeries]][measured]
+oneFrame$nec <- detrend.series(oneWidths[measured], method = "ModNegExp",
+                               make.plot = FALSE, return.info = TRUE)$curves
+ggplot(oneFrame, aes(x = year)) +
+  geom_line(aes(y = width), colour = "grey60") +
+  geom_line(aes(y = cms), linewidth = 0.8) +
+  geom_line(aes(y = nec), linetype = 2, linewidth = 0.8) +
+  labs(x = "Year", y = "Ring width (mm)") +
+  theme_minimal()
+```
+
+```{r}
+#| label: bai-cms-one-numbers
+#| include: false
+nOne <- nrow(oneFrame)
+midOne <- round(nOne / 2)
+```
+
+The widths divided by the index give back the curve, which is simpler than lining up `c.hat.t` by year. The C-method starts higher, at `r round(oneFrame$cms[1], 2)` mm against the exponential's `r round(oneFrame$nec[1], 2)`, because it falls steeply near the pith (this core's first ring has a cambial age of `r gp.po$pith.offset[gp.po$series == oneSeries]`). Through the middle they're close (`r round(oneFrame$cms[midOne], 2)` and `r round(oneFrame$nec[midOne], 2)` mm in `r oneFrame$year[midOne]`). At the end the C-method is still falling where the exponential has flattened toward its asymptote, `r round(oneFrame$cms[nOne], 2)` against `r round(oneFrame$nec[nOne], 2)` mm in `r oneFrame$year[nOne]`.
+
+What does that do to the chronology? Compare it with RCS and with the modified negative exponential, from 1700, when 26 cores are in.
+
+```{r}
+#| label: bai-cms-crn
+gpCrnCms <- chron(gpCms$rwi)
+gpCrnRcs <- chron(rcs(gp.rwl, po = gp.po, make.plot = FALSE))
+gpCrnNec <- chron(suppressWarnings(detrend(gp.rwl, method = "ModNegExp")))
+from1700 <- gpYears >= 1700
+round(c(rcs = cor(gpCrnCms$std[from1700], gpCrnRcs$std[from1700]),
+        ModNegExp = cor(gpCrnCms$std[from1700], gpCrnNec$std[from1700])), 3)
+```
+
+`suppressWarnings` hides `detrend`'s warnings about two series whose fitted curves reach zero or below. [Detrending](08Detrending.qmd) covers those.
+
+Close to identical, on these trees. That's the same thing [Regional Curves](11RegionalCurves.qmd) found when it tried every method on Gus Pearson, and the same thing Biondi and Qeadan found comparing the C-method with RCS on these data (a correlation of 0.9 or more) [@BiondiQeadan2008cms, p. 88]. Where the methods differ is in the slow part. In the simulation in [Regional Curves](11RegionalCurves.qmd), the C-method kept most of a slow climate swing, about as much as RCS, and the link between how fast a tree grew and how long it lived didn't move it. That simulation builds its age trend from a stem that adds a constant area after a juvenile ramp, so it suits the C-method by construction.
+
+```{r}
+#| label: bai-cms-early
+#| include: false
+# indices in each series' first 10 years of cambial age, for cores near the pith
+nearPith <- gp.po$pith.offset <= 10
+earlyIdx <- c()
+for (i in which(nearPith)) {
+  idx <- gpCms$rwi[[i]]
+  measured <- which(!is.na(idx))
+  ages <- gp.po$pith.offset[i] - 1 + seq_along(measured)
+  earlyIdx <- c(earlyIdx, idx[measured][ages <= 10])
+}
+```
+
+One thing to watch for at Gus Pearson: of the `r sum(nearPith)` cores that start within 10 years of the pith, the indices in the first 10 years of age average `r round(mean(earlyIdx), 2)`. That's the juvenile period again, the same thing the planted stem showed, and it puts low values at the start of the near-pith series. With a collection of mixed ages they land in different calendar years and wash out. In a young, even-aged stand they would line up.
+
+## Choosing
+
+My opinions, for what they're worth.
+
+If the question is about the trees (how much wood they added, which ones slowed down, whether competition or thinning changed anything) use ring areas. Detrending removes the slow changes an ecologist is after.
+
+For ring areas, use `bai.in` when the cores reach or nearly reach the pith and `bakker` when they don't and you have good diameters. Check `bai.out` for negative areas before you use it.
+
+Treat the C-method as one more detrending curve, with a good story behind it. On trees that grew in the open with a steady decline in width it's a sensible choice, it needs pith offsets, and it has nothing to converge. It assumes away the juvenile period, so expect low indices near the pith.
+
+And don't read a flat curve of ring area by age as proof that ring area is free of trends. At Gus Pearson the average by age is flat after a century, and the stand's growth still halved in 70 years.
 
 ## Wrapping Up
 
+Ring width falls with age partly because the same wood spreads around a bigger stem. Ring area takes that geometry out. `bai.in` and `bai.out` get the radius from opposite ends of the core and agree only as far as the core matches the stem, and `bakker` reconciles them. At Gus Pearson the ring areas show the stand's growth rising into the early twentieth century and then halving.
+
+The C-method turns constant ring area into a detrending curve with one constant per series. When the assumption holds it recovers a planted stem's constant, and an index of 1 away from the first few rings. When the stem had a juvenile period it leaves a false hump and a slow decline behind. On Gus Pearson its chronology is all but the same as RCS and the modified negative exponential.
+
+Ring area can tell you how much wood the trees added. It can't tell you why the amount changed, and it carries the sampling biases of the widths it came from.
+
+[Events](16Events.qmd) turns to the years that stand out: fires, frosts and insects.
+
 ## Exercises
 
+1. Plot `bai.in` against `bai.out` for one series where they disagree near the pith (`radiusRatio` says which). Then replace that core's distance to the pith with the value that would make `radiusFromCore` match `radiusFromDbh` and recompute. How far off was the estimate?
+2. Average `gpBaiIn` by tree instead of by core (`treeMean` with `gpIds`) and redraw the stand figure. Does averaging the two cores change the twentieth-century drop?
+3. Build ring areas from `bakker` and redraw the curve by cambial age. Does the century-long rise survive?
+4. Give the planted stem a decline instead of a juvenile period (constant area for 200 years, then falling to half over the last 100) and run `cms`. What does the index show, and is that what you'd want from a detrending curve?
+5. Run `cms` with every pith offset set to 1, as if each core reached the pith. How much do the constants and the chronology change?
+
 ## Further Reading
+
+- @BiondiQeadan2008cms derives the C-method in two pages (p. 84-86) and compares it with RCS on these trees. Its introduction is a clear case against the modified negative exponential's asymptote, which implies an ever-rising ring area.
+- @BriffaMelvin2011 is about regional curves, and page 141 is the warning that ring areas don't escape the growth-rate and modern-sample biases.
+- @Bakker2005 is the proportional method behind `bakker`, written for reconstructing past diameters from cores.
+- [Regional Curves](11RegionalCurves.qmd) has the simulation that compares the C-method with RCS on slow climate.
