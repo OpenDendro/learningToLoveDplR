@@ -26,7 +26,7 @@ id  <- "645232"
 rw  <- co021[[id]]
 yrs <- time(co021)[!is.na(rw)]
 rw  <- rw[!is.na(rw)]
-fit <- detrend.series(rw, method = "ModNegExp", make.plot = FALSE,
+fit <- detrend.series(rw, method = "Spline", make.plot = FALSE,
                       return.info = TRUE)
 crv <- fit$curves
 
@@ -76,7 +76,7 @@ widths <- c(
 )
 
 # ── panel 3: the chronology, with sample depth underneath ──
-crn <- chron(detrend(co021, method = "ModNegExp"))
+crn <- chron(detrend(co021, method = "Spline"))
 cy  <- time(crn)
 smo <- caps(crn$std, nyrs = 30)
 qTop <- 286; qBot <- 416; dTop <- 446; dBot <- 496

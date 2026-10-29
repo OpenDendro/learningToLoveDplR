@@ -100,7 +100,7 @@ The original Hurricane Ridge file also has a flaw worth meeting early. One serie
 
 ## The Supporting Cast
 
-- `gp.rwl` is ponderosa pine from the Gus Pearson Natural Area in northern Arizona, from Franco Biondi's lab. It comes with pith offsets and tree diameters (`gp.po`, `gp.dbh`, `gp.d2pith`), which regional curves and basal area increment both need.
+- `gp.rwl` is ponderosa pine from the Gus Pearson Natural Area in northern Arizona, from Franco Biondi's lab. Biondi and Qeadan sampled two size classes there, and `gp.rwl` is the larger one, trees over 50 cm in diameter in 1990 [@BiondiQeadan2008cms, p. 87]. It comes with pith offsets and tree diameters (`gp.po`, `gp.dbh`, `gp.d2pith`), which regional curves and basal area increment both need.
 - `zof.rwl` is European beech from Zofingen in Switzerland. It also comes with pith offsets and diameters (`zof.anc`).
 - `ca533` is bristlecone pine from Campito Mountain in California [@Graybill1983ca533]. The series are very long. The signal-free chapter uses it. I have spent most of my career working with bristlecone pine, so these data are like an old friend. Ask me about the horse named Campito sometime.
 - `cana157` is a finished chronology, white spruce from Twisted Tree Heartrot Hill in the Yukon [@Jacoby1992cana157]. The chapter on events uses it.

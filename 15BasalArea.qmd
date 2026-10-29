@@ -130,7 +130,28 @@ tooLong <- names(gp.rwl)[colSums(gp.rwl, na.rm = TRUE) > diamUnderBark$diam / 2]
 
 A ring with a negative area is nonsense. These are the innermost rings of cores that were longer than the stem's radius, so subtracting their widths went past the middle. `bai.out` warns and names the `r length(tooLong)` series whose widths add up to more than the radius. The `r words(length(tooLong) - sum(colSums(gpBaiOut < 0, na.rm = TRUE) > 0))` that aren't in the list of negatives have inner areas that are too small but still above zero, which is harder to spot. (The warning is new in `dplR` 1.8.1. Earlier versions gave the same areas without a word.) Near the bark the two methods agree better, since the outer rings are a small part of either radius.
 
-Bakker's proportional method splits the difference [@Bakker2005]. It scales each core's rings so that, with the distance to the pith, they add up to the radius from the diameter, and so it can't go negative. `bakker` takes the pith offset, the distance to the pith and the diameter in cm for each series, in that order.
+Most of the gap between a tree's two cores is the stem itself. A cross-section is rarely a circle, and the pith is rarely in its middle. A tree that grew faster on one side has a long radius and a short one, and two cores from opposite sides measure both. Neither is the radius of the circle that `bai.in` and `bai.out` assume, but their average comes closer. So I'd average the cores of each tree before computing ring areas.
+
+```{r}
+#| label: bai-tree-mean
+# radius from each tree: the mean of its two cores, rings plus distance to the pith
+radiusTree <- tapply(radiusFromCore, gpIds$tree, mean)
+radiusDbhTree <- tapply(radiusFromDbh, gpIds$tree, mean)
+summary(radiusTree / radiusDbhTree)
+# average the widths of a tree's cores year by year, then work in from the bark
+gpTree <- treeMean(gp.rwl, gpIds)
+diamTree <- data.frame(series = names(gpTree),
+                       diam = 2 * radiusDbhTree[names(gpTree)])
+gpBaiOutTree <- bai.out(gpTree, diam = diamTree)
+sum(gpBaiOutTree < 0, na.rm = TRUE)
+# years in which only one of a tree's two cores has a ring
+oneCore <- sapply(split(names(gp.rwl), gpIds$tree),
+                  function(s) sum(rowSums(!is.na(gp.rwl[, s])) == 1))
+```
+
+Tree by tree, the radius from the cores is between `r round(min(radiusTree / radiusDbhTree), 2)` and `r round(max(radiusTree / radiusDbhTree), 2)` of the radius from the diameter, against `r round(min(radiusRatio), 2)` to `r round(max(radiusRatio), 2)` core by core. `treeMean` averages the widths of a tree's cores year by year. With the averaged widths, `r nTreeLong <- sum(colSums(gpTree, na.rm = TRUE) > radiusDbhTree[names(gpTree)]); if (nTreeLong == 0) "no tree's rings add up" else paste("the rings of", words(nTreeLong), "trees add up")` to more than the radius, and `bai.out` gives `r nTreeNeg <- sum(gpBaiOutTree < 0, na.rm = TRUE); if (nTreeNeg == 0) "no" else nTreeNeg` negative areas, against `r sum(gpBaiOut < 0, na.rm = TRUE)` from the cores one at a time. There is a catch. Where one core starts later, the innermost years come from the longer core alone, a median of `r median(oneCore)` years per tree and as many as `r max(oneCore)`. Those rings are one side of the stem again.
+
+Bakker's proportional method reconciles each core with the diameter another way [@Bakker2005]. It scales each core's rings so that, with the distance to the pith, they add up to the radius from the diameter, and so it can't go negative. `bakker` takes the pith offset, the distance to the pith and the diameter in cm for each series, in that order.
 
 ```{r}
 #| label: bai-bakker
@@ -142,7 +163,7 @@ gpBakker <- bakker(gp.rwl, gpAncillary)
 sum(gpBakker$baiBakker_raw < 0, na.rm = TRUE)
 ```
 
-No negative areas. Which of the three should you use? If the cores reach the pith or close to it, `bai.in` is the simplest and depends only on the core. If they don't, and you trust the diameters, `bakker` uses everything you have. I'd use `bai.out` alone only when there's no estimate of the distance to the pith, and then check the inner rings for negative areas. The rest of the chapter uses `bai.in`, since most Gus Pearson cores come close to the pith (the median distance is `r median(gp.d2pith$d2pith)` mm).
+No negative areas. Which of the three should you use? If the cores reach the pith or close to it, `bai.in` is the simplest and depends only on the core. If they don't, and you trust the diameters, `bakker` uses everything you have. I'd use `bai.out` alone only when there's no estimate of the distance to the pith, and then check the inner rings for negative areas. Whichever you use, average the cores of a tree first if you can. The rest of the chapter uses `bai.in` on each core, because the curves by cambial age need each core's own pith offset, and most Gus Pearson cores come close to the pith (the median distance is `r median(gp.d2pith$d2pith)` mm).
 
 ## What the Ring Areas Show
 
@@ -411,7 +432,7 @@ Ring area can tell you how much wood the trees added. It can't tell you why the 
 ## Exercises
 
 1. Plot `bai.in` against `bai.out` for one series where they disagree near the pith (`radiusRatio` says which). Then replace that core's distance to the pith with the value that would make `radiusFromCore` match `radiusFromDbh` and recompute. How far off was the estimate?
-2. Average `gpBaiIn` by tree instead of by core (`treeMean` with `gpIds`) and redraw the stand figure. Does averaging the two cores change the twentieth-century drop?
+2. Compute ring areas from `gpTree` with `bai.in`, giving each tree the mean of its two cores' distances to the pith, and redraw the stand figure. Does averaging the two cores change the twentieth-century drop?
 3. Build ring areas from `bakker` and redraw the curve by cambial age. Does the century-long rise survive?
 4. Give the planted stem a decline instead of a juvenile period (constant area for 200 years, then falling to half over the last 100) and run `cms`. What does the index show, and is that what you'd want from a detrending curve?
 5. Run `cms` with every pith offset set to 1, as if each core reached the pith. How much do the constants and the chronology change?
