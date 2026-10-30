@@ -1,15 +1,11 @@
 # Preface
 
-:::{.callout-warning title="Work in progress"}
-The book is being rewritten in 2026. Some chapters are finished drafts, some are the 2022 workshop notes, and some are empty. Each chapter says which at the top. Expect typos and all kinds of silliness until then.
-:::
+This is a book about doing tree-ring analysis with `dplR`, the Dendrochronology Program Library in R. I've structured the book to follow a typical workflow from reading a file of already measured ring widths, crossdating the data, detrending it, and then building a chronology. After that I show how to ask some simple questions about what the data might have to say in terms of their signals and noise.
 
-This is a book about doing tree-ring analysis in R with `dplR`, the Dendrochronology Program Library in R. It covers the work in roughly the order you'd do it: reading ring widths, crossdating, detrending, building a chronology, and then asking what the record says about time or about the trees.
+Going in, I assume you know some dendrochronology basics E.g., you should know what a ring width is, why several trees at a dry site might have ring widths that vary with each other more than some trees growing in a forest interior. You should know what crossdating is and understand statistical concepts like correlation. If that's all new, start with a primer like Speer [-@Speer2010]. Ideally you've leafed through a classic like Fritts [-@Fritts2001] or even *Methods of Dendrochronology* [-@CookBook], the edited volume many of us call the Cook Book. The book won't teach you dendrochronology from the beginning but, hopefully, it will show you what the most common methods are and how to run them in R.
 
-I assume you know some dendrochronology, or are learning it alongside. You should know what a ring width is, why trees at a dry site might agree with each other, and what crossdating is for. If that's all new, start with a good primer like Fritts [-@Fritts2001] or *Methods of Dendrochronology* [-@CookBook], the edited volume most of us call the Cook Book, and come back. The book won't teach you dendrochronology from the beginning. It will show you what the methods are doing, how to run them in R, and where they mislead.
+I also assume you can get around in R a bit. The [Setup appendix](A1PackagesUsed.qmd) says what to install and points to a good place to start if R is new to you.
 
-I also assume you can get around in R a little. The [Setup appendix](A1PackagesUsed.qmd) says what to install and points to a good place to start if you can't.
+The book is replete with all the code you need to do the analysis and in fact, it all runs as the book builds. So every figure and every number in the text comes from the code next to it. The data are either on board in `dplR` or in a [zip file](A2DataSources.qmd) you can download.
 
-The code in every chapter runs as the book builds, and in the rewritten chapters every figure and every number in the text comes from the code next to it. Copy it, run it, break it. The data are either on board in `dplR` or in a [zip file](A2DataSources.qmd) you can download.
-
-The book is written in [Quarto](https://quarto.org), and the source is on [GitHub](https://github.com/OpenDendro/learningToLoveDplR). If you find a mistake, open an issue there. I'd be grateful.
+The book is written in [Quarto](https://quarto.org), and the source is on [GitHub](https://github.com/OpenDendro/learningToLoveDplR). There are certainly mistakes so if you find one, open an issue on GitHub. Thanks and enjoy the book.

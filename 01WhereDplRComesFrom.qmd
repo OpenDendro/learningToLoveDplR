@@ -1,12 +1,8 @@
 # Where dplR Comes From
 
-:::{.callout-note title="Draft"}
-First draft, 2026-10-19. Replaces the 2022 Welcome; the setup material moved to the [Setup appendix](A1PackagesUsed.qmd). History is checked against @Holmes1983, @GrissinoMayer2001 and the Fortran in `legacyCode`, and against what Ed Cook told me.
-:::
-
 ## Big Idea
 
-Every number a tree-ring program hands you rests on choices somebody made. For instance, wow stiff a spline should be fit to a series? Should the data be log transformed?  Which kind of correlation measure? And so on. For about forty years most of those choices were inside Fortran programs written by a small number of people who knew the ins and outs of tree cores and knew the math. COFECHA and ARSTAN are the famous ones. They are where the field's methods were worked out, and `dplR` carries a great many of the same ideas. Its name, the Dendrochronology Program Library in R, is a nod to the library of programs Richard Holmes built.
+Analysis of any sort comes with a lot of choices. In dendrochronology the most basic task of taking several series of tree-ring widths and making them into a chronology involves a bewildering array of decisions that have to be made.  How stiff a spline should be fit to a series? Should the data be log transformed?  Which kind of correlation measure do we use to see if a series is dated correctly? And so on. For about forty years most of those choices were buried inside programs written by a small number of people who knew dendrochronology very well and were also very clever analysts. COFECHA and ARSTAN are the most famous of these legacy programs. They are where the methods of dendrochronology were worked out, and `dplR` continues with many of the same ideas. Even the name, the Dendrochronology Program Library in R, is a nod to the suite of programs Richard Holmes built.
 
 The difference is where the choices sit. In COFECHA a choice was a prompt you answered or a constant in the source. In `dplR` it is an argument with a default, and you can see it, change it and write down what you changed. Most of the book is about those arguments: what each one does to your data, and when you'd want something other than the default.
 
