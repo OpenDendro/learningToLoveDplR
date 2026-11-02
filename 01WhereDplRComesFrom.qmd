@@ -2,43 +2,60 @@
 
 ## Big Idea
 
-Analysis of any sort comes with a lot of choices. In dendrochronology the most basic task of taking several series of tree-ring widths and making them into a chronology involves a bewildering array of decisions that have to be made.  How stiff a spline should be fit to a series? Should the data be log transformed?  Which kind of correlation measure do we use to see if a series is dated correctly? And so on. For about forty years most of those choices were buried inside programs written by a small number of people who knew dendrochronology very well and were also very clever analysts. COFECHA and ARSTAN are the most famous of these legacy programs. They are where the methods of dendrochronology were worked out, and `dplR` continues with many of the same ideas. Even the name, the Dendrochronology Program Library in R, is a nod to the suite of programs Richard Holmes built.
+Analysis of any sort comes with a lot of choices. In dendrochronology the most basic task of taking several series of tree-ring widths and making them into a chronology involves a bewildering array of decisions that have to be made.  How stiff a smoothing spline should be fit to a series? Should the data be log transformed?  Which kind of correlation measure do we use to see if a series is dated correctly? And so on. For about forty years most of those choices were buried inside programs written by a small number of people who knew dendrochronology very well and were also very clever analysts (think Hal Fritts, Richard Holmes, and Ed Cook among others). COFECHA and ARSTAN are the most famous of these legacy programs. They are where the methods of dendrochronology were worked out, and `dplR` continues with many of the same ideas. Even the name, the Dendrochronology Program Library in R, is a nod to the suite of programs Richard Holmes built.
 
-The difference is where the choices sit. In COFECHA a choice was a prompt you answered or a constant in the source. In `dplR` it is an argument with a default, and you can see it, change it and write down what you changed. Most of the book is about those arguments: what each one does to your data, and when you'd want something other than the default.
+The difference is where the choices are made. In COFECHA a choice was a prompt you answered or a constant in the source. In `dplR` it is an argument with a default, and you can see it, change it and write down what you changed. Most of the book is about those arguments: what each one does to your data, and when you'd want something other than the default.
 
-This chapter is the short history behind that, and one example of why it matters.
+This chapter lays out the steps from cores to a chronology, gives the short history of the programs that took them, and gives one example of why the choices matter.
+
+## From Cores to a Chronology {#sec-four-steps}
+
+Four steps turn a collection of tree cores into a record, and the book is set up around them. You crossdate, so every ring has the right year. You measure, so every ring has a width (or an area or a cell density, but the book sticks almost entirely to width). You detrend, which takes each tree's biological growth trend out and puts fast and slow trees on a similar scale. And you average the detrended series into a chronology. In practice the first two overlap: you date the cores by eye, measure them, and then check the dating with statistics.
+
+Each step leans on the one before it. A ring in the wrong year puts every ring inside it in the wrong year too, and a collection that hasn't been detrended averages age and growth rate along with the weather. In `dplR` the measured widths are an object of class `rwl`, the detrended series an `rwi`, and the chronology a `crn`.
+
+| Step | Why you can't skip it | In `dplR` | Where in the book |
+|---|---|---|---|
+| Crossdate | A ring in the wrong year moves every ring inside it, and errors compound | `xdate.report`, `ccf.series.rwl`, `insert.ring` | [Crossdating](05Crossdating.qmd) to [Dating a Floater](07Floaters.qmd) |
+| Measure | Every later number is made from the widths, and slips in measuring look like growth | `read.rwl`, `rwl.check`; class `rwl` | [Reading and Writing](03ReadingWriting.qmd), [Checking a Collection](04CheckingCollection.qmd) |
+| Detrend | Raw widths can't easily be averaged: trees grow at different rates and every tree's rings shrink with age | `detrend`; class `rwi` | [Detrending](08Detrending.qmd) |
+| Build a chronology | One tree is one tree. The average across trees is the record of the site | `chron`; class `crn` | [Chronology Statistics](09ChronologyStats.qmd), [Chronology Building](10Chronologies.qmd) |
+
+After that you decide what the record is for: what it says about time ([Time Series](13SmoothingFiltering.qmd)) or about the trees ([Trees and Disturbance](15BasalArea.qmd)). The programs below took the steps one at a time. COFECHA checks the dating, and ARSTAN does the detrending and builds the chronology.
 
 ## The Programs Before dplR
 
-Crossdating was done by eye long before it was done by computer, with skeleton plots and by matching ring patterns from memory [@Holmes1983]. Douglass held to the rule that the wood decides the dating [@Douglass1941]. A correlation could help, but it couldn't overrule the rings.
+Crossdating was done by eye long before it was done by computer, with skeleton plots and by matching ring patterns from memory [@Holmes1983]. Douglass held to the rule that the wood decides the dating [@Douglass1941]. A correlation could help, but it couldn't overrule the rings. Word.
 
-Computers came in slowly. Holmes [-@Holmes1983] describes a routine from Fritts in 1963 that correlated an undated series with a chronology at every possible position. It worked when the dating was clean. A missing ring blurred the peak, and the routine couldn't tell you where in a series the problem was.
+Computers came in pretty quickly and were in widespread use by practicing dendros the 1970s. Holmes [-@Holmes1983] describes a routine from Fritts in 1963 that correlated an undated series with a chronology at every possible position. It worked when the dating was clean. A missing ring blurred the peak, and the routine couldn't tell you where in a series the problem was.
 
-Holmes's answer was COFECHA, an invented Spanish word for "co-date". The first version appeared early in 1982 [@GrissinoMayer2001]. It cut each series into overlapping segments and correlated each one against a master built from the other series, so a dating error showed up as a run of weak segments starting where the error was. Holmes wrote it at the Laboratory of Tree-Ring Research in Tucson and at IANIGLA in Mendoza, Argentina [@Holmes1983]. COFECHA was one of a set of programs Holmes wrote that shared Fortran routines for reading files, asking for options and printing output. That set is the Dendrochronology Program Library, the DPL, and for years it was handed out from the lab's server [@GrissinoMayer2001].
+Holmes's answer was COFECHA, an invented Spanish word for "co-date". The first version appeared early in 1982. It cut each series into overlapping segments and correlated each one against a master built from the other series, so a dating error showed up as a run of weak segments starting where the error was. Holmes wrote it at the Laboratory of Tree-Ring Research in Tucson and at IANIGLA in Mendoza, Argentina [@Holmes1983]. COFECHA was one of a set of programs Holmes wrote that shared Fortran routines for reading files, asking for options and printing output. That set is the Dendrochronology Program Library, the DPL, and for years it was handed out from the lab's server [@GrissinoMayer2001].
 
-Ed Cook's ARSTAN did for standardization what COFECHA did for dating. It fits growth curves, turns ring widths into indices, builds the chronology with a robust mean, and models the persistence in it. It carries much of the thinking in Cook's dissertation [@cook1985] and in the Cook Book [@CookBook], and Ed has kept it going ever since. The copy he gave me has a log of changes from 2006 to 2019, including an age-dependent spline added in 2014. That spline is in `dplR` too, as `ads`.
+Ed Cook's ARSTAN did for standardization what COFECHA did for dating. It fits growth curves, turns ring widths into indices, builds the chronology with a robust mean, and models the persistence in it. It carries much of the thinking in Cook's dissertation [@cook1985] and in the Cook Book [@CookBook], and Ed has kept it going ever since with the help of Paul Krusic. The copy he gave me has a log of changes from 2006 to 2019, including an age-dependent spline added in 2014. That spline is in `dplR` too, as `ads`.
 
-I started `dplR` around 2006 [see @Bunn2008; @Bunn2010]. A lot of it began as an attempt to do in R what those programs did, and some of the finer points of ARSTAN came from locking Ed in a conference room in 2022 (see the [Acknowledgements](A3Acknowledgements.qmd)). Richard Holmes is no longer with us. His programs are still in use, and the field still runs on his ideas.
+I started `dplR` around 2006 [see @Bunn2008; @Bunn2010] although I was making R functions for dendro as part of my PhD work earlier [see @Bunn2004]. A lot of it began as an attempt to do in R what those programs did, and some of the finer points of ARSTAN came from locking Ed in a conference room in 2022 (see the [Acknowledgements](A4Acknowledgements.qmd)). Richard Holmes is no longer with us. His programs are still in use, and trolling his source code is an endless source of inspiration and frustration.
 
 ## A Default Is a Judgment Call
 
-Every program has to decide what to ignore. Trees put on wide rings when they're young and narrow ones when they're old, and if you correlate raw ring widths, every series looks like it matches every other one. So COFECHA smooths away the slow changes in each series first and compares what's left. How much to smooth is a judgment call.
+What all the programs have in common is that they all have some default settings and all ask users to make some decisions. 
+
+For instance, every program has to decide what to ignore. Trees put on wide rings when they're young and narrow ones when they're old, and if you correlate raw ring widths, every series looks like it matches every other one. So COFECHA smooths away the slow changes in each series first and compares what's left. How much to smooth is a judgment call.
 
 In 1983 Holmes smoothed with a 20-year spline, a choice he made by testing collections from California [@Holmes1983]. By 2001 the default was 32 years, after experience with collections from many more places [@GrissinoMayer2001]. Each was a reasonable choice for the collections behind it, and the default changed as the collections did.
 
 The people who wrote these programs argued about the choices, too. Ed Cook told me he wanted COFECHA to stop taking logs of the ring widths by default before comparing them. Holmes kept the logs. Ed's verdict: "Not good in my opinion." Even the best disagree from time to time.
 
-In `dplR` choices like these are arguments to functions. Each has a default, the help page says what it is, and you can change it in one line. When you do, the change is in your script for anyone to see. Most of the rest of the book is about when a choice like that changes your answer.
+In `dplR` choices like these are arguments to functions. Each has a default, the help page says what it is, and you can change it in one line. When you do, the change is in your script for anyone to see. Much of the rest of the book is about when a choice like that changes your answer.
 
 ## Scripture
 
-ARSTAN, COFECHA and the DPL are the field's scripture. When you want to know why a method exists, or why it has the default it has, they're where to look, along with the papers that described them. I cite them throughout the book and tell their history where it explains something.
+ARSTAN, COFECHA and the DPL are the field's software scripture. When you want to know why a method exists, or why it has the default it has, they're where to look, along with the papers that described them. I cite them throughout the book and tell their history where it explains something.
 
-They aren't the test of whether `dplR` is right, though. I spent a lot of time tuning `dplR` to reproduce COFECHA and ARSTAN number for number, and I've stopped. Those programs made choices for you, which made sense before anyone had an IDE. In R you can make them yourself. Where `dplR` does something different, the book says what it does, why, and which argument gets you the older behavior.
+They aren't the test of whether `dplR` is right, though. I spent a lot of time tuning `dplR` to reproduce COFECHA and ARSTAN number for number, and I've stopped. Those programs made choices for you, which made sense before anyone had an IDE. In R you can make them yourself. Where `dplR` does something different, the book says what it does, why, and which argument gets you a behavior. Hopefully.
 
 ## The Neighborhood
 
-`dplR` isn't the only R package for tree rings. There are `measuRing` for measuring, `detrendeR` for detrending, `burnr` for fire history, `TRADER` and `dfoliatR` for disturbance and insect outbreaks, `treeclim`, `pointRes` and `dendroTools` for climate and growth, `dendrometeR` and `dendRoAnalyst` for dendrometer data, and `xRing` and `RAPTOR` for wood density and cell anatomy, and more besides. The book uses a few of them where `dplR` stops. There is also a Python port, `dplPy`, which gets [its own chapter](17DplPy.qmd).
+`dplR` isn't the only R package for tree rings. There are `measuRing` for measuring, `detrendeR` for detrending, `burnr` for fire history, `TRADER` and `dfoliatR` for disturbance and insect outbreaks, `treeclim`, `pointRes` and `dendroTools` for climate and growth, `dendrometeR` and `dendRoAnalyst` for dendrometer data, and `xRing` and `RAPTOR` for wood density and cell anatomy, and more besides. The book uses a few of them where `dplR` stops. There is also a Python version of much of `dplR`. That's `dplPy`, which gets [its own chapter](17DplPy.qmd) and is rapidly developing with work from Kevin Anchukaitis -- another giant in the field.
 
 ## Citing dplR
 
@@ -55,7 +72,7 @@ citation("dplR")
 
 `dplR` grew out of COFECHA, ARSTAN and the DPL, and it keeps many of their methods. What it changes is a judgment call. A spline length or a correlation method is an argument you can read, change and record, and the defaults are judgment calls that someone else could reasonably make differently.
 
-None of this tells you which choice is right for your collection. That depends on the data, and finding out is most of what the rest of the book does. The [next chapter](02CoresToRecord.qmd) starts by asking what a ring width is made of.
+None of this tells you which choice is right for your collection. That depends on the data, and finding out is most of what the rest of the book does. The [next chapter](02AdditiveModel.qmd) starts by asking what a ring width is made of.
 
 ## Exercises
 
@@ -66,7 +83,7 @@ None of this tells you which choice is right for your collection. That depends o
 ## Further Reading
 
 - @Holmes1983 is COFECHA's first description, and it is short. Read it for why the spline and the segments are there, and for Holmes's account of testing spline lengths on California collections.
-- @GrissinoMayer2001 is the COFECHA manual most people learned from. It walks through every option and every part of the output, and it is the best guide to what `xdate.report` is imitating.
+- @GrissinoMayer2001 is the COFECHA manual many people learned from. It walks through every option and every part of the output, and it is the best guide to what `xdate.report` is imitating.
 - @CookBook is where ARSTAN's methods are written out at length: growth curves, the biweight mean and the AR model of a chronology. Chapter 3 is the one to have on your desk.
 - @cook1985 is Ed Cook's dissertation, the source of much of that chapter and of how `dplR` standardizes.
 - @Douglass1941 is Douglass on why the dating is settled by looking at the samples themselves.

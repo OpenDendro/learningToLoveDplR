@@ -6,7 +6,7 @@ First full draft, 2026-10-13. Every number in the text is computed when the book
 
 ## Big Idea
 
-[Detrending](08Detrending.qmd) turned ring widths into indices, so fast and slow trees, young and old rings, can be put side by side. The last of the four steps from [chapter 2](02CoresToRecord.qmd) is to average them into a chronology, and this chapter is the check that comes just before it. A chronology is an average. You take a few dozen cores that each say something a little different about the same years, and you take their mean. Should anyone trust that mean?
+[Detrending](08Detrending.qmd) turned ring widths into indices, so fast and slow trees, young and old rings, can be put side by side. The last of the four steps from [chapter 1](01WhereDplRComesFrom.qmd#sec-four-steps) is to average them into a chronology, and this chapter is the check that comes just before it. A chronology is an average. You take a few dozen cores that each say something a little different about the same years, and you take their mean. Should anyone trust that mean?
 
 The answer depends on two things. How well do the trees agree with each other? And how many trees are there? Every statistic in this chapter is one of those two things or a blend of them. The mean interseries correlation, rbar, is the agreement. The expressed population signal, EPS, blends agreement with the number of trees. Subsample signal strength, SSS, asks what you lose when the number of trees drops.
 

@@ -24,7 +24,7 @@ data(co021)
 data(cana157)
 ```
 
-`ggplot2` draws the figures, and `R/sim-collection.R` is the book's simulator from [From Cores to a Record](02CoresToRecord.qmd). Everything else is `dplR` and base R.
+`ggplot2` draws the figures, and `R/sim-collection.R` is the book's simulator from [From Cores to a Record](02AdditiveModel.qmd). Everything else is `dplR` and base R.
 
 ```{r}
 #| label: ev-words

@@ -30,7 +30,7 @@ words <- function(n, cap = FALSE) {
 
 ## The Experiment
 
-Each run builds one simulated stand from [Chapter 2](02CoresToRecord.qmd), with its one missing ring in SIM03A at 1800, runs `xdate.report` with the settings being tested, and scores the result. The planted Mesa Verde and Hurricane Ridge collections from [Crossdating a Collection](05Crossdating.qmd) and [Fixing Errors](06FixingErrors.qmd) get the same treatment, once each.
+Each run builds one simulated stand from [Chapter 2](02AdditiveModel.qmd), with its one missing ring in SIM03A at 1800, runs `xdate.report` with the settings being tested, and scores the result. The planted Mesa Verde and Hurricane Ridge collections from [Crossdating a Collection](05Crossdating.qmd) and [Fixing Errors](06FixingErrors.qmd) get the same treatment, once each.
 
 ```{r}
 #| label: xstats-score

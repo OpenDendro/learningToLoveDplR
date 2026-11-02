@@ -6,7 +6,7 @@ First full draft of the rewrite, 2026-10-13. The stripping section was written e
 
 ## Big Idea
 
-This is the last of the four steps from [chapter 2](02CoresToRecord.qmd). The cores are dated and measured, [Detrending](08Detrending.qmd) turned the widths (an `rwl`) into indices (an `rwi`), and now the indices become a chronology (a `crn`), the record of the site that everything after this chapter uses. Making one takes one line. You average the indices across series, year by year, and you are done. So why does it get a chapter?
+This is the last of the four steps from [chapter 1](01WhereDplRComesFrom.qmd#sec-four-steps). The cores are dated and measured, [Detrending](08Detrending.qmd) turned the widths (an `rwl`) into indices (an `rwi`), and now the indices become a chronology (a `crn`), the record of the site that everything after this chapter uses. Making one takes one line. You average the indices across series, year by year, and you are done. So why does it get a chapter?
 
 Because that one line hides four decisions. Which mean? Which years, given that the early ones rest on two or three trees? How far do you trust the result? And what do you do about a chronology that gets noisier wherever the trees thin out? `dplR` has a function for each, and none of them can make the decision for you.
 

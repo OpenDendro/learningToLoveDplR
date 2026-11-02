@@ -147,11 +147,7 @@ Every high in the smooth sits on a low in the data. On a chronology the cycle is
 
 ## The Spline From Both Sides
 
-The spline's response has a formula, so the measurements above can be checked. Cook and Peters [-@Cook1981] gave the response of the cubic smoothing spline as
-
-$$u(f) = 1 - \frac{1}{1 + p\,\dfrac{\cos 2\pi f + 2}{6(\cos 2\pi f - 1)^2}}$$
-
-where $f$ is frequency (one over the period) and $p$ sets the stiffness [@Cook1990, p. 111]. You don't choose $p$ directly. You say what share of the cycle to keep at a period of `nyrs` years, which is `caps`'s `f` argument (0.5 unless you change it), and $p$ follows. `splineResponse` does the algebra.
+The spline's response has a formula, from Cook and Peters [-@Cook1981], and the [aside on filtering](02xAsideFiltering.qmd) sets it out along with what `nyrs` and `f` mean. `splineResponse` is the function from that aside. It works out how stiff a spline has to be to keep the share `f` of a cycle `nyrs` years long, and then gives its response at any period, so the measurements above can be checked.
 
 ```{r}
 #| label: smo-cook-peters

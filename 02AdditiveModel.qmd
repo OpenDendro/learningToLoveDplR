@@ -1,0 +1,83 @@
+# An Additive Model of Tree Growth
+
+:::{.callout-note title="Outline"}
+Outline, 2026-10-30. It replaces the third draft (2026-10-19). That draft is in git, and the copy with Andy's uncommitted Big Idea edits is at `workspace/ch2-draft-before-outline-2026-10-30.qmd`. Most of the prose below the Big Idea carries over from it; each section says what to keep, what's new, and what moves to another chapter. Decisions so far (Andy, 2026-10-30): the chapter sets up the additive model and the simulation for the rest of the book; the four steps now live in [chapter 1](01WhereDplRComesFrom.qmd#sec-four-steps); the planted things get found in the chapters that teach each method; the simulator's reference is [Appendix A3](A3SimulatedCollection.qmd) and filtering is the [aside](02xAsideFiltering.qmd) that follows this chapter.
+:::
+
+## Big Idea
+
+- A ring width is a sum of parts: the tree's size and age, that year's weather, disturbance to the tree or its neighbors, and noise. You never see them separately. Keep Andy's opening sentences.
+- Fix the arithmetic analogy so it points where the chapter goes. One total of 10 can't tell you whether it was 3+2+4+1 or 1+4+6-1. But forty totals that share some of their terms can be solved for those terms, and that is what a collection is: forty cores, two from each tree, all from one stand. Sampling design is how the parts get pulled apart. The catch, which the chapter comes back to, is two terms that always turn up together.
+- Methods tell the parts apart by two things: who shares a part (one core, one tree, or the whole stand) and how fast it changes (year to year, or over decades). Every method in the book is after one part, and it mistakes another part for it when the two match on both counts.
+- To see that you need a collection where the parts are known, so the chapter builds one. Keep the simulation paragraph and the [@Bunn2004] line.
+- Promise: by the end you know the parts, how the simulated stand is built, and what each method in the book is after and can be fooled by.
+
+## Packages
+
+- `dplR` and `ggplot2`; `source("R/sim-collection.R")`; `data(wa082)` for the comparison at the end. `cowplot` only if the stand-event figure keeps two panels.
+- One sentence pointing to [Appendix A3](A3SimulatedCollection.qmd) for everything about the simulator that this chapter doesn't need.
+
+## A Ring Width in Parts
+
+- Keep: Cook's equation and the terms [@Cook1987; @Cook1990model], the log scale and Cook's lodgepole 0.67 [@Cook1987], and "the most useful equation in dendrochronology, even though nobody ever estimates it". Move the method-by-method sentences from that paragraph into What Each Method Is After.
+- Keep: the figure of the parts of SIM10A (age trend, climate-noise-memory, disturbance, ring width).
+- Keep: where $A_t$ comes from (geometry, Fritts, Cook's open and closed stands) and the climate memory paragraph (Vaganov; Cook and Pederson). [Memory and Cycles](14MemoryCycles.qmd) refers back to the simulated climate's memory.
+
+## Who Shares What
+
+- Keep: the sorting by who shares a part, and the design paragraph (two cores from each of twenty trees; Schweingruber in the Cook Book, p. 27; Fritts's bristlecones; Schulman's "the crossdated group is the unit of study").
+- Keep `autoread.ids` on the simulated names. [Reading and Writing](03ReadingWriting.qmd) refers back to it.
+- Show the sorting with numbers: cores from one tree agree more than cores from different trees. Option to decide in the draft: compute it on the truth (`exp(sim$truth$memory.noise)`, so no detrending is needed this early) or on `detrend` output as now. Either way, compare the two numbers with each other and drop the comparison with the targets; [Appendix A3](A3SimulatedCollection.qmd#sec-sim-agree) explains why measured values come in a little under them.
+
+## How Fast It Changes
+
+- New section, the second sort. The age trend and competition change over decades. Climate and noise change from year to year, with a year or two of memory. Disturbances arrive in one year and fade over years (the stand event) to decades (the release). Use the SIM10A figure again, reading it for speed this time.
+- A small table, parts by who shares them and how fast they change. This is the table every method in the book can be placed on.
+- A filter is the tool for sorting by speed, and the [aside that follows](02xAsideFiltering.qmd) takes it up. One or two sentences only.
+
+## What Each Method Is After
+
+- Rebuild the old closing table (method, part it is after, what it can mistake for that part, where in the book) as the center of the chapter, placed on the who-shares and how-fast table:
+  - Crossdating keeps what is shared and fast. In raw widths the age trend looks shared (every tree slopes downhill), which is why the dating tools filter first.
+  - Detrending removes what belongs to one tree and changes slowly, so it can take competition with the age trend, or a slow swing in climate.
+  - A chronology keeps what is shared, so it can't tell climate from a stand-wide disturbance.
+  - A tree series (`treeMean`) keeps what belongs to one tree, which is where a release shows.
+- One worked example, the stand event of 1880, because it shows the model's limit in a single figure: a chronology can't tell $D2_t$ from $C_t$ without knowing which trees were hit. Keep the two-panel figure (or panel A only), the Douglass condition (many trees, a wide area, a long time), Cook's three hemlocks, and Wigley et al. and Buras on EPS. Decide in the draft whether the 1870s spline lift stays here or goes to [Detrending](08Detrending.qmd), which already calls it "chapter 2's puzzle".
+- Keep Cook's "one researcher's 'signal' will frequently be another researcher's 'noise'" [@Cook1987, p. 38], and the climate and ecology views of the same parts. A record is good for a purpose.
+
+## The Simulated Stand
+
+- What the default stand holds, briefly, with a pointer to the [seed-1 table](A3SimulatedCollection.qmd) in the appendix: one core missing a ring, crowded trees, a stand event, a release.
+- Where each is found, so later chapters can open on it: the missing ring in SIM03A in [Crossdating](05Crossdating.qmd) and [Fixing Errors](06FixingErrors.qmd); the crowded trees in [Detrending](08Detrending.qmd); the stand event here and again in [Detrending](08Detrending.qmd) and [Chronology Building](10Chronologies.qmd); the release in tree 10 in Trees and Disturbance (chapter 15 or 16, not decided).
+- The difference between `sim$rwl` (as measured, with the error) and `sim$truth` (each part, and the widths before the error). Measuring is the step the simulation skips; keep the sentence pointing to [Reading and Writing](03ReadingWriting.qmd) and [Checking a Collection](04CheckingCollection.qmd).
+
+## What the Simulation Leaves Out
+
+- Keep: the side-by-side with Hurricane Ridge (`wa082`) and the list (a site, locally absent rings, measurement error and file quirks, climate with a history, a history nobody wrote down), and the closing point that the book uses both kinds of data.
+- The appendix has a list of simplifications that favor particular methods; point to it and don't repeat it.
+
+## Wrapping Up
+
+- The model is too simple to fit, but it says what each method is after and what it can mistake for it. The parts are sorted by who shares them and how fast they change.
+- Point to the [aside on filtering](02xAsideFiltering.qmd) next, then [Reading and Writing](03ReadingWriting.qmd).
+
+## Exercises
+
+- Drop the old exercise 1 (the between-tree rbar under its target).
+- Keep the old exercise 6 if the stand event stays: an event that hits every tree, and whether anything in the chronology tells it from a drought.
+- New, on the model itself: plot the parts of a crowded core and an open-grown one; build a stand with `rbar.bt = 0.2` and look at the climate part against the noise; turn competition off and see what happens to the age trend; give the climate more memory with `climate.phi`.
+- Old exercises 2 (a false ring) and 3 (`nyrs`) go to [Crossdating](05Crossdating.qmd) or the [crossdating statistics aside](07xAsideCrossdatingStats.qmd); 4 (a slow swing through `detrend`) to [Detrending](08Detrending.qmd); 5 (a weak stand) to [Crossdating](05Crossdating.qmd). Check each against what those chapters already have.
+
+## Further Reading
+
+- Keep @Cook1987, @Cook1990model, @cook1985, @Fritts1966, @Schulman1941, @CookBook (p. 27) and @Bunn2004.
+- Keep @Wigley1984 and @Buras2017 if the stand event stays.
+- @Douglass1941, @Holmes1983 and @Black2016 move with the missing ring.
+
+## What Moves Out
+
+- The Missing Ring → [Crossdating](05Crossdating.qmd): Black et al. on what dating errors do [@Black2016], the raw against filtered lag figure and `toWiggles`, Holmes on spline stiffness, and Douglass and Holmes on the statistics saying where to look. 05 now says "[Chapter 2] showed what that does to a chronology" (line 9); it will have to show it itself. The lag figure might suit the [filtering aside](02xAsideFiltering.qmd) instead.
+- The Crowded Trees → [Detrending](08Detrending.qmd): the SIM05A and SIM06A curve figure, and Cook on why no method can separate a long disturbance from the age trend. The aside already shows splines on SIM06A.
+- Sample depth, the residual chronology against the true climate by century, the white-climate comparison, and EPS against the true r² → [Chronology Statistics](09ChronologyStats.qmd) or [Chronology Building](10Chronologies.qmd).
+- The Released Tree → Trees and Disturbance, chapter 15 or 16.
+- The four steps and their table → [chapter 1](01WhereDplRComesFrom.qmd#sec-four-steps). Done 2026-10-30; 09 and 10 now link there.

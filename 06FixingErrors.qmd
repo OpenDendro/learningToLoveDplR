@@ -188,7 +188,7 @@ Mesa Verde has no flags. Hurricane Ridge is back to its own `r words(nrow(wa082F
 
 ## Flags Nobody Planted
 
-So what about Hurricane Ridge's other flags? Before deciding, practice on a collection where the answer is known. The simulated stand from [Chapter 2](02CoresToRecord.qmd) has one dating error, a missing ring in SIM03A at 1800, and nothing else.
+So what about Hurricane Ridge's other flags? Before deciding, practice on a collection where the answer is known. The simulated stand from [Chapter 2](02AdditiveModel.qmd) has one dating error, a missing ring in SIM03A at 1800, and nothing else.
 
 ```{r}
 #| label: fix-sim

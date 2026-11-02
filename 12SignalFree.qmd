@@ -14,7 +14,7 @@ Outline, 2026-10-26. It replaces the 2024 text, which is in git (`git show de8b0
 
 ## Packages
 
-- `dplR` and `ggplot2`, the simulation from [chapter 2](02CoresToRecord.qmd), and `makeClimate` from [Detrending](08Detrending.qmd). `cowplot` if the loop figure needs stacked panels.
+- `dplR` and `ggplot2`, the simulation from [chapter 2](02AdditiveModel.qmd), and `makeClimate` from [Detrending](08Detrending.qmd). `cowplot` if the loop figure needs stacked panels.
 - Data: `wa082`, with its 1900 gap filled (`ssf` stops on an internal `NA`). `ca533` (Campito Mountain bristlecone, `recode.zeros = TRUE`). Say in a sentence why not `co021` and `gp.rwl`; see When It Stops.
 
 ## Trend Distortion
