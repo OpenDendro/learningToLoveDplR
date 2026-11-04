@@ -1,0 +1,58 @@
+# The Simulated Stand
+
+:::{.callout-note title="Outline"}
+Outline, 2026-11-03. Andy split chapter 2 in two that day: [An Additive Model of Tree Growth](02AdditiveModel.qmd) keeps the model, and this chapter builds the stand. The first two paragraphs of the Big Idea are Andy's, moved over from chapter 2, with a new opening that carries over from the model. The rest comes from the last two sections of the chapter 2 outline and from most of [Appendix A3](A3SimulatedCollection.qmd), as each section says. A3 keeps the reference parts: the agreement targets and why `rwi.stats` lands under them, the argument table and the variants. The [filtering aside](03xAsideFiltering.qmd) follows this chapter, because it works on a crowded tree from the stand.
+:::
+
+## Big Idea
+
+Now that we have the [additive model](02AdditiveModel.qmd), we can put it to use. The model says a ring width is a sum of parts: the age trend, the climate, disturbance and noise. Pick a size and a shape for each part, add them up, and you have grown a tree on the computer. Do that for a stand and you have a collection where every part of every ring is known. This chapter builds one: 40 simulated tree-ring series, two cores from each of 20 trees in one stand. I wrote the code that made them, so I know every part of every ring. I also hid a few things in them. One core is missing a ring. Half the trees have neighbors crowding them, so their growth trends wander. One tree was released when a neighbor fell. And in one year, something knocked back half the trees standing at the time. None of it jumps out of the ring widths. This chapter shows how the stand is put together, and the later chapters go looking for each of those things with the method that is meant to find it.
+
+A simulation lets you test each method: here is what went in, did it come back out, and if not, what got lost? Working with simulated data is a great way to learn how analytic methods behave. When you know the answer going in, every result is a check on the method, and the fun is in trying to get the answer back. I have been doing this for more than twenty years with tree-ring data and still find it useful [@Bunn2004].
+
+- The opening now carries over from the model chapter (Andy, 2026-11-04). A question could still pull the reader in after it: here is a stand with four things hidden in it, so how would you know they are there?
+- Promise: by the end you know how the stand is built, what is hidden where, and what the simulation leaves out.
+
+## Packages
+
+- `dplR` and `ggplot2`; `source("R/sim-collection.R")`; `data(wa082)` for the comparison at the end.
+- `sim.collection` lives in the book's `R/` folder and isn't part of `dplR`. Every chapter that uses it loads it the same way. From A3's opening.
+- One sentence pointing to [Appendix A3](A3SimulatedCollection.qmd) for the arguments and the agreement targets.
+
+## Building a Ring
+
+- From A3's "How a Ring Is Built": the log-scale equation with $M_t$, the rounding to 0.01 mm, and each part as the simulator makes it ($A_t$ from basal area and competition, $C_t$, $T_t$ and $E_t$, memory, the two pulses, dating errors last).
+- [The model chapter](02AdditiveModel.qmd) says what each term is in a tree, with Cook's sources. This section says how the simulator makes it, and points back there for the why. Check the two for repetition once both are drafted.
+- Cook's $D2_t$ turns up in every tree, while the simulator's hits half of them. Keep A3's note on why, because the model chapter's worked example depends on it.
+
+## The Stand
+
+- From A3's "The Stand": 20 trees, two cores each, all cored in 2025; ages spaced on a square, so old trees are few; pith offsets; the segment plot.
+- The names (SIM03A) and `autoread.ids`, moved here from the model chapter's Who Shares What. [Reading and Writing](04ReadingWriting.qmd) refers back to it.
+- A3's note on the truth tables starting at the oldest pith, with empty rows before the first measured ring.
+
+## What Is Hidden
+
+- The seed-1 table from A3's "The Default Stand", tree by tree: crowded, hit by the event, the release, the missing ring. Keep the note that tree 3, with the missing ring, is also crowded and hit by the event.
+- Where each is found, so later chapters can open on it: the missing ring in SIM03A in [Crossdating](06Crossdating.qmd) and [Fixing Errors](07FixingErrors.qmd); the crowded trees in [Detrending](09Detrending.qmd); the stand event in [the model chapter](02AdditiveModel.qmd), then again in [Detrending](09Detrending.qmd) and [Chronology Building](11Chronologies.qmd); the release in tree 10 in Trees and Disturbance (which chapter is not decided).
+
+## Measured and True
+
+- The difference between `sim$rwl` (as measured, with the error) and `sim$truth` (each part, and the widths before the error). From the chapter 2 outline and A3's "What Comes Back".
+- The field table could stay in A3 with a pointer, or come here. Decide in the draft.
+- The parts multiply back into the widths. One line of code shows it.
+- Measuring is the step the simulation skips. Keep the sentence pointing to [Reading and Writing](04ReadingWriting.qmd) and [Checking a Collection](05CheckingCollection.qmd).
+
+## What the Simulation Leaves Out
+
+- From the chapter 2 outline: the side-by-side with Hurricane Ridge (`wa082`) and the list (a site, locally absent rings, measurement error and file quirks, climate with a history, a history nobody wrote down), and the closing point that the book uses both kinds of data.
+- A3's list of simplifications that favor particular methods (one shape of age trend, growth rate unrelated to age, all trees living, rings missing only where planted, rounding as the only measurement error, one climate). It suits this section. Move it, and leave A3 a pointer.
+
+## Wrapping Up
+
+- The stand has known parts and four planted things, and each later chapter opens on one of them.
+- Point to the [aside on filtering](03xAsideFiltering.qmd) next, then [Reading and Writing](04ReadingWriting.qmd).
+
+## Further Reading
+
+- @Bunn2004, @Cook1990model and @CookBook (p. 27, on two cores from twenty trees).

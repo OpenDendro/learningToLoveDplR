@@ -16,12 +16,12 @@ Each step leans on the one before it. A ring in the wrong year puts every ring i
 
 | Step | Why you can't skip it | In `dplR` | Where in the book |
 |---|---|---|---|
-| Crossdate | A ring in the wrong year moves every ring inside it, and errors compound | `xdate.report`, `ccf.series.rwl`, `insert.ring` | [Crossdating](05Crossdating.qmd) to [Dating a Floater](07Floaters.qmd) |
-| Measure | Every later number is made from the widths, and slips in measuring look like growth | `read.rwl`, `rwl.check`; class `rwl` | [Reading and Writing](03ReadingWriting.qmd), [Checking a Collection](04CheckingCollection.qmd) |
-| Detrend | Raw widths can't easily be averaged: trees grow at different rates and every tree's rings shrink with age | `detrend`; class `rwi` | [Detrending](08Detrending.qmd) |
-| Build a chronology | One tree is one tree. The average across trees is the record of the site | `chron`; class `crn` | [Chronology Statistics](09ChronologyStats.qmd), [Chronology Building](10Chronologies.qmd) |
+| Crossdate | A ring in the wrong year moves every ring inside it, and errors compound | `xdate.report`, `ccf.series.rwl`, `insert.ring` | [Crossdating](06Crossdating.qmd) to [Dating a Floater](08Floaters.qmd) |
+| Measure | Every later number is made from the widths, and slips in measuring look like growth | `read.rwl`, `rwl.check`; class `rwl` | [Reading and Writing](04ReadingWriting.qmd), [Checking a Collection](05CheckingCollection.qmd) |
+| Detrend | Raw widths can't easily be averaged: trees grow at different rates and every tree's rings shrink with age | `detrend`; class `rwi` | [Detrending](09Detrending.qmd) |
+| Build a chronology | One tree is one tree. The average across trees is the record of the site | `chron`; class `crn` | [Chronology Statistics](10ChronologyStats.qmd), [Chronology Building](11Chronologies.qmd) |
 
-After that you decide what the record is for: what it says about time ([Time Series](13SmoothingFiltering.qmd)) or about the trees ([Trees and Disturbance](15BasalArea.qmd)). The programs below took the steps one at a time. COFECHA checks the dating, and ARSTAN does the detrending and builds the chronology.
+After that you decide what the record is for: what it says about time ([Time Series](14SmoothingFiltering.qmd)) or about the trees ([Trees and Disturbance](16BasalArea.qmd)). The programs below took the steps one at a time. COFECHA checks the dating, and ARSTAN does the detrending and builds the chronology.
 
 ## The Programs Before dplR
 
@@ -55,7 +55,7 @@ They aren't the test of whether `dplR` is right, though. I spent a lot of time t
 
 ## The Neighborhood
 
-`dplR` isn't the only R package for tree rings. There are `measuRing` for measuring, `detrendeR` for detrending, `burnr` for fire history, `TRADER` and `dfoliatR` for disturbance and insect outbreaks, `treeclim`, `pointRes` and `dendroTools` for climate and growth, `dendrometeR` and `dendRoAnalyst` for dendrometer data, and `xRing` and `RAPTOR` for wood density and cell anatomy, and more besides. The book uses a few of them where `dplR` stops. There is also a Python version of much of `dplR`. That's `dplPy`, which gets [its own chapter](17DplPy.qmd) and is rapidly developing with work from Kevin Anchukaitis -- another giant in the field.
+`dplR` isn't the only R package for tree rings. There are `measuRing` for measuring, `detrendeR` for detrending, `burnr` for fire history, `TRADER` and `dfoliatR` for disturbance and insect outbreaks, `treeclim`, `pointRes` and `dendroTools` for climate and growth, `dendrometeR` and `dendRoAnalyst` for dendrometer data, and `xRing` and `RAPTOR` for wood density and cell anatomy, and more besides. The book uses a few of them where `dplR` stops. There is also a Python version of much of `dplR`. That's `dplPy`, which gets [its own chapter](18DplPy.qmd) and is rapidly developing with work from Kevin Anchukaitis -- another giant in the field.
 
 ## Citing dplR
 
@@ -73,12 +73,6 @@ citation("dplR")
 `dplR` grew out of COFECHA, ARSTAN and the DPL, and it keeps many of their methods. What it changes is a judgment call. A spline length or a correlation method is an argument you can read, change and record, and the defaults are judgment calls that someone else could reasonably make differently.
 
 None of this tells you which choice is right for your collection. That depends on the data, and finding out is most of what the rest of the book does. The [next chapter](02AdditiveModel.qmd) starts by asking what a ring width is made of.
-
-## Exercises
-
-1. Open `?xdate.report` and find `nyrs`. What is the default, and which program does the help page say it comes from?
-2. Look up `nyrs` in `?detrend`. What spline stiffness do you get when it is `NULL`? Find where that rule comes from in the Cook Book [@Cook1990, p. 114].
-3. Run `citation()` for `dplR` and for one other package you use. What would you put in a methods section?
 
 ## Further Reading
 

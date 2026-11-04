@@ -7,7 +7,7 @@ First draft, 2026-10-30. Every number in the text is computed when the book buil
 - The parts were checked against Cook's chapter in the Cook Book [@Cook1990model]. His dissertation [@cook1985] has not been checked.
 :::
 
-Most chapters in the book try a method first on a collection I made up, where I know what went into every ring. [An Additive Model of Tree Growth](02AdditiveModel.qmd) introduces it and the model behind it. This appendix is the reference: how the collection is built, what each argument does, what comes back, and what is hidden in the default stand. When a chapter says "the simulated stand" and nothing more, it means the one built here with `seed = 1`.
+Most chapters in the book try a method first on a collection I made up, where I know what went into every ring. [An Additive Model of Tree Growth](02AdditiveModel.qmd) introduces the model behind it, and [The Simulated Stand](03SimulatedStand.qmd) builds it. This appendix is the reference: how the collection is built, what each argument does, what comes back, and what is hidden in the default stand. When a chapter says "the simulated stand" and nothing more, it means the one built here with `seed = 1`.
 
 The function is `sim.collection`. It lives in the book's `R/` folder and isn't part of `dplR`, so every chapter that uses it loads it the same way.
 
@@ -73,7 +73,7 @@ In a closed canopy, Cook argued, $A_t$ has no predictable shape at all [@Cook199
 
 ### Climate, $C_t$
 
-There is one climate series affecting every tree. By default it is random numbers with a little memory so that each year keeps `climate.phi = 0.3` of the year before, on top of its own new shock. You can hand the function a climate series instead, through `climate`, as a numeric vector named by year that covers every year from the oldest pith to `end.year`. The function rescales it to the size it needs and keeps its shape, and it ignores `climate.phi`. [Detrending](08Detrending.qmd) does this to give the stand slow swings in climate. `sim$truth$climate` is the series as it went into the trees, on the log scale and before the trees' memory.
+There is one climate series affecting every tree. By default it is random numbers with a little memory so that each year keeps `climate.phi = 0.3` of the year before, on top of its own new shock. You can hand the function a climate series instead, through `climate`, as a numeric vector named by year that covers every year from the oldest pith to `end.year`. The function rescales it to the size it needs and keeps its shape, and it ignores `climate.phi`. [Detrending](09Detrending.qmd) does this to give the stand slow swings in climate. `sim$truth$climate` is the series as it went into the trees, on the log scale and before the trees' memory.
 
 ### Noise, $T_t$ and $E_t$
 
@@ -273,11 +273,11 @@ The seed fixes every random draw, so the same call gives the same stand every ti
 
 ## What It Leaves Out
 
-[Chapter 2](02AdditiveModel.qmd) sets the stand beside Hurricane Ridge and lists what field collections have that the simulation doesn't. A few of the simplifications favor particular methods, so keep them in mind when a method does better here than you expected.
+[The Simulated Stand](03SimulatedStand.qmd) sets the stand beside Hurricane Ridge and lists what field collections have that the simulation doesn't. A few of the simplifications favor particular methods, so keep them in mind when a method does better here than you expected.
 
 - Every open-grown tree has the same shape of age trend, scaled by its growth rate. That suits a regional curve unusually well.
-- A tree's growth rate has nothing to do with its age. In the field, trees that grow slowly tend to live longer, and that biases a regional curve. [Regional Curves](11RegionalCurves.qmd) adds the link to show what it does.
-- Every tree is cored in the same year, so the stand is all living trees. [Regional Curves](11RegionalCurves.qmd) joins stands that end in different centuries to get past that.
+- A tree's growth rate has nothing to do with its age. In the field, trees that grow slowly tend to live longer, and that biases a regional curve. [Regional Curves](12RegionalCurves.qmd) adds the link to show what it does.
+- Every tree is cored in the same year, so the stand is all living trees. [Regional Curves](12RegionalCurves.qmd) joins stands that end in different centuries to get past that.
 - Rings go missing only where you plant the errors. A narrow ring always forms all the way around.
 - The only measurement error is the rounding.
 - There is one climate, the same in every tree, with no swing slower than its own memory unless you pass one in.
