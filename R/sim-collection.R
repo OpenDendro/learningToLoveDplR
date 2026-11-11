@@ -27,6 +27,17 @@
 #       C + T + E still has standard deviation sd.hf (see the C block). climate.phi = 0 gives white climate,
 #       the collection the book used before 2026-10-23. A climate series
 #       passed in is used as it is, and climate.phi is ignored.
+#       sens.sdlog > 0 gives each tree its own sensitivity to C, a
+#       multiplier drawn on the log scale so that its mean square is 1:
+#       trees differ in how hard the shared climate hits them, and the
+#       average climate variance across trees stays where rbar.bt puts it.
+#       Sensitive trees swing more and track the climate better; complacent
+#       ones swing less. Cook's model has one C felt the same way by every
+#       tree, and sens.sdlog = 0 (the default) keeps that. Trees that
+#       differ in sensitivity agree with each other less, so with it on
+#       the between-tree correlation falls under rbar.bt (on the true fast
+#       part, from about 0.50 to 0.44 at sens.sdlog = 0.3 and 0.32 at 0.6,
+#       averaged over 200 stands, 2026-11-10).
 #   T   noise shared by the cores of one tree. Cook's E covers microsite
 #       and measurement noise, uncorrelated within and between trees
 #       (p. 102); T is split out of it so two cores of a tree agree more
@@ -57,6 +68,7 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
                            age.range = c(120, 380),
                            rbar.bt = 0.4, rbar.wt = 0.6, sd.hf = 0.25,
                            phi = 0.5, climate = NULL, climate.phi = 0.3,
+                           sens.sdlog = 0,
                            bai = 600, bai.sdlog = 0.4, juv = 25,
                            compete = 0.3, compete.frac = 0.5,
                            compete.phi = 0.97,
@@ -72,7 +84,7 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   if (!is.null(seed)) set.seed(seed)
   stopifnot(n.tree >= 2, n.core >= 1, n.core <= 26,
             rbar.bt >= 0, rbar.wt >= rbar.bt, rbar.wt < 1,
-            abs(phi) < 1, abs(climate.phi) < 1, sd.hf > 0)
+            abs(phi) < 1, abs(climate.phi) < 1, sd.hf > 0, sens.sdlog >= 0)
 
   # ── who is in the collection ──
   # Tree 1 is the oldest. Ages are spaced on a square so old trees are few,
@@ -132,6 +144,14 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   }
   tree.noise <- matrix(rnorm(n.yr * n.tree, sd = sd.t), n.yr, n.tree)
   bai.tree <- bai * exp(rnorm(n.tree, sd = bai.sdlog) - bai.sdlog^2 / 2)
+  # each tree's sensitivity to the climate. Drawn only when asked for, so
+  # the default stand for a given seed is the same as before the option
+  # existed. exp(z * s - s^2) has a mean square of 1.
+  sens.tree <- if (sens.sdlog > 0) {
+    exp(rnorm(n.tree, sd = sens.sdlog) - sens.sdlog^2)
+  } else {
+    rep(1, n.tree)
+  }
   age.mm <- hf <- dist <- matrix(NA_real_, n.yr, length(series),
                                  dimnames = list(yrs, series))
   pulse <- function(y0, size, decay) {
@@ -144,7 +164,7 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
     area <- cumsum(bai.tree[tr] * (1 - exp(-age / juv)))
     radius <- sqrt(area / pi)
     age.mm[alive, i] <- diff(c(0, radius))
-    hf[alive, i] <- ar1(clim[alive] + tree.noise[alive, tr] +
+    hf[alive, i] <- ar1(sens.tree[tr] * clim[alive] + tree.noise[alive, tr] +
                         rnorm(sum(alive), sd = sd.e))
     dist[alive, i] <- 0
   }
@@ -268,9 +288,13 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
          errors = errors,
          pith = data.frame(tree = tree.id, pith = pith, row.names = NULL),
          competition = tree.id[comp.trees],
+         sensitivity = data.frame(tree = tree.id, sensitivity = sens.tree,
+                                  row.names = NULL),
          params = list(n.tree = n.tree, n.core = n.core, end.year = end.year,
                        rbar.bt = rbar.bt, rbar.wt = rbar.wt, sd.hf = sd.hf,
-                       phi = phi, climate.phi = climate.phi, bai = bai, juv = juv, compete = compete,
+                       phi = phi, climate.phi = climate.phi,
+                       sens.sdlog = sens.sdlog, bai = bai, juv = juv,
+                       compete = compete,
                        compete.frac = compete.frac,
                        compete.phi = compete.phi, seed = seed)))
 }

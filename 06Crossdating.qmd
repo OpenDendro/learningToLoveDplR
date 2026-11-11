@@ -6,7 +6,7 @@ First draft of the rewrite, 2026-10-22. The 2022 walk-through of `corr.series.se
 
 ## Big Idea
 
-Every ring in a collection is a claim about a year. For a living tree the outermost ring is the year you cored it, and every ring inside it is a count back from there. Miss one ring, a locally absent one or one too narrow to see, and every ring inside it is labeled a year too late. Count a false ring as real and every ring inside it is a year too early. [Chapter 2](02AdditiveModel.qmd) showed what that does to a chronology. Crossdating is the method you use to find dating errors.
+Every ring in a collection is a claim about a year. For a living tree the outermost ring is the year you cored it, and every ring inside it is a count back from there. Miss one ring, a locally absent one or one too narrow to see, and every ring inside it is labeled a year too late. Count a false ring as real and every ring inside it is a year too early. From the error on, that breaks the year-to-year agreement between trees that [chapter 2](02AdditiveModel.qmd) described. Crossdating is the method you use to find dating errors.
 
 Douglass did it by eye and with skeleton plots, and he was clear that no correlation formula should make a dating decision [@Douglass1941]. Richard Holmes's COFECHA added the statistics [@Holmes1983]. It cuts every series into overlapping segments, correlates each one with a master built from the other series, and flags the segments that fit badly or fit better somewhere else [@GrissinoMayer2001]. [Where dplR Comes From](01WhereDplRComesFrom.qmd) tells that story. For a generation of dendrochronologists COFECHA's output was what crossdating looked like on paper, and Grissino-Mayer's manual is how most of them learned to read it [@GrissinoMayer2001].
 

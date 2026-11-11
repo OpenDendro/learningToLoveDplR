@@ -1,72 +1,109 @@
 # An Additive Model of Tree Growth
 
-:::{.callout-note title="Outline"}
-Outline, 2026-10-30. It replaces the third draft (2026-10-19). That draft is in git, and the copy with Andy's uncommitted Big Idea edits is at `workspace/ch2-draft-before-outline-2026-10-30.qmd`. Most of the prose below the Big Idea carries over from it; each section says what to keep, what's new, and what moves to another chapter. Decisions so far (Andy, 2026-10-30): the chapter sets up the additive model and the simulation for the rest of the book; the four steps now live in [chapter 1](01WhereDplRComesFrom.qmd#sec-four-steps); the planted things get found in the chapters that teach each method; the simulator's reference is [Appendix A3](A3SimulatedCollection.qmd) and filtering is the [aside](03xAsideFiltering.qmd) that follows this chapter.
-
-Split, 2026-11-03 (Andy): this chapter keeps the additive model, and [The Simulated Stand](03SimulatedStand.qmd) builds the stand. The two Big Idea paragraphs on the simulation moved there, and so did the sections The Simulated Stand and What the Simulation Leaves Out. The filtering aside now follows the stand chapter.
-:::
-
 ## Big Idea
 
-A good way to think about a tree ring is that it is the sum of several factors that govern growth. For example, the tree's diameter and age, the weather that year, something like a disturbance to the tree or what happened to its neighbors. And there is always  noise we can't account for. You never see those parts separately. If the answer to a math problem is 10 you don't know if that's from 3+2+4+1=10 or from 1+4+6-1=10, right?
+A good way to think about a tree ring is that it is the sum of several factors that govern growth. For example, the tree's diameter and age, the weather that year, something like a disturbance to the tree or what happened to its neighbors. And there is always noise we can't account for. You never see those parts separately. If the answer to a math problem is 10 you don't know if that's from 3+2+4+1=10 or from 1+4+6-1=10, right?
 
-One answer, a ring in this imagining, can't be taken apart into its constituent parts. But what if you had thousands of answers, and some of the terms turned up in more than one of them? Then you could start solving for the terms. That is kind of what a collection of cores is. Two cores from the same tree share its age trend and anything that happened to it (disturbance or competition for instance). Every tree in the stand shares the weather but different trees might be influenced by topography even if they are  close neighbors. Generally, the noisiest stuff is in each core alone. We use sampling design to try and get the most information we can in terms of pulling apart the different terms using different methods. 
+One answer, a ring in this imagining, can't be taken apart into its constituent parts. But what if you had thousands of answers, and some of the terms turned up in lots of them? Then you could start solving for the terms. That is kind of what a collection of cores is. Two cores from the same tree share its age trend and anything that happened to it (disturbance or competition for instance). Every tree in the stand shares the weather but different trees might be influenced by topography even if they are close neighbors. Generally, the noisiest stuff is in each core alone. We use sampling design to try and get the most information we can in terms of pulling apart the different terms using different methods.
 
-In this chapter we are going to explore these different parts using a (deceptively) simple additive model of tree growth where we [explain the model here]
+The model I use for this is Ed Cook's, and it is (deceptively) simple. A ring width is an age trend, plus the climate, plus a disturbance or two, plus noise. Like every model, it is wrong. Trees don't add up their growth this way, and later in the chapter I say where the model breaks. It's still the way I think about ring widths, and it's the frame for the rest of the book. The usual way of building a chronology never estimates those parts. You fit a curve, you average, you filter, one step at a time. The additive model, when considered carefully, gives you a way to say what each of those steps is after and what can muck it up. 
 
-[once we have the model we can make a simulation of many cores and many trees]
+A simple model can produce bewilderingly complex outcomes though. Add up a handful of parts that make sense on their own, give a couple of them a memory, run the sum through an exponent, and the result does things none of the parts do. By the end of the chapter you will know the terms in this model, the two ways of sorting them that the book relies on, and why a five-term sum is enough to make tree-ring analysis hard.
 
-By the end of the chapter you will know the parts of a ring width and what each method in the book is after and what it can be fooled by.
+## Modeling a Ring Width
 
-## Packages
+The model in this chapter is a conceptual one, and it isn't the only kind. Process models start from the biology of the cambium. They take daily temperature, soil moisture and day length as inputs and grow a ring cell by cell. The Vaganov-Shashkin model is one of the best known [@Vaganov2011]. A model like that can tell you why a ring is narrow, but it needs many parameters set for each species and site. Cook's model asks for much less. It writes a ring width as a sum of a few parts and says nothing about how the tree makes them. This aggregate growth model is laid out in the *Tree-Ring Bulletin* in 1987 and again, more briefly, in *Methods of Dendrochronology*, the edited volume often called the Cook Book [@Cook1987; @Cook1990model]:
 
-- `dplR` and `ggplot2`; `source("R/sim-collection.R")`. `cowplot` only if the stand-event figure keeps two panels.
-- The figures use cores from the simulated stand before the reader has seen it built. One sentence says so and points to [The Simulated Stand](03SimulatedStand.qmd).
+$$R_t = A_t + C_t + \delta D1_t + \delta D2_t + E_t$$
 
-## A Ring Width in Parts
+$A_t$ is the trend that comes with age and size. $C_t$ is climate. It acts across the whole landscape, so every tree in the stand feels much the same weather. $D1_t$ is a disturbance inside the forest that hits one tree, like a neighbor falling and opening a gap. Cook's point about these is that they occur at random in space and time, so they don't line up from one tree to the next. $D2_t$ is a disturbance that hits the whole stand at once: fire, wind, insects, logging. $E_t$ is everything left over, from microsite differences to measurement error. The $\delta$s switch the disturbances on and off, because they come and go while the other three are always there.
 
-- Keep: Cook's equation and the terms [@Cook1987; @Cook1990model], the log scale and Cook's lodgepole 0.67 [@Cook1987], and "the most useful equation in dendrochronology, even though nobody ever estimates it". Move the method-by-method sentences from that paragraph into What Each Method Is After.
-- Keep: the figure of the parts of SIM10A (age trend, climate-noise-memory, disturbance, ring width).
-- Keep: where $A_t$ comes from (geometry, Fritts, Cook's open and closed stands) and the climate memory paragraph (Vaganov; Cook and Pederson). [Memory and Cycles](15MemoryCycles.qmd) refers back to the simulated climate's memory.
+Wide rings vary more than narrow ones. Cook showed it with lodgepole pine, where the mean and the standard deviation of ring width, decade by decade, correlated at 0.67 [@Cook1987]. Cook's later version of the model handles that by adding the parts on the log scale [@Cook1990model].
+
+If it's been a while since you thought about logs, here is why that works. A mean and a standard deviation that rise together tell you the wiggles are proportional. A good year adds something like 10% to a ring, whatever its size, so it adds 0.2 mm to a 2 mm ring and 0.05 mm to a 0.5 mm one. A plain sum can't do that. Add 0.2 mm for a good year and it's 0.2 mm in every ring, so the spread stays the same whether the rings are wide or narrow. Proportional changes are multiplication, and logs turn multiplication into addition, because $\log(a \times b) = \log(a) + \log(b)$. A 10% gain is the same step on the log scale (about 0.1) at any width. So you add the parts on the log scale, where a step is a step, and then exponentiate to get back to millimeters. In millimeters the parts multiply, and the spread grows with the level the way it does in wood.
+
+So, where does the age trend come from? Partly from geometry. A stem that adds about the same area of wood each year has to spread it around a bigger circle every year, so the rings get thinner. Fritts made the same point from the other direction: two rings of the same width hold more wood on the outside of a big stem than near the pith [@Fritts1966]. In an open stand that geometry gives the familiar decaying curve, and Cook's example of it is a ponderosa pine from an open, semiarid site. In a closed canopy he argued that $A_t$ has no expected shape at all. Competition suppresses a tree and a gap releases it, and his red spruce and hemlock series climb and fall over a century in a way no growth curve predicts [@Cook1987].
+
+Climate has memory of its own. Wet years tend to come in runs, and so do warm ones, so this year's weather carries a little of last year's. Trees add a memory of their own on top of that, because a good year leaves needles, roots and stored sugar that help the next one. Vaganov and colleagues suggest one route: how many cells the cambium starts a season with depends partly on how the tree grew the year before [@Vaganov2011, p. 45]. Cook and Pederson point to another, stored carbon that goes into next year's buds and early leaves and can stay in an oak for three to five years [@CookPederson2011, p. 102-103]. Cook's equation doesn't write memory as a term of its own. In his first version of the model, the persistence the trees share, from the weather and from what he called physiological preconditioning, is part of $C_t$ [@cook1985, p. 23; @Cook1990model, p. 100]. What has no home is memory in the noise, because Cook assumes $E_t$ is uncorrelated from one year to the next [@Cook1990model, p. 102].
 
 ## Who Shares What
 
-- Keep: the sorting by who shares a part, and the design paragraph (two cores from each of twenty trees; Schweingruber in the Cook Book, p. 27; Fritts's bristlecones; Schulman's "the crossdated group is the unit of study").
-- `autoread.ids` on the simulated names moves to [The Simulated Stand](03SimulatedStand.qmd).
-- Show the sorting with numbers: cores from one tree agree more than cores from different trees. Option to decide in the draft: compute it on the truth (`exp(sim$truth$memory.noise)`, so no detrending is needed this early) or on `detrend` output as now. Either way, compare the two numbers with each other and drop the comparison with the targets; [Appendix A3](A3SimulatedCollection.qmd#sec-sim-agree) explains why measured values come in a little under them.
+There are two ways of sorting the parts. The first is by who shares them. Cook writes his equation for one series, so it doesn't say which tree you are looking at. Give each tree a number, $i$, and the sharing is in the subscripts:
+
+$$R_{it} = A_{it} + C_t + \delta D1_{it} + \delta D2_t + E_{it}$$
+
+The terms with only a $t$ are the same in every tree in a given year. Climate is shared by every tree in the stand, and by trees in other stands too. A stand-wide disturbance is shared by the trees it hit. Cook defines $D2_t$ as turning up in every tree [@Cook1990model, p. 102], but a windstorm or an outbreak can easily take some trees and leave others, and then its $\delta$ needs an $i$ as well. The terms with an $i$ belong to one tree. A release does, and both cores from that tree have it. Some of the noise belongs to the tree as well, and the rest belongs to a single core. Cook lumps those two kinds of noise into $E_t$.
+
+The age trend is the awkward one. Cook keeps it in a class of its own, apart from both the shared terms and the ones unique to a tree [@Cook1990model, p. 102]. The details belong to each tree: how wide its rings are overall (what some statistical models call its "level"), how fast its rings shrink, its history of crowding and release. Trees that started growing in different years are also at different points on their curves in any calendar year. But the shape comes from geometry, and trees of one species on one site tend to follow a similar curve as a function of their age. Whether you treat $A_{it}$ as each tree's own or as one curve that all the trees follow is a choice between methods. Detrending each series separately takes the first view, and [Regional Curves](12RegionalCurves.qmd) takes the second and accepts the noise that incurs.
+
+That sorting is why collections are built the way they are. Schweingruber and colleagues recommend two cores from each of twenty trees for a ring-width chronology [@CookBook, p. 27], and Fritts's bristlecone chronologies in the 1960s used two radii from each of ten trees [@Fritts1966]. Two cores from a tree separate what belongs to the tree from what belongs to the core. Many trees separate what belongs to the stand from what belongs to the tree. Schulman put the principle in a sentence: the crossdated group is the unit of study, and the single specimen never is [@Schulman1941].
 
 ## How Fast It Changes
 
-- New section, the second sort. The age trend and competition change over decades. Climate and noise change from year to year, with a year or two of memory. Disturbances arrive in one year and fade over years (the stand event) to decades (the release). Use the SIM10A figure again, reading it for speed this time.
-- A small table, parts by who shares them and how fast they change. This is the table every method in the book can be placed on.
-- A filter is the tool for sorting by speed, and the [aside that follows](03xAsideFiltering.qmd) takes it up. One or two sentences only.
+The second sort is by speed. The age trend changes over decades to centuries, and in a closed stand so does competition. Climate and noise change from year to year, with a year or two of memory. Disturbances are the odd ones. They arrive in a single year and then fade, over a few years after a fire scorches the crowns or over decades after a neighbor falls and lets the light in.
+
+Put the two sorts together and you get a small table:
+
+| Part | Shared by | How fast it changes |
+|:--|:--|:--|
+| Age trend and competition, $A_t$ | one tree, though its shape can be shared | decades to centuries |
+| Climate, $C_t$ | every tree, and beyond the stand | year to year, with a year or two of memory |
+| Disturbance to one tree, $D1_t$ | one tree | arrives in a year, fades over years to decades |
+| Stand disturbance, $D2_t$ | the trees it hit | arrives in a year, fades over years |
+| Noise, $E_t$ | one tree or one core | year to year |
+
+The table is the map for the rest of the book. Nearly every method can be placed on it by which cells it keeps and which it throws away. The tool for the second sort is a filter, which splits a series into a slow part and a fast part. The [aside on filtering](03xAsideFiltering.qmd) takes it up after the next chapter.
+
+## Simple Parts, Odd Series
+
+Each part is something you could explain to a forester in a sentence. Added together, they make series that are a lot harder to read than the parts.
+
+Start with memory. Give the climate a year or two of memory, then give the tree a year or two of its own. Cook folds the part of that the trees share into $C_t$. Letting it reach each tree's noise as well is one step past his equation and, I think, a fair one given the biology. Each memory alone is short. Stacked, they make runs of wide or narrow rings that last longer than either, and a stretch of a few decades can look like a trend or a cycle that nobody put in. The two memories also look alike in a ring-width series and mean different things: the climate's is shared by every tree, and the tree's belongs to the tree. [Memory and Cycles](15MemoryCycles.qmd) is where the book tries to tell them apart.
+
+Then the scale. Because the parts multiply in millimeters, the same climate gives different widths in different trees. A drought that takes the same share off every ring makes a young tree with 2 mm rings look four times as sensitive as an old one with 0.5 mm rings, and the two trees had the same year. That is one reason detrending usually divides by a curve, and [Detrending](09Detrending.qmd) takes it up.
+
+Then the disturbances. A release arrives in one year, which makes it fast, and fades over decades, which makes it slow. Early on it is in the same cell of the table as noise in that tree, and later in the same cell as the age trend. In a closed stand, where releases and suppressions keep coming, the age trend stops having a shape you could write down, which was Cook's point about his spruce and hemlock.
+
+And the cells themselves. Two parts that are in the same cell of the table can't be told apart by any method that only sorts by who and how fast. A stand-wide disturbance and the climate are both shared and both fairly fast, so a chronology can't separate them without some outside knowledge of which trees were hit. Cook's example of $D2_t$ is three hemlocks from one stand that all took off together after the forest around them was logged in the early 1900s [@Cook1987]. Averaged into a chronology, that would read as a run of good years. Competition and the age trend both belong to one tree and both change slowly, so a growth curve fitted to one tree takes them together. A slow swing in climate is shared, but a curve fitted to one tree at a time can't see that, so detrending can take some of it along with the age trend. Even the age trend can pass for a shared part. In raw widths most trees slope downhill, so two trees can correlate on their age trends alone, whether or not their rings are in the right years.
+
+None of that needs anything beyond the five terms of the equation and a little memory.
+
+:::{.callout-important title="All Models Are Wrong"}
+George Box, a statistician who spent his career building models for industrial experiments, put it in a line that has been quoted ever since: "Essentially, all models are wrong, but some are useful" [@BoxDraper1987, p. 424]. Cook's model is wrong, and Cook said so. He called its linear form and the independence of its parts "a necessary oversimplification for the moment" [@cook1985, p. 24]. Here are the main ways it is wrong:
+
+- It's a sum, but ring widths behave more like a product. Cook used the linear form for ease of discussion [@Cook1990model, p. 98].
+- It assumes the parts don't covary, which Cook said won't always hold [@Cook1990model, p. 102]. A drought can hit harder in a tree that lost its needles the year before, and the equation has no term for that.
+- It gives every tree the same response to climate in every year, though sensitivity can change as a tree grows and after a release or a defoliation.
+- It has no memory in the noise. The persistence the trees share is part of $C_t$, but a tree's own runs of good and bad years have no place.
+- Its stand disturbance hits every tree or none.
+:::
+
+What makes it useful is what the rest of this chapter has done with it. It names the parts, says which trees share each one and how fast each changes, and that is enough to say what a method is after and what can fool it. A model with every interaction in it would be closer to a tree and much harder to think with. And when a method misbehaves later in the book, a good first question is which of these simplifications the data broke.
 
 ## What Each Method Is After
 
-- Rebuild the old closing table (method, part it is after, what it can mistake for that part, where in the book) as the center of the chapter, placed on the who-shares and how-fast table:
-  - Crossdating keeps what is shared and fast. In raw widths the age trend looks shared (every tree slopes downhill), which is why the dating tools filter first.
-  - Detrending removes what belongs to one tree and changes slowly, so it can take competition with the age trend, or a slow swing in climate.
-  - A chronology keeps what is shared, so it can't tell climate from a stand-wide disturbance.
-  - A tree series (`treeMean`) keeps what belongs to one tree, which is where a release shows.
-- One worked example, the stand event of 1880, because it shows the model's limit in a single figure: a chronology can't tell $D2_t$ from $C_t$ without knowing which trees were hit. Keep the two-panel figure (or panel A only), the Douglass condition (many trees, a wide area, a long time), Cook's three hemlocks, and Wigley et al. and Buras on EPS. Decide in the draft whether the 1870s spline lift stays here or goes to [Detrending](09Detrending.qmd), which already calls it "chapter 2's puzzle".
-- Keep Cook's "one researcher's 'signal' will frequently be another researcher's 'noise'" [@Cook1987, p. 38], and the climate and ecology views of the same parts. A record is good for a purpose.
+So here is how the rest of the book uses the model. Each method is after some cells of the table, and it can be fooled by whatever shares a cell with them or is in a neighboring cell.
+
+Crossdating is after what is shared and fast. When the dating is right, the year-to-year part of $C_t$ lines up across trees, and a ring in the wrong year breaks the line from there on. In raw widths most trees slope downhill, so the age trend can pass for a shared part, and the dating tools filter the slow part out before they compare anything. [Crossdating a Collection](06Crossdating.qmd) takes that up, after the [aside on filtering](03xAsideFiltering.qmd) has shown how a filter does it.
+
+Detrending is after $A_t$. It fits a curve to each series as an estimate of the age trend and takes it out, usually by dividing. The curve sees one tree at a time, and all it can go on is speed, so it takes whatever else in that tree is slow: competition, the long tail of a release, and some of a slow swing in climate. [Detrending](09Detrending.qmd) measures what the usual curves take. [Regional Curves](12RegionalCurves.qmd) and [Signal-Free](13SignalFree.qmd) are two ways of trying to leave the shared slow part behind.
+
+A chronology averages the detrended series. What belongs to one tree, $D1_t$ and most of $E_t$, tends to cancel, and what is shared remains. Usually that is the point, because the chronology is built for $C_t$. But $D2_t$ is shared too, so a fire or an outbreak that hit the stand is still there after averaging, along with the climate, and the chronology can't tell you which is which. [Chronology Statistics](10ChronologyStats.qmd) and [Chronology Building](11Chronologies.qmd) are about how well the averaging works and what it keeps.
+
+The disturbance terms are where the $\delta$s matter. Climate is always there. A disturbance is switched on in some years and off in the rest, so the first question about one is when it happened, and to which trees. $D1_t$ shows in a single tree's series, as a change in growth that the tree's neighbors don't share. Finding a release means comparing a tree with itself before and after, or with the other trees in the stand. $D2_t$ shows in many trees at once, which puts it in the same cell as climate. Studies of insect outbreaks get around that by comparing host trees with nearby trees of a species the insects leave alone, as Cook suggested [@cook1985, p. 34], so the nonhost trees record the climate and the difference between the two records the outbreak. [Events](17Events.qmd) looks for years when many trees did something unusual at once, which is where climate extremes and stand-wide disturbances both turn up.
+
+Which part you want depends on what you are asking. A dendroclimatologist usually wants $C_t$ and treats everything else as noise. A dendroecologist typically turns that around, goes after the $D$s, and treats the climate as the thing to remove. A silviculturist might want $A_t$ by species or site class. Cook's reason for laying out the model at all was that "signal" and "noise" have no meaning until you say what you are asking. In his words, "one researcher's 'signal' will frequently be another researcher's 'noise'" [@Cook1987, p. 38].
 
 ## Wrapping Up
 
-- The model is too simple to fit, but it says what each method is after and what it can mistake for it. The parts are sorted by who shares them and how fast they change.
-- Point to [The Simulated Stand](03SimulatedStand.qmd) next.
+Cook's model is wrong in ways we think we understand, and useful anyway. It says a ring width is an age trend, climate, disturbance and noise added up on the log scale. What it gives you is two ways to sort the parts, by who shares them and by how fast they change, and a way to say what each method in the book is after and what it can mistake for it. It also shows that a few simple parts, with a little memory and a multiplication thrown in, are enough to make series that look like trends, cycles and events nobody put there.
+
+The model is how we will try to interpret tree-ring data throughout the book. With a field collection, though, you only ever see the sums, so you can't check whether a method pulled out the part it was after. The [next chapter](03SimulatedStand.qmd) uses the model the other way around. It picks the parts, adds them up into a stand of trees, and keeps the parts, so you can watch each method in `dplR` work on a collection where the answer is known before you trust it on one where it isn't.
 
 ## Further Reading
 
-- Keep @Cook1987, @Cook1990model, @cook1985, @Fritts1966, @Schulman1941, @CookBook (p. 27) and @Bunn2004.
-- Keep @Wigley1984 and @Buras2017 if the stand event stays.
-- @Douglass1941, @Holmes1983 and @Black2016 move with the missing ring.
-
-## What Moves Out
-
-- The Missing Ring → [Crossdating](06Crossdating.qmd): Black et al. on what dating errors do [@Black2016], the raw against filtered lag figure and `toWiggles`, Holmes on spline stiffness, and Douglass and Holmes on the statistics saying where to look. 05 now says "[Chapter 2] showed what that does to a chronology" (line 9); it will have to show it itself. The lag figure might suit the [filtering aside](03xAsideFiltering.qmd) instead.
-- The Crowded Trees → [Detrending](09Detrending.qmd): the SIM05A and SIM06A curve figure, and Cook on why no method can separate a long disturbance from the age trend. The aside already shows splines on SIM06A.
-- Sample depth, the residual chronology against the true climate by century, the white-climate comparison, and EPS against the true r² → [Chronology Statistics](10ChronologyStats.qmd) or [Chronology Building](11Chronologies.qmd).
-- The Released Tree → Trees and Disturbance (which chapter is not decided).
-- The old exercises (Andy, 2026-11-04: no exercises in the Foundations chapters). Exercise 1 (the between-tree rbar under its target) is dropped; the appendix carries that point. Exercises 2 (a false ring) and 3 (`nyrs`) go to [Crossdating](06Crossdating.qmd) or the [crossdating statistics aside](08xAsideCrossdatingStats.qmd); 4 (a slow swing through `detrend`) to [Detrending](09Detrending.qmd); 5 (a weak stand) to [Crossdating](06Crossdating.qmd); 6 (an event that hits every tree, and whether the chronology tells it from a drought) to [Chronology Building](11Chronologies.qmd) if it fits there. Check each against what those chapters already have.
-- The four steps and their table → [chapter 1](01WhereDplRComesFrom.qmd#sec-four-steps). Done 2026-10-30; 09 and 10 now link there.
+- @Cook1987 is the aggregate model in full, with ring-width series from open and closed stands showing what each part looks like in wood. It is a scan, but the first eight pages are the ones to read. @Cook1990model is the six-page version in the Cook Book. Read one now and again after the detrending chapters.
+- @cook1985 is the dissertation behind both, and behind much of how `dplR` standardizes ring widths.
+- @Fritts1966 explains the biology behind $A_t$ and $C_t$ in seven pages of *Science*, including why trees at the dry forest border record climate best.
+- @Schulman1941 is three pages on the principles of selection, crossdating and sensitivity as practiced in Tucson. Short, and it has aged well.
+- @CookBook, chapter 2, says how to choose sites and trees, and recommends two cores from each of 20 trees for a ring-width chronology (p. 27).

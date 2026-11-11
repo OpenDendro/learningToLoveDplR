@@ -1,58 +1,209 @@
 # The Simulated Stand
 
-:::{.callout-note title="Outline"}
-Outline, 2026-11-03. Andy split chapter 2 in two that day: [An Additive Model of Tree Growth](02AdditiveModel.qmd) keeps the model, and this chapter builds the stand. The first two paragraphs of the Big Idea are Andy's, moved over from chapter 2, with a new opening that carries over from the model. The rest comes from the last two sections of the chapter 2 outline and from most of [Appendix A3](A3SimulatedCollection.qmd), as each section says. A3 keeps the reference parts: the agreement targets and why `rwi.stats` lands under them, the argument table and the variants. The [filtering aside](03xAsideFiltering.qmd) follows this chapter, because it works on a crowded tree from the stand.
-:::
-
 ## Big Idea
 
-Now that we have the [additive model](02AdditiveModel.qmd), we can put it to use. The model says a ring width is a sum of parts: the age trend, the climate, disturbance and noise. Pick a size and a shape for each part, add them up, and you have grown a tree on the computer. Do that for a stand and you have a collection where every part of every ring is known. This chapter builds one: 40 simulated tree-ring series, two cores from each of 20 trees in one stand. I wrote the code that made them, so I know every part of every ring. I also hid a few things in them. One core is missing a ring. Half the trees have neighbors crowding them, so their growth trends wander. One tree was released when a neighbor fell. And in one year, something knocked back half the trees standing at the time. None of it jumps out of the ring widths. This chapter shows how the stand is put together, and the later chapters go looking for each of those things with the method that is meant to find it.
+Now that we have the [additive model](02AdditiveModel.qmd), we can put it to use in a simulation. The model says a ring width is a sum of parts: the age trend, the climate, disturbance and noise. If we pick a size and a shape for each part and add them up we will have generated something like a tree-ring series. If we do that for a stand we will have made something like a collection where every part of every ring is known. That's what we do in this chapter. We simulate 40 tree-ring series, two cores from each of 20 trees in one stand. But in this case, we know every part of every ring. We will also hide a few things in them. One core is missing a ring. Half the trees have neighbors crowding them, so their growth trends wander. One tree was released when a neighbor fell. And in one year, something knocked back the growth of about half the trees standing at the time. None of it jumps out of the ring widths.
 
 A simulation lets you test each method: here is what went in, did it come back out, and if not, what got lost? Working with simulated data is a great way to learn how analytic methods behave. When you know the answer going in, every result is a check on the method, and the fun is in trying to get the answer back. I have been doing this for more than twenty years with tree-ring data and still find it useful [@Bunn2004].
 
-- The opening now carries over from the model chapter (Andy, 2026-11-04). A question could still pull the reader in after it: here is a stand with four things hidden in it, so how would you know they are there?
-- Promise: by the end you know how the stand is built, what is hidden where, and what the simulation leaves out.
+By the end of the chapter you will know how the stand is built, what is hidden where, and what the simulation leaves out. The later chapters go looking for each hidden thing with the method that is meant to find it.
 
-## Packages
-
-- `dplR` and `ggplot2`; `source("R/sim-collection.R")`; `data(wa082)` for the comparison at the end.
-- `sim.collection` lives in the book's `R/` folder and isn't part of `dplR`. Every chapter that uses it loads it the same way. From A3's opening.
-- One sentence pointing to [Appendix A3](A3SimulatedCollection.qmd) for the arguments and the agreement targets.
+```{r}
+#| label: stand-words
+#| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
+```
 
 ## Building a Ring
 
-- From A3's "How a Ring Is Built": the log-scale equation with $M_t$, the rounding to 0.01 mm, and each part as the simulator makes it ($A_t$ from basal area and competition, $C_t$, $T_t$ and $E_t$, memory, the two pulses, dating errors last).
-- [The model chapter](02AdditiveModel.qmd) says what each term is in a tree, with Cook's sources. This section says how the simulator makes it, and points back there for the why. Check the two for repetition once both are drafted.
-- Cook's $D2_t$ turns up in every tree, while the simulator's hits half of them. Keep A3's note on why, because the model chapter's worked example depends on it.
+The simulator uses Cook's model on the log scale. [Chapter 2](02AdditiveModel.qmd#who-shares-what) numbered the trees with $i$. A stand of cores needs one more number, $j$ for the core within a tree, so SIM03A is $i = 3$, $j = 1$. One ring in one core is
+
+$$\log R_{ijt} = \log A_{it} + M_{ijt} + \delta D1_{it} + \delta D2_{it}, \qquad M_{ijt} = \phi M_{ij,t-1} + C_t + T_{it} + E_{ijt}$$
+
+The subscripts say who shares what. A term with only a $t$ is the same in every tree. A term with an $i$ belongs to a tree, so both of its cores carry it. A term with a $j$ belongs to one core.
+
+Cook's model is a good conceptual start, and we added a few wrinkles to it. Each one is there because a method later in the book needs it to have something to work on.
+
+- We split the noise. Cook has a single $E_t$. Here $T_{it}$ belongs to a tree and $E_{ijt}$ to one core. In field collections two cores from one tree agree better than two trees do, and without the split they wouldn't. The difference between agreement within trees and between trees is what [Chronology Statistics](10ChronologyStats.qmd) measures, and it is why averaging cores into trees with `treeMean` in [Chronology Building](11Chronologies.qmd) does anything.
+- We gave the noise a memory. Cook's climate term already carries the persistence the trees share, from the weather and from what he called physiological preconditioning [@cook1985, p. 23], but he assumes his $E_t$ is uncorrelated from year to year. Here climate and noise go through the tree's memory together, $M_{ijt}$, so a tree's own good and bad runs carry over too, because ring widths carry over from year to year for biological reasons, like stored carbon and needles kept from a good year. Prewhitening in [Crossdating](06Crossdating.qmd) and the residual chronology in [Memory and Cycles](15MemoryCycles.qmd) exist to deal with that memory, so the stand needs some.
+- We let the stand event miss some trees. Cook's $D2_t$ has no $i$ because it hits every tree. Ours hits about half of them, so it gets one. His first version of the model left room for that, with the pulse in "virtually all affected trees" [@cook1985, p. 32]. Disturbances in the field are often patchy, and an event that hit every tree would look just like a climate year. Knowing which trees were hit is how [Detrending](09Detrending.qmd) shows what a curve does to an event.
+
+We also took one shortcut. Cook treats a disturbance as a shock that passes through the tree's memory the way a climate year does. Here each disturbance is added after the memory as a fixed pulse, so its shape is simple and easy to read off the truth. A release in a tree would echo through its memory, and this one doesn't. The rest follows Cook: the log scale, a climate with a little memory of its own, and an age trend that wanders in a closed stand are all his suggestions, written as code.
+
+Each part is done as simply as I could make it:
+
+- $A_{it}$ is geometry. Each tree adds about the same basal area every year, and the ring is the change in radius that area makes, so the rings thin as the stem grows. Trees differ in how fast they grow. Half of them also get a slow, wandering competition history, because Cook's point about closed stands is that the age trend there has no shape you could write down.
+- $C_t$ is the climate, one series for the whole stand, with a little memory of its own.
+- $T_{it}$ and $E_{ijt}$ are noise, one part for the tree and one for the core.
+- $M_{ijt}$ is the memory. Climate and noise go through it together, and each year keeps half of the year before.
+- $D1_{it}$ and $D2_{it}$ are pulses. Growth jumps in one year and the jump fades. The release is in one tree, and the event in about half of the trees standing at the time.
+
+The widths are rounded to 0.01 mm, the way a measuring stage would record them, and the dating errors go in last.
+
+This is where the book's code starts in earnest. The chunk below loads `dplR`, and `ggplot2` for the figure of one core's parts. It also loads the simulator, `sim.collection`, a single function that lives in the book's `R/` folder and isn't part of `dplR`. Every chapter that uses it loads it with `source` the same way, and [Appendix A3](A3SimulatedCollection.qmd) is its reference: every argument, what comes back, and how the agreement between trees is set.
+
+```{r}
+#| label: stand-sim
+#| message: false
+library(dplR)
+library(ggplot2)
+source("R/sim-collection.R")
+
+sim <- sim.collection(seed = 1)
+simRwl <- sim$rwl
+simTruth <- sim$truth
+```
+
+The seed fixes every random draw, so we get the same stand everytime we run it. Here are the parts of one core, SIM10A, and the ring widths they make.
+
+```{r}
+#| label: stand-parts
+#| fig-height: 6
+#| fig-cap: "The parts of one core, SIM10A, and the ring widths they make. The disturbance panel is the release planted in tree 10 in 1950. The middle panel is climate and noise after the tree's memory."
+oneCore <- "SIM10A"
+partYears <- as.numeric(rownames(simTruth$rwl))
+partNames <- c("Age trend (mm)", "Climate, noise and memory (log)",
+               "Disturbance (log)", "Ring width (mm)")
+
+# ggplot wants one long table: a year, a value and the name of the part,
+# with the four parts of this core stacked one after another.
+parts <- data.frame(
+  year = partYears,
+  value = c(simTruth$age[[oneCore]],
+            simTruth$memory.noise[[oneCore]],
+            simTruth$disturbance[[oneCore]],
+            simTruth$rwl[[oneCore]]),
+  part = factor(rep(partNames, each = length(partYears)), levels = partNames)
+)
+
+# One panel per part, each with its own y axis. na.omit() drops the years
+# before the core's first ring.
+ggplot(na.omit(parts), aes(x = year, y = value)) +
+  geom_line() +
+  facet_wrap(~part, ncol = 1, scales = "free_y") +
+  labs(x = "Year", y = NULL) +
+  theme_minimal()
+```
+
+Look at the bottom panel by itself and try to find the release. The jump in 1950 is there, but the widest rings after it, around 1960 and 1980, owe as much to climate and noise (the second panel) as to the release. Without the parts you couldn't easily say how much of any wide ring belongs to the release.
 
 ## The Stand
 
-- From A3's "The Stand": 20 trees, two cores each, all cored in 2025; ages spaced on a square, so old trees are few; pith offsets; the segment plot.
-- The names (SIM03A) and `autoread.ids`, moved here from the model chapter's Who Shares What. [Reading and Writing](04ReadingWriting.qmd) refers back to it.
-- A3's note on the truth tables starting at the oldest pith, with empty rows before the first measured ring.
+```{r}
+#| label: stand-values
+#| include: false
+nTree <- simTruth$params$n.tree
+nCore <- simTruth$params$n.core
+```
+
+The stand is `r nTree` trees with `r words(nCore)` cores each, all cored in `r simTruth$params$end.year`. Two cores from each of twenty trees is the design Cook recommends for a ring-width chronology [@CookBook, p. 27]. The oldest pith is in `r min(simTruth$pith$pith)` and the youngest in `r max(simTruth$pith$pith)`. Old trees are few, so the record thins going back in time, as it does in most stands, and each core misses the pith by a few rings.
+
+```{r}
+#| label: stand-seg
+#| fig-height: 7
+#| fig-cap: "The simulated stand, one line per core from its first measured ring to the bark."
+plot(simRwl, plot.type = "seg")
+```
+
+The series are named for the site, a two-digit tree number and a core letter, so SIM03A is the first core from tree 3. `autoread.ids` reads names like that and says which cores share a tree, which the methods that compare cores within and between trees need.
+
+```{r}
+#| label: stand-ids
+simIds <- autoread.ids(simRwl)
+head(simIds)
+```
+
+[Reading and Writing](04ReadingWriting.qmd) comes back to series names and what `autoread.ids` can and can't read.
 
 ## What Is Hidden
 
-- The seed-1 table from A3's "The Default Stand", tree by tree: crowded, hit by the event, the release, the missing ring. Keep the note that tree 3, with the missing ring, is also crowded and hit by the event.
-- Where each is found, so later chapters can open on it: the missing ring in SIM03A in [Crossdating](06Crossdating.qmd) and [Fixing Errors](07FixingErrors.qmd); the crowded trees in [Detrending](09Detrending.qmd); the stand event in [the model chapter](02AdditiveModel.qmd), then again in [Detrending](09Detrending.qmd) and [Chronology Building](11Chronologies.qmd); the release in tree 10 in Trees and Disturbance (which chapter is not decided).
+Here is what is planted in the stand, tree by tree.
+
+```{r}
+#| label: stand-hidden
+treeNumber <- seq_len(nTree)
+
+# One row per tree. truth$competition gives tree names ("SIM02", ...),
+# while the event and the release give tree numbers.
+hidden <- data.frame(
+  tree = simTruth$pith$tree,
+  pith = simTruth$pith$pith,
+  crowded = simTruth$pith$tree %in% simTruth$competition,
+  event = treeNumber %in% simTruth$event$trees,
+  release = treeNumber == simTruth$release$tree
+)
+
+# the planted dating error, in the row of the tree whose core has it
+errorTree <- sim$ids[simTruth$errors$series, "tree"]
+hidden$error <- ""
+hidden$error[errorTree] <- paste(simTruth$errors$series,
+                                 simTruth$errors$type,
+                                 simTruth$errors$year)
+hidden
+```
+
+```{r}
+#| label: stand-hidden-values
+#| include: false
+nStanding <- sum(simTruth$pith$pith < simTruth$event$year)
+nHit <- length(simTruth$event$trees)
+nCrowded <- length(simTruth$competition)
+```
+
+`r words(nCrowded, cap = TRUE)` of the trees are crowded. The `r simTruth$event$year` event hits `r words(nHit)` of the `r nStanding` trees standing at the time and spares the rest. Cook's stand disturbance hits every tree, and hitting about half of them keeps it visible as something other than climate. The release is in tree `r simTruth$release$tree` in `r simTruth$release$year`. And the `r simTruth$errors$year` ring is missing from `r simTruth$errors$series`. Tree `r errorTree` is also crowded and hit by the event, so that core will look odd in more than one way.
+
+The later chapters find these with the methods meant for them. The missing ring is for [Crossdating](06Crossdating.qmd) and [Fixing Errors](07FixingErrors.qmd). The crowded trees and the event are for [Detrending](09Detrending.qmd), and the event comes back in [Chronology Building](11Chronologies.qmd). The release waits for the disturbance chapters.
 
 ## Measured and True
 
-- The difference between `sim$rwl` (as measured, with the error) and `sim$truth` (each part, and the widths before the error). From the chapter 2 outline and A3's "What Comes Back".
-- The field table could stay in A3 with a pointer, or come here. Decide in the draft.
-- The parts multiply back into the widths. One line of code shows it.
-- Measuring is the step the simulation skips. Keep the sentence pointing to [Reading and Writing](04ReadingWriting.qmd) and [Checking a Collection](05CheckingCollection.qmd).
+`sim$rwl` is the stand as you would have it after measuring, an ordinary `rwl` object with the missing ring in it. `sim$truth` is what you never get from a field collection: each part of every ring, separately, and the widths as the trees grew them, before the dating error. The parts multiply back into the widths.
+
+```{r}
+#| label: stand-truth
+rebuilt <- round(simTruth$age * exp(simTruth$memory.noise +
+                                    simTruth$disturbance), 2)
+all.equal(as.data.frame(rebuilt), as.data.frame(simTruth$rwl),
+          check.attributes = FALSE)
+```
+
+Measuring is the step the simulation skips. Its widths arrive measured and rounded, with none of the slips a measuring stage and a tired eye produce. With a field collection, [Reading and Writing](04ReadingWriting.qmd) and [Checking a Collection](05CheckingCollection.qmd) are where you find those.
 
 ## What the Simulation Leaves Out
 
-- From the chapter 2 outline: the side-by-side with Hurricane Ridge (`wa082`) and the list (a site, locally absent rings, measurement error and file quirks, climate with a history, a history nobody wrote down), and the closing point that the book uses both kinds of data.
-- A3's list of simplifications that favor particular methods (one shape of age trend, growth rate unrelated to age, all trees living, rings missing only where planted, rounding as the only measurement error, one climate). It suits this section. Move it, and leave A3 a pointer.
+```{r}
+#| label: stand-compare
+#| include: false
+data(wa082)
+simSummary <- summary(simRwl)
+waSummary <- summary(wa082)
+```
+
+The simulated stand looks broadly like a real field collection if you squint. Its series average `r round(mean(simSummary$year))` years and `r sprintf("%.2f", mean(simSummary$mean))` mm a ring, against `r round(mean(waSummary$year))` years and `r sprintf("%.2f", mean(waSummary$mean))` mm for the `r ncol(wa082)` series from Hurricane Ridge. But a real collection has things the simulation doesn't:
+
+- A site. In the simulation the size of each part is a number we chose. In the field it comes from where the trees grow, and choosing the site is how you make the part you want large.
+- Rings that go missing on their own. Here a ring is missing only where we deleted it, and a narrow ring always forms all the way around the stem.
+- Measurement error and file quirks. The only measurement error here is the rounding.
+- A history nobody wrote down. Every disturbance here is one we planted, and we know where.
+- Trees that differ in how they feel the climate. Every tree here feels it with the same strength. `sens.sdlog` changes that, and [Appendix A3](A3SimulatedCollection.qmd) describes it, but the default stand leaves it off.
+
+A few simplifications also favor particular methods, such as one shape of age trend for every open-grown tree and growth rates that have nothing to do with age. [Appendix A3](A3SimulatedCollection.qmd#what-it-leaves-out) lists them. So the book uses both kinds of data. The simulated stand comes first, where the answer is known, and then `co021` and `wa082`, where it isn't.
 
 ## Wrapping Up
 
-- The stand has known parts and four planted things, and each later chapter opens on one of them.
-- Point to the [aside on filtering](03xAsideFiltering.qmd) next, then [Reading and Writing](04ReadingWriting.qmd).
+The simulated stand is Cook's model with numbers put in: `r ncol(simRwl)` cores from `r nTree` trees, with a missing ring, crowded trees, a stand-wide event and a release hidden in them, and every part of every ring kept in `sim$truth`. It is simpler than a field collection in the ways the last section listed.
+
+The [aside on filtering](03xAsideFiltering.qmd) comes next and uses a crowded tree from the stand. Then [Reading and Writing](04ReadingWriting.qmd) starts on field collections.
 
 ## Further Reading
 
-- @Bunn2004, @Cook1990model and @CookBook (p. 27, on two cores from twenty trees).
+- @Bunn2004 uses a much simpler simulation like this one to compare two detrending methods on low-frequency signals of known size.
+- @Cook1990model is the six-page version of the model the simulator follows, in the Cook Book.
+- @CookBook, chapter 2, says how to choose sites and trees, and recommends two cores from each of 20 trees for a ring-width chronology (p. 27).

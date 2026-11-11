@@ -1,7 +1,7 @@
 # Aside: Filtering and the Spline {- .aside-chapter}
 
 :::{.callout-note title="Draft"}
-First draft, 2026-10-30, from the outline of the same day. Every number in the text is computed when the book builds. Crossdating, Detrending and Smoothing and Filtering now point here for the definition of the spline. [An Additive Model of Tree Growth](02AdditiveModel.qmd) and [The Simulated Stand](03SimulatedStand.qmd) don't link here yet; that waits for their rewrites.
+First draft, 2026-10-30, from the outline of the same day. Every number in the text is computed when the book builds. Crossdating, Detrending and Smoothing and Filtering now point here for the definition of the spline. [An Additive Model of Tree Growth](02AdditiveModel.qmd) links here (2026-11-10). [The Simulated Stand](03SimulatedStand.qmd) doesn't yet; that waits for its draft.
 :::
 
 [Chapter 2](02AdditiveModel.qmd) sorted the parts of a ring two ways: by who shares them, and by how fast they change. The tool for the second sort is a filter. It splits a series into a slow part and a fast part, and nearly every method in the book uses one. This aside starts with the simplest filter there is, then takes up the one dendrochronology leans on hardest, the smoothing spline, and ends with the ways the field's spline looks a little odd to someone from statistics or signal processing.
