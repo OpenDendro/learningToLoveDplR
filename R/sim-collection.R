@@ -20,6 +20,20 @@
 #       (compete.frac) also get a slow AR(1) wander on the log scale
 #       (compete, compete.phi): a competition history no detrending curve
 #       assumes. compete = 0 gives open-canopy trees only.
+#       bai.trend > 0 lets each tree's basal area increment change with age:
+#       a tree's yearly area is multiplied by exp(beta * age / 100), with
+#       beta drawn for each tree from N(0, bai.trend). Negative beta is a
+#       tree whose BAI falls off with age, so its rings thin faster than the
+#       geometry alone; positive beta keeps BAI climbing, so its rings
+#       flatten or widen. Every tree then has its own shape of age trend,
+#       and no one curve family fits them all, like the misfits seen under a
+#       scope. bai.trend = 0 (the default) gives the one shape, scaled.
+#       bai.age ties a tree's growth rate to its age: it is the correlation
+#       between the log of the rate and the tree's age, from -1 to 1. A
+#       negative value makes old trees slow growers and young ones fast,
+#       Briffa and Melvin's modern-sample bias (2011, p. 122-123). The
+#       spread of rates stays at bai.sdlog. bai.age = 0 (the default) keeps
+#       the rate independent of age.
 #   C   climate, shared by every tree. climate.phi (default 0.3) gives it
 #       AR(1) persistence of its own, separate from the tree's memory (phi).
 #       The shocks keep their share of the variance, so the prewhitened
@@ -37,7 +51,7 @@
 #       differ in sensitivity agree with each other less, so with it on
 #       the between-tree correlation falls under rbar.bt (on the true fast
 #       part, from about 0.50 to 0.44 at sens.sdlog = 0.3 and 0.32 at 0.6,
-#       averaged over 200 stands, 2026-11-10).
+#       averaged over 200 collections, 2026-11-10).
 #   T   noise shared by the cores of one tree. Cook's E covers microsite
 #       and measurement noise, uncorrelated within and between trees
 #       (p. 102); T is split out of it so two cores of a tree agree more
@@ -57,6 +71,15 @@
 # Variances are set from the target correlations of the filtered terms:
 #   rbar.bt = var(C) / total,  rbar.wt = (var(C) + var(T)) / total
 #
+# dead (default NULL) puts dead trees in the collection, the snags and
+# remnant wood that a collection can mix with living trees. A share of the
+# trees (dead$frac) died before end.year, each in a year drawn uniformly
+# from the dead$span years before it. A dead tree keeps its age, so its pith
+# moves back with its outer ring and the collection reaches further back.
+# Series then end in different years, so the end of a series no longer
+# falls in the same decade for every tree. Turning it on changes the years
+# the collection covers, and so every draw after it.
+#
 # Dating errors (missing or false rings) are planted last, in the measured
 # series only. Everything that went in comes back in $truth.
 #
@@ -70,9 +93,10 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
                            phi = 0.5, climate = NULL, climate.phi = 0.3,
                            sens.sdlog = 0,
                            bai = 600, bai.sdlog = 0.4, juv = 25,
+                           bai.trend = 0, bai.age = 0,
                            compete = 0.3, compete.frac = 0.5,
                            compete.phi = 0.97,
-                           pith.miss = 5,
+                           pith.miss = 5, dead = NULL,
                            release = list(tree = 10, year = 1950,
                                           size = log(2), decay = 25),
                            event = list(year = 1880, frac = 0.5,
@@ -84,15 +108,35 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   if (!is.null(seed)) set.seed(seed)
   stopifnot(n.tree >= 2, n.core >= 1, n.core <= 26,
             rbar.bt >= 0, rbar.wt >= rbar.bt, rbar.wt < 1,
-            abs(phi) < 1, abs(climate.phi) < 1, sd.hf > 0, sens.sdlog >= 0)
+            abs(phi) < 1, abs(climate.phi) < 1, sd.hf > 0, sens.sdlog >= 0,
+            bai.trend >= 0, abs(bai.age) <= 1)
 
   # ── who is in the collection ──
   # Tree 1 is the oldest. Ages are spaced on a square so old trees are few,
-  # as in most stands.
+  # as in most collections.
   k <- (n.tree - seq_len(n.tree)) / (n.tree - 1)
   tree.age <- round(age.range[1] + diff(age.range) * k^2)
-  pith <- end.year - tree.age + 1
   tree.id <- sprintf("%s%02d", site, seq_len(n.tree))
+  # the outer ring: end.year for a living tree, earlier for a dead one
+  outer <- rep(end.year, n.tree)
+  if (!is.null(dead)) {
+    stopifnot(dead$frac >= 0, dead$frac <= 1, dead$span >= 1)
+    # the release tree and trees with planted dating errors stay alive,
+    # because their years are given for a tree cored in end.year
+    keep <- integer(0)
+    if (!is.null(release)) keep <- release$tree
+    if (!is.null(errors) && nrow(errors) > 0) {
+      keep <- c(keep, match(substr(errors$series, 1, nchar(errors$series) - 1),
+                            tree.id))
+    }
+    can.die <- setdiff(seq_len(n.tree), keep)
+    n.dead <- min(round(dead$frac * n.tree), length(can.die))
+    if (n.dead > 0) {
+      who <- sort(can.die[sample.int(length(can.die), n.dead)])
+      outer[who] <- end.year - sample.int(dead$span, n.dead, replace = TRUE)
+    }
+  }
+  pith <- outer - tree.age + 1
   ids <- expand.grid(core = seq_len(n.core), tree = seq_len(n.tree))[, 2:1]
   series <- paste0(tree.id[ids$tree], LETTERS[ids$core])
   rownames(ids) <- series
@@ -143,9 +187,16 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
     as.numeric(y)[-seq_len(burn)]
   }
   tree.noise <- matrix(rnorm(n.yr * n.tree, sd = sd.t), n.yr, n.tree)
-  bai.tree <- bai * exp(rnorm(n.tree, sd = bai.sdlog) - bai.sdlog^2 / 2)
+  # each tree's growth rate. With bai.age set, part of the log rate comes
+  # from the tree's age in standard units and the rest from the same draw,
+  # so the spread stays at bai.sdlog and no other draw moves.
+  z.rate <- rnorm(n.tree)
+  z.age <- (tree.age - mean(tree.age)) / sd(tree.age)
+  bai.tree <- bai * exp(bai.sdlog * (bai.age * z.age +
+                                     sqrt(1 - bai.age^2) * z.rate) -
+                        bai.sdlog^2 / 2)
   # each tree's sensitivity to the climate. Drawn only when asked for, so
-  # the default stand for a given seed is the same as before the option
+  # the default collection for a given seed is the same as before the option
   # existed. exp(z * s - s^2) has a mean square of 1.
   sens.tree <- if (sens.sdlog > 0) {
     exp(rnorm(n.tree, sd = sens.sdlog) - sens.sdlog^2)
@@ -157,13 +208,11 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   pulse <- function(y0, size, decay) {
     ifelse(yrs >= y0, size * exp(-(yrs - y0) / decay), 0)
   }
+  # pulses are added to whole columns; years after a dead tree's outer ring
+  # stay NA because dist is NA there
   for (i in seq_along(series)) {
     tr <- ids$tree[i]
-    alive <- yrs >= pith[tr]
-    age <- yrs[alive] - pith[tr] + 1
-    area <- cumsum(bai.tree[tr] * (1 - exp(-age / juv)))
-    radius <- sqrt(area / pi)
-    age.mm[alive, i] <- diff(c(0, radius))
+    alive <- yrs >= pith[tr] & yrs <= outer[tr]
     hf[alive, i] <- ar1(sens.tree[tr] * clim[alive] + tree.noise[alive, tr] +
                         rnorm(sum(alive), sd = sd.e))
     dist[alive, i] <- 0
@@ -172,7 +221,8 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   # ── D1 and D2: disturbance ──
   hit <- integer(0)
   if (!is.null(release)) {
-    if (release$year <= pith[release$tree] || release$year > end.year) {
+    if (release$year <= pith[release$tree] ||
+        release$year > outer[release$tree]) {
       stop("release year ", release$year, " is outside tree ", release$tree)
     }
     cols <- ids$tree == release$tree
@@ -180,7 +230,7 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
                                          release$decay)
   }
   if (!is.null(event)) {
-    standing <- which(pith < event$year)
+    standing <- which(pith < event$year & outer >= event$year)
     hit <- sort(standing[sample.int(length(standing),
                                     round(event$frac * length(standing)))])
     cols <- ids$tree %in% hit
@@ -209,6 +259,21 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
     w <- as.numeric(stats::filter(w, rep(1 / 11, 11), sides = 2))
     w <- w[burn + seq_len(n.yr)]
     wander[, tr] <- (w - mean(w)) / sd(w) * compete
+  }
+
+  # ── A: geometry, then competition ──
+  # Each tree's BAI trend is drawn after everything else, and only when
+  # asked for, so the default collection for a given seed is unchanged.
+  bai.beta <- if (bai.trend > 0) rnorm(n.tree, sd = bai.trend) else
+    rep(0, n.tree)
+  for (i in seq_along(series)) {
+    tr <- ids$tree[i]
+    alive <- yrs >= pith[tr] & yrs <= outer[tr]
+    age <- yrs[alive] - pith[tr] + 1
+    area <- cumsum(bai.tree[tr] * (1 - exp(-age / juv)) *
+                   exp(bai.beta[tr] * age / 100))
+    radius <- sqrt(area / pi)
+    age.mm[alive, i] <- diff(c(0, radius))
   }
   age.mm <- age.mm * exp(wander[, ids$tree])
 
@@ -252,8 +317,8 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
       x <- measured[, s]
       ok <- !is.na(x)
       yy <- as.numeric(names(x))[ok]
-      if (y <= min(yy) || y >= end.year) {
-        stop(s, " runs ", min(yy), " to ", end.year,
+      if (y <= min(yy) || y >= max(yy)) {
+        stop(s, " runs ", min(yy), " to ", max(yy),
              ", so it can't take an error at ", y)
       }
       v.in <- x[ok]
@@ -262,8 +327,10 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
         missing = v.in[-at],
         false = append(v.in[-at], v.in[at] * c(0.4, 0.6), after = at - 1),
         stop("error type must be \"missing\" or \"false\""))
+      # the outer ring stays in its year; the rings inside it move
+      last <- max(which(ok))
       x[] <- NA
-      x[seq(length(x) - length(v.out) + 1, length(x))] <- v.out
+      x[seq(last - length(v.out) + 1, last)] <- v.out
       measured[, s] <- x
     }
     measured <- measured[rowSums(!is.na(measured)) > 0, , drop = FALSE]
@@ -286,14 +353,19 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
          release = release,
          event = c(event, list(trees = hit)),
          errors = errors,
-         pith = data.frame(tree = tree.id, pith = pith, row.names = NULL),
+         pith = data.frame(tree = tree.id, pith = pith, outer = outer,
+                           row.names = NULL),
          competition = tree.id[comp.trees],
          sensitivity = data.frame(tree = tree.id, sensitivity = sens.tree,
                                   row.names = NULL),
+         growth = data.frame(tree = tree.id, bai = bai.tree,
+                             bai.trend = bai.beta, row.names = NULL),
          params = list(n.tree = n.tree, n.core = n.core, end.year = end.year,
                        rbar.bt = rbar.bt, rbar.wt = rbar.wt, sd.hf = sd.hf,
                        phi = phi, climate.phi = climate.phi,
                        sens.sdlog = sens.sdlog, bai = bai, juv = juv,
+                       bai.trend = bai.trend, bai.age = bai.age,
+                       dead = dead,
                        compete = compete,
                        compete.frac = compete.frac,
                        compete.phi = compete.phi, seed = seed)))

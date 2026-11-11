@@ -8,7 +8,7 @@ First draft, 2026-10-22, from the outline of the same day. Every number in the t
 
 [Crossdating a Collection](06Crossdating.qmd) ended with two flagged series in Mesa Verde, each error placed within a 50-year segment. This chapter takes an error from a segment to a year, puts the ring back, and checks the result. The order of work doesn't change from one collection to the next. Narrow the window with the statistics, look at the core, make the edit, run the report again. The statistics never make the edit on their own. Pilcher put it plainly in the methods book most of us call the Cook Book: a computer makes crossdating faster and easier, and it doesn't make it any better [@Pilcher1990].
 
-A word about expectations first. Mesa Verde is about as good as correlations get in dendrochronology. Everything in the last chapter worked cleanly because those trees agree so well, and if that's all you see you'll expect too much of your own collection. So Mesa Verde gets one short section here. Most of the chapter is about Hurricane Ridge, an ordinary collection that as far as anyone knows is dated correctly, and about the simulated stand, where we know the answer. The second half is about flags nobody planted, because in most collections most flags are not dating errors, and telling which ones are is the skill.
+A word about expectations first. Mesa Verde is about as good as correlations get in dendrochronology. Everything in the last chapter worked cleanly because those trees agree so well, and if that's all you see you'll expect too much of your own collection. So Mesa Verde gets one short section here. Most of the chapter is about Hurricane Ridge, an ordinary collection that as far as anyone knows is dated correctly, and about the simulated collection, where we know the answer. The second half is about flags nobody planted, because in most collections most flags are not dating errors, and telling which ones are is the skill.
 
 ## Packages
 
@@ -188,7 +188,7 @@ Mesa Verde has no flags. Hurricane Ridge is back to its own `r words(nrow(wa082F
 
 ## Flags Nobody Planted
 
-So what about Hurricane Ridge's other flags? Before deciding, practice on a collection where the answer is known. The [simulated stand](03SimulatedStand.qmd) has one dating error, a missing ring in SIM03A at 1800, and nothing else.
+So what about Hurricane Ridge's other flags? Before deciding, practice on a collection where the answer is known. The [simulated collection](03SimulatedCollection.qmd) has one dating error, a missing ring in SIM03A at 1800, and nothing else.
 
 ```{r}
 #| label: fix-sim
@@ -243,7 +243,7 @@ The next chapter, [Dating a Floater](08Floaters.qmd), is about a series with no 
 2. Insert the missing ring in 645221 with `ring.value = mean(co021Bad[["645221"]], na.rm = TRUE)` instead of zero, detrend, and compare `rwi.stats` with the zero version. Does the choice of width matter for anything downstream?
 3. Look at SIM10A's flagged segment with `ccf.series.rwl` and `xskel.ccf.plot`. Would you have pulled the core?
 4. Pick one of Hurricane Ridge's A flags and decide what you'd do about it. Does the other core from the same tree help?
-5. Plant a missing ring in a weak simulated stand, `sim.collection(rbar.bt = 0.2, rbar.wt = 0.4, seed = 1)`, and try to find it with this chapter's tools.
+5. Plant a missing ring in a weak simulated collection, `sim.collection(rbar.bt = 0.2, rbar.wt = 0.4, seed = 1)`, and try to find it with this chapter's tools.
 
 ## Further Reading
 

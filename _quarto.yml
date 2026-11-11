@@ -19,7 +19,7 @@ book:
       chapters:
         - 01WhereDplRComesFrom.qmd
         - 02AdditiveModel.qmd
-        - 03SimulatedStand.qmd
+        - 03SimulatedCollection.qmd
         - 03xAsideFiltering.qmd
     - part: "Ring Widths"
       chapters:
@@ -58,7 +58,7 @@ book:
   appendices:
     - A1PackagesUsed.qmd
     - A2DataSources.qmd
-    - A3SimulatedCollection.qmd
+    - A3Simulator.qmd
     - A4Acknowledgements.qmd
   repo-url: https://github.com/OpenDendro/learningToLoveDplR
   repo-actions: [edit, issue]

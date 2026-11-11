@@ -106,7 +106,7 @@ coreGap <- sapply(split(radiusFromCore, gpIds$tree),
                   function(x) abs(diff(x)) / mean(x))
 ```
 
-On average they match (a ratio of `r round(mean(radiusRatio), 2)`), but core by core they range from `r round(min(radiusRatio), 2)` to `r round(max(radiusRatio), 2)`. Some of that is the stem, which isn't a circle. The two cores of a tree differ in length by a median of `r pct(median(coreGap))`, and by as much as `r pct(max(coreGap))`. Some of it is the distance to the pith, which is a guess whenever the core misses the pith. And every value of `BARK` is the same, `r unique(gp.dbh$BARK)` cm, which looks more like a single estimate for the stand than a measurement of each tree.
+On average they match (a ratio of `r round(mean(radiusRatio), 2)`), but core by core they range from `r round(min(radiusRatio), 2)` to `r round(max(radiusRatio), 2)`. Some of that is the stem, which isn't a circle. The two cores of a tree differ in length by a median of `r pct(median(coreGap))`, and by as much as `r pct(max(coreGap))`. Some of it is the distance to the pith, which is a guess whenever the core misses the pith. And every value of `BARK` is the same, `r unique(gp.dbh$BARK)` cm, which looks more like a single estimate for the site than a measurement of each tree.
 
 When the core is longer than the radius, `bai.out` runs out of stem before it runs out of rings.
 
@@ -167,7 +167,7 @@ No negative areas. Which of the three should you use? If the cores reach the pit
 
 ## What the Ring Areas Show
 
-Average the ring areas of all the cores by calendar year and you have the stand's growth, in mm² a year.
+Average the ring areas of all the cores by calendar year and you have the average growth of the cored trees, in mm² a year.
 
 ```{r}
 #| label: bai-stand
@@ -243,7 +243,7 @@ ageMean <- function(from, to) mean(byAge$bai[byAge$age >= from & byAge$age <= to
 
 By age, the ring areas rise for about the first century, from `r round(ageMean(1, 20))` mm² over the first 20 years to `r round(ageMean(80, 120))` mm² around age 100, and then stay near that level out past age 300. That's close to the shape Biondi and Qeadan assume for mature trees: a rise, then an area that holds [@BiondiQeadan2008cms, p. 83].
 
-The two figures don't contradict each other, but they do warn you. The age curve pools rings grown in different centuries. A ring at age 200 might be from the 1700s or the 1900s, and the stand's growth halved between 1915 and 1985. Briffa and Melvin make the point for regional curves of BAI: ring areas avoid some of the problems of ring widths but still carry the biases from trees that grew at different rates at the same time and from modern samples [@BriffaMelvin2011, p. 141]. A flat curve by age is an average over trees and centuries.
+The two figures don't contradict each other, but they do warn you. The age curve pools rings grown in different centuries. A ring at age 200 might be from the 1700s or the 1900s, and the cored trees' growth halved between 1915 and 1985. Briffa and Melvin make the point for regional curves of BAI: ring areas avoid some of the problems of ring widths but still carry the biases from trees that grew at different rates at the same time and from modern samples [@BriffaMelvin2011, p. 141]. A flat curve by age is an average over trees and centuries.
 
 ## The C-Method
 
@@ -417,11 +417,11 @@ For ring areas, use `bai.in` when the cores reach or nearly reach the pith and `
 
 Treat the C-method as one more detrending curve, with a good story behind it. On trees that grew in the open with a steady decline in width it's a sensible choice, it needs pith offsets, and it has nothing to converge. It assumes away the juvenile period, so expect low indices near the pith.
 
-And don't read a flat curve of ring area by age as proof that ring area is free of trends. At Gus Pearson the average by age is flat after a century, and the stand's growth still halved in 70 years.
+And don't read a flat curve of ring area by age as proof that ring area is free of trends. At Gus Pearson the average by age is flat after a century, and the cored trees' growth still halved in 70 years.
 
 ## Wrapping Up
 
-Ring width falls with age partly because the same wood spreads around a bigger stem. Ring area takes that geometry out. `bai.in` and `bai.out` get the radius from opposite ends of the core and agree only as far as the core matches the stem, and `bakker` reconciles them. At Gus Pearson the ring areas show the stand's growth rising into the early twentieth century and then halving.
+Ring width falls with age partly because the same wood spreads around a bigger stem. Ring area takes that geometry out. `bai.in` and `bai.out` get the radius from opposite ends of the core and agree only as far as the core matches the stem, and `bakker` reconciles them. At Gus Pearson the ring areas show the cored trees' growth rising into the early twentieth century and then halving.
 
 The C-method turns constant ring area into a detrending curve with one constant per series. When the assumption holds it recovers a planted stem's constant, and an index of 1 away from the first few rings. When the stem had a juvenile period it leaves a false hump and a slow decline behind. On Gus Pearson its chronology is all but the same as RCS and the modified negative exponential.
 
@@ -432,7 +432,7 @@ Ring area can tell you how much wood the trees added. It can't tell you why the 
 ## Exercises
 
 1. Plot `bai.in` against `bai.out` for one series where they disagree near the pith (`radiusRatio` says which). Then replace that core's distance to the pith with the value that would make `radiusFromCore` match `radiusFromDbh` and recompute. How far off was the estimate?
-2. Compute ring areas from `gpTree` with `bai.in`, giving each tree the mean of its two cores' distances to the pith, and redraw the stand figure. Does averaging the two cores change the twentieth-century drop?
+2. Compute ring areas from `gpTree` with `bai.in`, giving each tree the mean of its two cores' distances to the pith, and redraw the figure of mean ring area by year. Does averaging the two cores change the twentieth-century drop?
 3. Build ring areas from `bakker` and redraw the curve by cambial age. Does the century-long rise survive?
 4. Give the planted stem a decline instead of a juvenile period (constant area for 200 years, then falling to half over the last 100) and run `cms`. What does the index show, and is that what you'd want from a detrending curve?
 5. Run `cms` with every pith offset set to 1, as if each core reached the pith. How much do the constants and the chronology change?

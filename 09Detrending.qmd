@@ -24,7 +24,7 @@ Widths to indices to a chronology. This chapter is the first arrow, [Chronology 
 
 Why can't you just average the widths? Because a year's mean ring width says more about which trees are in the average than about the year. Trees grow at different rates, so a fast tree outvotes a slow one. Every tree's rings get narrower as it gets bigger, so the mean falls through time whatever the weather did. And the trees in the average change as you go back in time, so every time a young tree enters with its wide inner rings, the mean jumps. Detrending fixes all three at once. Fit a curve to each series that says what that tree would have grown if nothing but getting older had happened to it, and divide. What comes out is each ring as a departure from its own tree's expected growth, dimensionless and centered on 1. A ring of 1.2 means 20% better than expected, in a fast tree or a slow one, at age 20 or age 300. Those numbers can be averaged across trees, and the average is a chronology. Douglass's master chronologies, the ITRDB and every reconstruction built from them rest on this step.
 
-The catch is the curve. It is a guess, and the guess is in every number downstream: the chronology, rbar and EPS, every correlation with climate you will ever compute from it. No curve knows which slow wiggles are age. Competition, a stand event and a run of dry decades all look like trend to a curve fitted to one tree. Later in this chapter the default spline bends into the 1880 stand event in the [simulated stand](03SimulatedStand.qmd). So after showing what the step buys you, this chapter measures what each method takes and what it leaves, first on the simulated stand, where the answer is known, and then on Mesa Verde and Hurricane Ridge, where it isn't.
+The catch is the curve. It is a guess, and the guess is in every number downstream: the chronology, rbar and EPS, every correlation with climate you will ever compute from it. No curve knows which slow wiggles are age. Competition, a stand event and a run of dry decades all look like trend to a curve fitted to one tree. Later in this chapter the default spline bends into the 1880 stand event in the [simulated collection](03SimulatedCollection.qmd). So after showing what the step buys you, this chapter measures what each method takes and what it leaves, first on the simulated collection, where the answer is known, and then on Mesa Verde and Hurricane Ridge, where it isn't.
 
 As any dendrochronologist will tell you, detrending is a dark art. I'll give you my opinions on it near the end. The one to take away now is that you choose a curve by deciding what you want the chronology to keep.
 
@@ -47,7 +47,7 @@ Hurricane Ridge is read from its ITRDB file, so series 712011 still has no measu
 
 ## Why Not Average the Widths?
 
-The [simulated stand](03SimulatedStand.qmd) is the place to see it, because its climate is known. These are its widths before any dating errors were planted.
+The [simulated collection](03SimulatedCollection.qmd) is the place to see it, because its climate is known. These are its widths before any dating errors were planted.
 
 ```{r}
 #| label: det-sim
@@ -63,7 +63,7 @@ Two candidates for a chronology: the mean ring width across the cores in each ye
 ```{r}
 #| label: det-why
 #| fig-height: 7
-#| fig-cap: "The simulated stand three ways. Top: the mean ring width across cores, which falls as the trees age and jumps when young trees enter. Middle: the chronology of indices, centered on 1. Bottom: the number of cores in each year."
+#| fig-cap: "The simulated collection three ways. Top: the mean ring width across cores, which falls as the trees age and jumps when young trees enter. Middle: the chronology of indices, centered on 1. Bottom: the number of cores in each year."
 # candidate 1: average the widths, year by year
 widthMean <- rowMeans(simFixed, na.rm = TRUE)
 
@@ -104,7 +104,7 @@ c1700s <- as.character(1700:1799)
 c1900s <- as.character(1900:1999)
 ```
 
-The mean width falls from `r sprintf("%.2f", mean(widthMean[c1700s]))` mm in the 1700s to `r sprintf("%.2f", mean(widthMean[c1900s]))` mm in the 1900s. Nothing about the climate did that. The trees got older. It also jumps whenever a core starts: in those years it rose by `r sprintf("%.3f", mean(widthChange[entryYear], na.rm = TRUE))` mm on average, and in other years it fell by `r sprintf("%.3f", abs(mean(widthChange[!entryYear], na.rm = TRUE)))` mm. And the fastest core in the stand averages `r sprintf("%.2f", max(coreMeans))` mm a year against `r sprintf("%.2f", min(coreMeans))` mm for the slowest, so in any year the fast one moves the mean `r round(max(coreMeans) / min(coreMeans), 1)` times as much. The chronology of indices has none of that. It sits near 1 in every century (`r sprintf("%.2f", mean(simCrn[c1700s, "std"]))` in the 1700s, `r sprintf("%.2f", mean(simCrn[c1900s, "std"]))` in the 1900s), and every core counts the same.
+The mean width falls from `r sprintf("%.2f", mean(widthMean[c1700s]))` mm in the 1700s to `r sprintf("%.2f", mean(widthMean[c1900s]))` mm in the 1900s. Nothing about the climate did that. The trees got older. It also jumps whenever a core starts: in those years it rose by `r sprintf("%.3f", mean(widthChange[entryYear], na.rm = TRUE))` mm on average, and in other years it fell by `r sprintf("%.3f", abs(mean(widthChange[!entryYear], na.rm = TRUE)))` mm. And the fastest core in the collection averages `r sprintf("%.2f", max(coreMeans))` mm a year against `r sprintf("%.2f", min(coreMeans))` mm for the slowest, so in any year the fast one moves the mean `r round(max(coreMeans) / min(coreMeans), 1)` times as much. The chronology of indices has none of that. It sits near 1 in every century (`r sprintf("%.2f", mean(simCrn[c1700s, "std"]))` in the 1700s, `r sprintf("%.2f", mean(simCrn[c1900s, "std"]))` in the 1900s), and every core counts the same.
 
 Does it matter for the climate? Since 1800 the mean width correlates with the climate I built into the trees at `r sprintf("%.2f", widthClimR)`. The chronology of indices, made from the same rings, correlates at `r sprintf("%.2f", indexClimR)`.
 
@@ -283,7 +283,7 @@ threeMethods <- c("Spline", "ModNegExp", "AgeDepSpline")
 
 ## What the Curve Takes
 
-The simulated stand knows its own age trends. `truth$age` holds the curve each core would have followed with nothing else going on, so dividing by it is the right answer, and every method can be scored against it.
+The simulated collection knows its own age trends. `truth$age` holds the curve each core would have followed with nothing else going on, so dividing by it is the right answer, and every method can be scored against it.
 
 Three scores for each method: the correlation of its chronology with the true climate since 1800, the mean index in the 1870s for the cores that the 1880 event would hit, and the drop in the whole chronology from the 1870s to the 1880s.
 
@@ -356,7 +356,7 @@ A curve fitted to one tree removes everything slow in that tree, whatever caused
 
 How much does each method lose? Give the simulated trees a climate with slow swings in it. Half its variance is year-to-year noise and half is a running mean of noise, which wanders up and down. With an 80-year running mean the swings last decades to a century. With a 250-year one they last centuries, longer than most of the trees. Then score each method on the slow part of its chronology, separated with a 31-year running mean, in two ways: how well it follows the slow climate (a correlation), and how much of the swing's size it keeps (the slope of the slow chronology on the slow climate, as a share of the slope you get by dividing by the true age trend). The fast part gets a correlation too.
 
-One stand with one climate could be lucky, and a slow climate is luckier than most, because a few swings either do or don't line up with the trees' ages. So the code below makes 100 stands, each with its own climate, for each kind of swing. That is 1,200 sets of indices, and it takes about half a minute.
+One collection with one climate could be lucky, and a slow climate is luckier than most, because a few swings either do or don't line up with the trees' ages. So the code below makes 100 collections, each with its own climate, for each kind of swing. That is 1,200 sets of indices, and it takes about half a minute.
 
 ```{r}
 #| label: det-curse
@@ -378,13 +378,13 @@ smooth31 <- function(v) as.numeric(stats::filter(v, rep(1 / 31, 31), sides = 2))
 curseMethods <- c("truth", "ModNegExp", "AgeDepSpline", "Spline", "Friedman",
                   "Spline32")
 
-# grow one stand under one climate, detrend it every way, and score each
-scoreStand <- function(seed, window) {
-  stand <- sim.collection(seed = seed,
+# grow one collection under one climate, detrend it every way, and score each
+scoreCollection <- function(seed, window) {
+  coll <- sim.collection(seed = seed,
                           climate = makeClimate(window, seed + 1000))
-  widths <- stand$truth$rwl
-  age <- stand$truth$age[rownames(widths), names(widths)]
-  climate <- setNames(stand$truth$climate$climate, stand$truth$climate$year)
+  widths <- coll$truth$rwl
+  age <- coll$truth$age[rownames(widths), names(widths)]
+  climate <- setNames(coll$truth$climate$climate, coll$truth$climate$year)
   scores <- data.frame()
   for (m in curseMethods) {
     if (m == "truth") {
@@ -414,11 +414,11 @@ scoreStand <- function(seed, window) {
 curseScores <- data.frame()
 for (window in c(80, 250)) {
   for (seed in 1:100) {
-    curseScores <- rbind(curseScores, scoreStand(seed, window))
+    curseScores <- rbind(curseScores, scoreCollection(seed, window))
   }
 }
 
-# average over the 100 stands for each kind of swing
+# average over the 100 collections for each kind of swing
 curseTable <- aggregate(cbind(slow.r, slow.kept, fast.r) ~ method + window,
                         data = curseScores, FUN = mean)
 curseTable <- curseTable[order(curseTable$window,
@@ -442,18 +442,18 @@ mneKept80 <- curseScores$slow.kept[curseScores$method == "ModNegExp" &
 
 Every method gets the year-to-year climate, and they all get it about equally well (`r sprintf("%.2f", fastRange[1])` to `r sprintf("%.2f", fastRange[2])`). They part company on the slow climate. Divided by the true age trend, the chronology follows it at `r sprintf("%.2f", curseGet("truth", 80, "slow.r"))`. The fitted curves follow it less well, and the correlation flatters them, because it only asks whether the swings are in the right places. Ask how big the swings are and the curse shows. For swings of decades to a century, `ModNegExp` keeps `r pct(curseGet("ModNegExp", 80, "slow.kept"))` of the swing's size, `AgeDepSpline` `r pct(curseGet("AgeDepSpline", 80, "slow.kept"))`, the default spline `r pct(curseGet("Spline", 80, "slow.kept"))`, and the 32-year spline `r pct(curseGet("Spline32", 80, "slow.kept"))`. For swings of centuries, `ModNegExp` keeps `r pct(curseGet("ModNegExp", 250, "slow.kept"))` and the default spline `r pct(curseGet("Spline", 250, "slow.kept"))`.
 
-`ModNegExp` is the best a curve could hope to do here, because its shape is the shape the simulated trees age with, and it still loses more than half of the slow climate. It varies a lot from stand to stand, too: the middle half of the stands kept between `r pct(quantile(mneKept80, 0.25))` and `r pct(quantile(mneKept80, 0.75))`. The trees in every stand are `r treeAges[1]` to `r treeAges[2]` years old. Fit any curve to a series that short and a swing lasting most of a century is, as far as the curve can tell, part of that tree's trend. That's the curse.
+`ModNegExp` is the best a curve could hope to do here, because its shape is the shape the simulated trees age with, and it still loses more than half of the slow climate. It varies a lot from collection to collection, too: the middle half of the collections kept between `r pct(quantile(mneKept80, 0.25))` and `r pct(quantile(mneKept80, 0.75))`. The trees in every collection are `r treeAges[1]` to `r treeAges[2]` years old. Fit any curve to a series that short and a swing lasting most of a century is, as far as the curve can tell, part of that tree's trend. That's the curse.
 
 How much should that worry you? Malcolm Hughes thinks less than the curse's reputation suggests. Climate change over centuries is likely to be small next to year-to-year and decadal variation, he argues, and with series two to four centuries long the curse has little effect on climate signals up to "even a single century" [@Hughes2011ch2, p. 29]. The simulated trees are that kind of collection, and they still lost more than half of swings lasting decades to a century. The two views meet in how much slow variation the climate has. I gave the slow part half the climate's variance, which is generous. The share a curve throws away doesn't depend on that, but how much the loss matters to your chronology does. If the slow part of the real climate at your site is small, so is what the curse costs you.
 
 ```{r}
 #| label: det-curse-plot
-#| fig-cap: "The slow part of the climate in one simulated stand (points) and the slow part of three chronologies made from it (lines), each a 31-year running mean. Dividing by the true age trend follows the climate. The fitted curves keep the timing of the swings and lose much of their size."
-# one stand with swings of decades to a century, made three ways
-stand <- sim.collection(seed = 1, climate = makeClimate(80, 1001))
-widths <- stand$truth$rwl
-age <- stand$truth$age[rownames(widths), names(widths)]
-climate <- setNames(stand$truth$climate$climate, stand$truth$climate$year)
+#| fig-cap: "The slow part of the climate in one simulated collection (points) and the slow part of three chronologies made from it (lines), each a 31-year running mean. Dividing by the true age trend follows the climate. The fitted curves keep the timing of the swings and lose much of their size."
+# one collection with swings of decades to a century, made three ways
+coll <- sim.collection(seed = 1, climate = makeClimate(80, 1001))
+widths <- coll$truth$rwl
+age <- coll$truth$age[rownames(widths), names(widths)]
+climate <- setNames(coll$truth$climate$climate, coll$truth$climate$year)
 curseIndices <- list(truth = as.rwi(widths / age),
                      ModNegExp = detrend(widths, method = "ModNegExp"),
                      Spline = detrend(widths, method = "Spline"))
@@ -666,7 +666,7 @@ Ratios are the default and usually fine. Where a curve gets close to zero they b
 ## Exercises
 
 1. Fill 712011 with `Mean` and compare its 1900 value with the table. Why is it the widest of the four?
-2. Add `ModHugershoff` and a 200-year spline (`nyrs = 200`) to `curseMethods` and rerun the loop. Where do they fall? (`scoreStand` will need a branch for the 200-year spline.)
+2. Add `ModHugershoff` and a 200-year spline (`nyrs = 200`) to `curseMethods` and rerun the loop. Where do they fall? (`scoreCollection` will need a branch for the 200-year spline.)
 3. Rerun the segment-length loop with `compete = 0` passed to `sim.collection`, so that every tree is open-grown and ages the way `ModNegExp` assumes. Does `ModNegExp` keep more of the slow climate?
 4. Find the largest index in Mesa Verde under each method in `methods`, and plot that series with its curve. Is the largest index at an end?
 5. Make the ratio and residual chronologies for Hurricane Ridge with `AgeDepSpline`, and plot their difference after 1950.

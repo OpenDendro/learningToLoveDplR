@@ -1,7 +1,7 @@
 # Signal-Free
 
 :::{.callout-note title="Outline"}
-Outline, 2026-10-26. It replaces the 2024 text, which is in git (`git show de8b0a2:13SignalFree.qmd`); its walk-through of the iterations and its animation are worth keeping for the section on the loop. Each section says what it will do and with what data. Numbers were computed on dplR 1.8.1 dev with `R/sim-collection.R`, 100 stands per climate (about a minute in all); the draft computes them inline. Cut down the same day: the bias experiments (what `ssf` adds at the recent end, additive against ratio rescaling) belong to the signal-free paper from Wilce's thesis, so the chapter keeps the method and the real collections, points to the paper, and gets revised once the paper settles how `ssf` should rescale. The backlog entry of the same date has the plan.
+Outline, 2026-10-26. It replaces the 2024 text, which is in git (`git show de8b0a2:13SignalFree.qmd`); its walk-through of the iterations and its animation are worth keeping for the section on the loop. Each section says what it will do and with what data. Numbers were computed on dplR 1.8.1 dev with `R/sim-collection.R`, 100 collections per climate (about a minute in all); the draft computes them inline. Cut down the same day: the bias experiments (what `ssf` adds at the recent end, additive against ratio rescaling) belong to the signal-free paper from Wilce's thesis, so the chapter keeps the method and the real collections, points to the paper, and gets revised once the paper settles how `ssf` should rescale. The backlog entry of the same date has the plan.
 :::
 
 ## Big Idea
@@ -14,13 +14,13 @@ Outline, 2026-10-26. It replaces the 2024 text, which is in git (`git show de8b0
 
 ## Packages
 
-- `dplR` and `ggplot2`, the [simulated stand](03SimulatedStand.qmd), and `makeClimate` from [Detrending](09Detrending.qmd). `cowplot` if the loop figure needs stacked panels.
+- `dplR` and `ggplot2`, the [simulated collection](03SimulatedCollection.qmd), and `makeClimate` from [Detrending](09Detrending.qmd). `cowplot` if the loop figure needs stacked panels.
 - Data: `wa082`, with its 1900 gap filled (`ssf` stops on an internal `NA`). `ca533` (Campito Mountain bristlecone, `recode.zeros = TRUE`). Say in a sentence why not `co021` and `gp.rwl`; see When It Stops.
 
 ## Trend Distortion
 
 - Rebuild @melvin2008's Fig. 1 on one simulated series: a straight-line decline in width, then a 20-year growth increase of 20% near the end. Fit a line with and without the increase. The difference between the two sets of indices is the distortion, a wedge that grows toward the end of the series (p. 73-74).
-- Then on a stand: the chronology from spline curves against the true one, at the recent end. The simulation knows the age trend, so the distortion can be measured, not argued.
+- Then on a simulated collection: the chronology from spline curves against the true one, at the recent end. The simulation knows the age trend, so the distortion can be measured, not argued.
 - Why only the ends matter much: in the middle of a long chronology the bends fall in different years in different trees and average out (p. 72-73).
 
 ## The Loop
@@ -40,7 +40,7 @@ Outline, 2026-10-26. It replaces the 2024 text, which is in git (`git show de8b0
 
 ## What It Recovers
 
-- One small run, not a table of methods: the segment-length experiment from 08 and 11 with `Spline` and `ssf` only, against dividing by the true age trend. On 100 stands with 80-year swings, `ssf` kept 57% of the slow swing and `Spline` 27% (correlations of the 31-year running means with the climate's, 0.66 and 0.63). The draft can use fewer stands.
+- One small run, not a table of methods: the segment-length experiment from 08 and 11 with `Spline` and `ssf` only, against dividing by the true age trend. On 100 collections with 80-year swings, `ssf` kept 57% of the slow swing and `Spline` 27% (correlations of the 31-year running means with the climate's, 0.66 and 0.63). The draft can use fewer collections.
 - RCS from [Regional Curves](12RegionalCurves.qmd) kept 86 to 88%, on its own assumptions. One sentence.
 
 ## Reading the Recent End
@@ -77,7 +77,7 @@ Outline, 2026-10-26. It replaces the 2024 text, which is in git (`git show de8b0
 ## Exercises
 
 - Run `ssf` on Hurricane Ridge with `mad.threshold = 0.001` and `0.0001`. How many iterations does each take, and how much does the last 50 years change?
-- Give a simulated stand @melvin2008's step increase (20% from 50 years before the end) and compare `Spline` and `ssf`.
+- Give a simulated collection @melvin2008's step increase (20% from 50 years before the end) and compare `Spline` and `ssf`.
 - Run `ssf` on Campito with and without `recode.zeros`. What does the error message say, and which year is the problem?
 
 ## Further Reading

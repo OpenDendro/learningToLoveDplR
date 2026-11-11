@@ -92,7 +92,7 @@ $$EPS = \frac{n\bar{r}}{1 + (n - 1)\bar{r}}$$
 
 Read it as a fraction. The numerator is the part of the chronology's variance that the series share. The denominator is all of the chronology's variance. Add trees and the noise averages away while the shared part stays, so EPS climbs toward one.
 
-There is a second way to read it, and it is the one that explains the name. Imagine you could core every tree in the stand, an infinite number of them, and average those. Call that the population chronology. EPS is the squared correlation you should expect between the chronology you have and the one you can't have.
+There is a second way to read it, and it is the one that explains the name. Imagine you could core every tree like these, an infinite number of them, and average those. Call that the population chronology. EPS is the squared correlation you should expect between the chronology you have and the one you can't have.
 
 That is a claim we can test, because in a simulation we can have the population chronology. I'll make a signal, bury it in noise so that the series correlate with each other at 0.25, and see how well the mean of the first $n$ series recovers the signal.
 
@@ -163,7 +163,7 @@ With an rbar of 0.25 you need `r round(nNeeded(0.25))` series. With 0.75 you nee
 
 ### Cores Are Not Trees
 
-The formula wants $n$ independent samples of the stand. Two cores from the same tree are not that. They share everything that is particular to their tree. So `rwi.stats` counts trees, and it adjusts rbar for the fact that averaging the cores within a tree cleans up each tree's series a little before the trees are compared. The adjusted value is the effective rbar [@Briffa1990, p. 143].
+The formula wants $n$ independent samples of that population. Two cores from the same tree are not that. They share everything that is particular to their tree. So `rwi.stats` counts trees, and it adjusts rbar for the fact that averaging the cores within a tree cleans up each tree's series a little before the trees are compared. The adjusted value is the effective rbar [@Briffa1990, p. 143].
 
 $$\bar{r}_{eff} = \frac{\bar{r}_{bt}}{\bar{r}_{wt} + \frac{1 - \bar{r}_{wt}}{c_{eff}}}$$
 
@@ -326,7 +326,7 @@ wa082Full[, c("start.year", "end.year", "n", "rbar.eff", "eps")]
 
 All `r wa082Stats$n.trees` trees are there from `r min(wa082Full$start.year)` on, and EPS still drops, from `r wa082Full$eps[1]` to `r wa082Full$eps[nrow(wa082Full)]`. Depth can't explain that. The effective rbar peaks at `r max(wa082Run$rbar.eff)` in the window centered on `r wa082Run$mid.year[which.max(wa082Run$rbar.eff)]` and is about half that by the end.
 
-Why? I don't know, and the statistic can't say. It could be the stand, the climate, the trees getting old, or the detrending. What a falling rbar at full depth gives you is a stretch of years to go and investigate.
+Why? I don't know, and the statistic can't say. It could be the stand's history, the climate, the trees getting old, or the detrending. What a falling rbar at full depth gives you is a stretch of years to go and investigate.
 
 ### How Noisy Is a Window?
 
@@ -358,7 +358,7 @@ The year in which EPS first passes 0.85 depends on the window you picked. So doe
 
 ### What EPS Does Not Say
 
-EPS says how well your sample mean stands in for the mean of all the trees like these. That is all. It doesn't say what those trees are recording. A stand can have an EPS of 0.95 and no usable climate signal, because the thing the trees share might be a thinning, an insect outbreak or the neighbor's irrigation. Buras [-@Buras2017] wrote a short and pointed comment on this, and it is worth the ten minutes. Cook and Pederson put it more bluntly: rbar, EPS and SSS are sound statistics, and they "tell us exactly nothing about the true strength of the environmental signal" [@CookPederson2011, p. 81].
+EPS says how well your sample mean stands in for the mean of all the trees like these. That is all. It doesn't say what those trees are recording. A collection can have an EPS of 0.95 and no usable climate signal, because the thing the trees share might be a thinning, an insect outbreak or the neighbor's irrigation. Buras [-@Buras2017] wrote a short and pointed comment on this, and it is worth the ten minutes. Cook and Pederson put it more bluntly: rbar, EPS and SSS are sound statistics, and they "tell us exactly nothing about the true strength of the environmental signal" [@CookPederson2011, p. 81].
 
 There is a second limit. EPS is built from rbar, and rbar is dominated by how well the trees agree from one year to the next [@BriffaMelvin2011, p. 140]. So a high EPS says the year-to-year pattern is well estimated. It says less about the slow wiggles. That matters once the slow part is what you're after, and it comes back in [Regional Curves](12RegionalCurves.qmd).
 
@@ -520,7 +520,7 @@ A correlation of `r round(cor(giniBoth$gini, giniBoth$cv), 3)`, and `r round(min
 
 There are two ingredients, agreement and depth. rbar is the first. EPS is both, and it moves when either one does, so read it next to rbar and the number of trees and never alone. SSS holds the agreement fixed and shows you the depth.
 
-None of these numbers is a property of the trees alone. Each one also depends on the detrending, on prewhitening, on the window, and on telling the function which cores share a tree. And none of them says what the trees are responding to. They say how well a mean represents a stand. What the stand is recording is a separate question that needs other data.
+None of these numbers is a property of the trees alone. Each one also depends on the detrending, on prewhitening, on the window, and on telling the function which cores share a tree. And none of them says what the trees are responding to. They say how well a mean represents the trees it was drawn from. What those trees are recording is a separate question that needs other data.
 
 The [next chapter](11Chronologies.qmd) builds chronologies and puts these statistics to work on where a chronology should start and how to keep its variance from tracking its sample depth.
 

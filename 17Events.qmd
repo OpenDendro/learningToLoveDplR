@@ -6,11 +6,11 @@ First draft, 2026-10-28, replacing the stub. Every number in the text is compute
 
 ## Big Idea
 
-Some years stand out across a whole stand. A late frost, a drought or a cold summer after a big eruption can leave a narrow ring in nearly every tree. Those years are useful. They are the signatures that crossdating leans on, and they are a record of the events themselves.
+Some years stand out across a whole site. A late frost, a drought or a cold summer after a big eruption can leave a narrow ring in nearly every tree. Those years are useful. They are the signatures that crossdating leans on, and they are a record of the events themselves.
 
 There are two ways to come at them. You can start from the trees and ask which years most of them agree were unusual. Those are pointer years, and `pointer` finds them. Or you can start from a list of events chosen in advance, eruptions or fires, and ask whether growth around those years differs from growth around any other years. That is superposed epoch analysis, and `sea` does it.
 
-Both are easy to run and easy to over-read. This chapter plants cold years in a simulated stand and checks that each method finds them, and looks at what each one finds that I didn't plant. Then it turns both on field collections: `pointer` on Mesa Verde, where most years would count as pointer years at the default settings, and `sea` on a white spruce chronology from the Yukon with the coldest summers of the last 600 years as the events.
+Both are easy to run and easy to over-read. This chapter plants cold years in a simulated collection and checks that each method finds them, and looks at what each one finds that I didn't plant. Then it turns both on field collections: `pointer` on Mesa Verde, where most years would count as pointer years at the default settings, and `sea` on a white spruce chronology from the Yukon with the coldest summers of the last 600 years as the events.
 
 ## Packages
 
@@ -24,7 +24,7 @@ data(co021)
 data(cana157)
 ```
 
-`ggplot2` draws the figures, and `R/sim-collection.R` is the book's simulator from [The Simulated Stand](03SimulatedStand.qmd). Everything else is `dplR` and base R.
+`ggplot2` draws the figures, and `R/sim-collection.R` is the book's simulator from [The Simulated Collection](03SimulatedCollection.qmd). Everything else is `dplR` and base R.
 
 ```{r}
 #| label: ev-words
@@ -46,7 +46,7 @@ The terms come from a meeting in Lourmarin in 1989, written up by @Schweingruber
 
 Two things follow from the ratio. A pointer year is about the change from the year before, so a narrow ring after another narrow ring isn't one. And a year with no ring before it in a series isn't counted for that series.
 
-### A Stand with Planted Cold Years
+### A Collection with Planted Cold Years
 
 To see whether `pointer` finds what it should, I'll plant some. The simulator takes a climate series if you give it one. Here it's white noise in standard units, with eight years set to three standard deviations below the mean.
 
@@ -345,11 +345,11 @@ Use `pointer` when you want the years the trees agree on, with no list in hand. 
 
 Use `sea` when you have a list of events chosen without looking at the chronology. Read its `p` as two-sided at twice the value, choose the lags you care about in advance, and look at how the key years are spaced. If they come in runs, compare against shifted copies of the whole set instead of independent random years, and try again with one key per run.
 
-For both, plant some events in a simulated stand like the one here and see whether your settings find them. It takes a few lines and tells you what your choices can see.
+For both, plant some events in a simulated collection like the one here and see whether your settings find them. It takes a few lines and tells you what your choices can see.
 
 ## Wrapping Up
 
-Pointer years start from the trees. `pointer` counts the share of series whose ring changed by more than a threshold from the year before. It found most of the cold years planted in a simulated stand, along with a good many years of ordinary bad climate, and more where only a few series were in. At a site as sensitive as Mesa Verde the default threshold makes most years pointer years, so the thresholds have to fit the site.
+Pointer years start from the trees. `pointer` counts the share of series whose ring changed by more than a threshold from the year before. It found most of the cold years planted in a simulated collection, along with a good many years of ordinary bad climate, and more where only a few series were in. At a site as sensitive as Mesa Verde the default threshold makes most years pointer years, so the thresholds have to fit the site.
 
 Superposed epoch analysis starts from the events. `sea` recovered the planted cold years and the trees' memory after them. On white noise it found a significant lag in most runs, because its `p` is one-sided in the observed direction and the window holds 11 lags. On `cana157`, growth is low during the runs of cold summers in Briffa's list, and that holds up against shifted key sets that keep the runs together. With one key per run most of the response goes away, so it's the cold spells, more than the single summers, that show in these ring widths.
 
@@ -357,8 +357,8 @@ Superposed epoch analysis starts from the events. `sea` recovered the planted co
 
 ## Exercises
 
-1. Rerun the simulated stand with `phi = 0` in `sim.collection`, so the trees have no memory. What happens to lags 1 and 2 in `sea`, and to the positive pointer years after each cold year?
-2. Change `nseries.thresh` and `rgv.thresh` in `pointer` on the simulated stand and count planted and unplanted negative pointer years where at least 13 series are in. Which settings find all five planted years in that part with the fewest others?
+1. Rerun the simulated collection with `phi = 0` in `sim.collection`, so the trees have no memory. What happens to lags 1 and 2 in `sea`, and to the positive pointer years after each cold year?
+2. Change `nseries.thresh` and `rgv.thresh` in `pointer` on the simulated collection and count planted and unplanted negative pointer years where at least 13 series are in. Which settings find all five planted years in that part with the fewest others?
 3. Run `pointer` on `wa082`. How sensitive are its rings by the measure used for Mesa Verde, and what `rgv.thresh` gives a list of pointer years you could check by eye?
 4. Repeat the white-noise check with 5 key years instead of 26. Does the share of runs with a significant lag change?
 5. Take the 26 cold years and keep only those that are not followed by another key year within five years. Run `sea` on `cana157` with that set. Does the response at lag 5 survive?

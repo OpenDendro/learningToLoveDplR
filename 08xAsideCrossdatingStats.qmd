@@ -30,7 +30,7 @@ words <- function(n, cap = FALSE) {
 
 ## The Experiment
 
-Each run builds one [simulated stand](03SimulatedStand.qmd), with its one missing ring in SIM03A at 1800, runs `xdate.report` with the settings being tested, and scores the result. The planted Mesa Verde and Hurricane Ridge collections from [Crossdating a Collection](06Crossdating.qmd) and [Fixing Errors](07FixingErrors.qmd) get the same treatment, once each.
+Each run builds one [simulated collection](03SimulatedCollection.qmd), with its one missing ring in SIM03A at 1800, runs `xdate.report` with the settings being tested, and scores the result. The planted Mesa Verde and Hurricane Ridge collections from [Crossdating a Collection](06Crossdating.qmd) and [Fixing Errors](07FixingErrors.qmd) get the same treatment, once each.
 
 ```{r}
 #| label: xstats-score
@@ -74,7 +74,7 @@ settings <- list(
 )
 ```
 
-`nyrs = NULL` turns the spline off, and `prewhiten = FALSE` turns the AR model off. Now run every setting on 20 simulated stands and on the two real collections. This is the slow chunk.
+`nyrs = NULL` turns the spline off, and `prewhiten = FALSE` turns the AR model off. Now run every setting on 20 simulated collections and on the two real collections. This is the slow chunk.
 
 ```{r}
 #| label: xstats-run
@@ -84,11 +84,11 @@ wa082Bad <- plant.wa082.error()
 
 results <- NULL
 for (name in names(settings)) {
-  # 20 simulated stands, averaged
+  # 20 simulated collections, averaged
   simScores <- NULL
   for (seed in 1:20) {
-    stand <- sim.collection(seed = seed)$rwl
-    simScores <- rbind(simScores, scoreReport(stand, simPlanted, settings[[name]]))
+    coll <- sim.collection(seed = seed)$rwl
+    simScores <- rbind(simScores, scoreReport(coll, simPlanted, settings[[name]]))
   }
   # the two real collections, once each
   co <- scoreReport(co021Bad, attr(co021Bad, "planted"), settings[[name]])
@@ -105,7 +105,7 @@ for (name in names(settings)) {
 }
 ```
 
-`simFound` is the share of the 20 stands in which the missing ring was found, and `simFalseB` and `simFalseA` are the average number of false flags per stand. For the real collections, `Found` says whether every planted error was found, and the other columns count false flags. Mesa Verde never gets a false A flag under any setting here, so its column is left out.
+`simFound` is the share of the 20 collections in which the missing ring was found, and `simFalseB` and `simFalseA` are the average number of false flags per collection. For the real collections, `Found` says whether every planted error was found, and the other columns count false flags. Mesa Verde never gets a false A flag under any setting here, so its column is left out.
 
 ```{r}
 #| label: xstats-helpers
@@ -122,9 +122,9 @@ show <- c("default", "raw widths", "spline only", "prewhitening only")
 results[results$setting %in% show, ]
 ```
 
-Correlate raw ring widths and something surprising happens: the report still finds the missing ring, in `r round(100 * row("raw widths")$simFound)` percent of the stands. What raw widths do is bury it. Each simulated stand gets `r sprintf("%.1f", row("raw widths")$simFalseB)` false B flags and `r round(row("raw widths")$simFalseA)` false A flags on average, and Hurricane Ridge gets `r words(row("raw widths")$wa082FalseB)` and `r words(row("raw widths")$wa082FalseA)`. Even Mesa Verde gets `r words(row("raw widths")$co021FalseB)` false B flags. Two things cause it. Every tree's widths slope down with age, so any two old series correlate a little whether or not their years line up. And a good year carries into the next, so a series shifted by a year still looks like itself. Both make wrong positions look almost as good as the right one.
+Correlate raw ring widths and something surprising happens: the report still finds the missing ring, in `r round(100 * row("raw widths")$simFound)` percent of the collections. What raw widths do is bury it. Each simulated collection gets `r sprintf("%.1f", row("raw widths")$simFalseB)` false B flags and `r round(row("raw widths")$simFalseA)` false A flags on average, and Hurricane Ridge gets `r words(row("raw widths")$wa082FalseB)` and `r words(row("raw widths")$wa082FalseA)`. Even Mesa Verde gets `r words(row("raw widths")$co021FalseB)` false B flags. Two things cause it. Every tree's widths slope down with age, so any two old series correlate a little whether or not their years line up. And a good year carries into the next, so a series shifted by a year still looks like itself. Both make wrong positions look almost as good as the right one.
 
-The spline takes out the slow slope, and prewhitening takes out the memory. Each alone helps a good deal: the spline alone leaves `r sprintf("%.1f", row("spline only")$simFalseB)` false B flags per stand and prewhitening alone `r sprintf("%.1f", row("prewhitening only")$simFalseB)`. Together they bring the false B flags down to `r sprintf("%.1f", row("default")$simFalseB)` per stand, with `r sprintf("%.1f", row("default")$simFalseA)` false A flags, and none at all at Mesa Verde. Filtering is mostly what keeps you from chasing ghosts.
+The spline takes out the slow slope, and prewhitening takes out the memory. Each alone helps a good deal: the spline alone leaves `r sprintf("%.1f", row("spline only")$simFalseB)` false B flags per collection and prewhitening alone `r sprintf("%.1f", row("prewhitening only")$simFalseB)`. Together they bring the false B flags down to `r sprintf("%.1f", row("default")$simFalseB)` per collection, with `r sprintf("%.1f", row("default")$simFalseA)` false A flags, and none at all at Mesa Verde. Filtering is mostly what keeps you from chasing ghosts.
 
 ## How Stiff a Spline?
 
@@ -135,7 +135,7 @@ show <- c("spline 10 years", "spline 20 years", "default", "spline 64 years",
 results[results$setting %in% show, ]
 ```
 
-Holmes chose 20 years for his California collections, and COFECHA's default became 32 [@Holmes1983; @GrissinoMayer2001]. On these data it hardly matters. Every stiffness from 10 to 100 years found the missing ring in every stand and both real collections, and the false flags moved by less than one per stand. The default sits at or near the fewest. A very flexible spline takes out some of the year-to-year signal along with the trend; a very stiff one leaves some trend in, though prewhitening mops up much of what's left. On these data that's a narrow range, and a reason to leave the default alone unless your trees give you one.
+Holmes chose 20 years for his California collections, and COFECHA's default became 32 [@Holmes1983; @GrissinoMayer2001]. On these data it hardly matters. Every stiffness from 10 to 100 years found the missing ring in every collection and both real collections, and the false flags moved by less than one per collection. The default sits at or near the fewest. A very flexible spline takes out some of the year-to-year signal along with the trend; a very stiff one leaves some trend in, though prewhitening mops up much of what's left. On these data that's a narrow range, and a reason to leave the default alone unless your trees give you one.
 
 ## How Long a Segment?
 
@@ -145,7 +145,7 @@ show <- c("segments 30 years", "default", "segments 100 years")
 results[results$setting %in% show, ]
 ```
 
-Segment length matters a lot. Thirty-year segments find the error, along with `r round(row("segments 30 years")$simFalseB)` false B flags and `r round(row("segments 30 years")$simFalseA)` false A flags per stand: a correlation from 30 years is too noisy to trust, and there are more segments to go wrong. Hundred-year segments raise almost no false flags and find the missing ring in only `r round(100 * row("segments 100 years")$simFound)` percent of the stands, and they miss Hurricane Ridge's altogether. A segment that long is mostly correctly dated rings on one side of the error or the other, so the misdated part rarely dominates it. Holmes's 50 years, lagged by 25, sits between the two failures. Shorter segments are for narrowing down a problem you've already found, as in [Fixing Errors](07FixingErrors.qmd), and the report is for finding it.
+Segment length matters a lot. Thirty-year segments find the error, along with `r round(row("segments 30 years")$simFalseB)` false B flags and `r round(row("segments 30 years")$simFalseA)` false A flags per collection: a correlation from 30 years is too noisy to trust, and there are more segments to go wrong. Hundred-year segments raise almost no false flags and find the missing ring in only `r round(100 * row("segments 100 years")$simFound)` percent of the collections, and they miss Hurricane Ridge's altogether. A segment that long is mostly correctly dated rings on one side of the error or the other, so the misdated part rarely dominates it. Holmes's 50 years, lagged by 25, sits between the two failures. Shorter segments are for narrowing down a problem you've already found, as in [Fixing Errors](07FixingErrors.qmd), and the report is for finding it.
 
 ## Pearson or Spearman?
 
@@ -154,7 +154,7 @@ Segment length matters a lot. Thirty-year segments find the error, along with `r
 results[results$setting %in% c("default", "Spearman"), ]
 ```
 
-Spearman's correlation works on ranks, so one extreme ring can't drag it around. On these data it finds the same errors as Pearson's with a few more false flags, `r sprintf("%.1f", row("Spearman")$simFalseB)` B per stand against `r sprintf("%.1f", row("default")$simFalseB)`. `xdate.report` uses Pearson for a practical reason: the critical value it prints is then exact, and the A flags mean what they say.
+Spearman's correlation works on ranks, so one extreme ring can't drag it around. On these data it finds the same errors as Pearson's with a few more false flags, `r sprintf("%.1f", row("Spearman")$simFalseB)` B per collection against `r sprintf("%.1f", row("default")$simFalseB)`. `xdate.report` uses Pearson for a practical reason: the critical value it prints is then exact, and the A flags mean what they say.
 
 ## The Defaults Don't All Agree
 

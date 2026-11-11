@@ -156,11 +156,11 @@ It catches 645221 and misses 643143. Why? Only the first `r misdated643` of 6431
 
 Mesa Verde makes this look easy. Its series correlate with the master at `r sprintf("%.2f", weighted.mean(co021Report$stats$corr, co021Report$stats$n.years, na.rm = TRUE))` on average, and that is near the top of the ITRDB. Most collections are weaker, and a weaker collection can't find errors as reliably, and it raises flags on series that are dated correctly. How much weaker before the report stops being useful?
 
-That's a question for a collection where we know the answer. The [simulated stand](03SimulatedStand.qmd) has one missing ring, in SIM03A at 1800, and I can turn its common signal down. Here it is at three strengths, twenty simulated stands each. The code below handles one stand at a time in `weakRun`: build the stand, run `xdate.report` on it, and record whether SIM03A's missing ring was found and how many flags landed on series with nothing wrong. The loop runs it sixty times, and the last step averages each group of twenty.
+That's a question for a collection where we know the answer. The [simulated collection](03SimulatedCollection.qmd) has one missing ring, in SIM03A at 1800, and I can turn its common signal down. Here it is at three strengths, twenty simulated collections each. The code below handles one collection at a time in `weakRun`: build the collection, run `xdate.report` on it, and record whether SIM03A's missing ring was found and how many flags landed on series with nothing wrong. The loop runs it sixty times, and the last step averages each group of twenty.
 
 ```{r}
 #| label: xdate-weak
-# One simulated stand: build it, run the report on it, and count what the
+# One simulated collection: build it, run the report on it, and count what the
 # report got right and what it flagged that isn't wrong.
 weakRun <- function(rbar, seed) {
   # cores from one tree always agree more than cores from different trees,
@@ -183,7 +183,7 @@ weakRun <- function(rbar, seed) {
   )
 }
 
-# Twenty stands at each of three signal strengths, one row per stand.
+# Twenty collections at each of three signal strengths, one row per collection.
 weak <- NULL
 for (rbar in c(0.4, 0.2, 0.1)) {
   for (seed in 1:20) {
@@ -191,7 +191,7 @@ for (rbar in c(0.4, 0.2, 0.1)) {
   }
 }
 
-# Average the twenty stands at each strength, strongest first.
+# Average the twenty collections at each strength, strongest first.
 weakTable <- aggregate(cbind(corr, found, falseB, falseA, segments) ~ rbar,
                        data = weak, FUN = mean)
 weakTable <- weakTable[order(-weakTable$rbar), ]
@@ -206,7 +206,7 @@ wa082Report <- suppressWarnings(xdate.report(read.rwl("data/wa082.rwl", format =
 wa082Corr <- weighted.mean(wa082Report$stats$corr, wa082Report$stats$n.years, na.rm = TRUE)
 ```
 
-`rbar` is the between-tree correlation I built in, `corr` the average correlation with the master that the report would print at the top, `found` the share of stands where SIM03A got a B flag at lag -1, and the last three columns the false flags and the number of segments tested, per stand. At the default strength the series correlate with the master at about `r sprintf("%.2f", wt(0.4, "corr"))`, against `r sprintf("%.2f", wa082Corr)` for Hurricane Ridge, and the missing ring is found every time, with about `r words(round(wt(0.4, "falseB")))` false B flag per stand among `r round(wt(0.4, "segments"))` segments. Halve the shared signal and the master correlation drops to `r sprintf("%.2f", wt(0.2, "corr"))`. The report still finds the missing ring in `r round(100 * wt(0.2, "found"))` percent of stands, and it now raises `r round(wt(0.2, "falseB"))` B flags and `r round(wt(0.2, "falseA"))` A flags on series that are dated correctly. At `r sprintf("%.2f", wt(0.1, "corr"))` it finds the error `r round(100 * wt(0.1, "found"))` percent of the time, under `r words(round(wt(0.1, "falseB")))` false B flags and `r words(round(wt(0.1, "falseA")))` false A flags per stand.
+`rbar` is the between-tree correlation I built in, `corr` the average correlation with the master that the report would print at the top, `found` the share of collections where SIM03A got a B flag at lag -1, and the last three columns the false flags and the number of segments tested, per collection. At the default strength the series correlate with the master at about `r sprintf("%.2f", wt(0.4, "corr"))`, against `r sprintf("%.2f", wa082Corr)` for Hurricane Ridge, and the missing ring is found every time, with about `r words(round(wt(0.4, "falseB")))` false B flag per collection among `r round(wt(0.4, "segments"))` segments. Halve the shared signal and the master correlation drops to `r sprintf("%.2f", wt(0.2, "corr"))`. The report still finds the missing ring in `r round(100 * wt(0.2, "found"))` percent of collections, and it now raises `r round(wt(0.2, "falseB"))` B flags and `r round(wt(0.2, "falseA"))` A flags on series that are dated correctly. At `r sprintf("%.2f", wt(0.1, "corr"))` it finds the error `r round(100 * wt(0.1, "found"))` percent of the time, under `r words(round(wt(0.1, "falseB")))` false B flags and `r words(round(wt(0.1, "falseA")))` false A flags per collection.
 
 So read a report with the collection's strength in mind. In a collection like Mesa Verde a B flag is very likely a dating problem. In a weak one most B flags are noise, and the size of the gain is a better guide than the letter. The report helps: a B flag whose best correlation is itself below the critical value is marked "weak at every lag", and I left those out of the counts above. [Fixing Errors](07FixingErrors.qmd) is about what to do with a flag once you have one.
 

@@ -1,7 +1,7 @@
 # Aside: Filtering and the Spline {- .aside-chapter}
 
 :::{.callout-note title="Draft"}
-First draft, 2026-10-30, from the outline of the same day. Every number in the text is computed when the book builds. Crossdating, Detrending and Smoothing and Filtering now point here for the definition of the spline. [An Additive Model of Tree Growth](02AdditiveModel.qmd) links here (2026-11-10). [The Simulated Stand](03SimulatedStand.qmd) doesn't yet; that waits for its draft.
+First draft, 2026-10-30, from the outline of the same day. Every number in the text is computed when the book builds. Crossdating, Detrending and Smoothing and Filtering now point here for the definition of the spline. [An Additive Model of Tree Growth](02AdditiveModel.qmd) links here (2026-11-10). [The Simulated Collection](03SimulatedCollection.qmd) doesn't yet; that waits for its draft.
 :::
 
 [Chapter 2](02AdditiveModel.qmd) sorted the parts of a ring two ways: by who shares them, and by how fast they change. The tool for the second sort is a filter. It splits a series into a slow part and a fast part, and nearly every method in the book uses one. This aside starts with the simplest filter there is, then takes up the one dendrochronology leans on hardest, the smoothing spline, and ends with the ways the field's spline looks a little odd to someone from statistics or signal processing.
@@ -14,7 +14,7 @@ library(ggplot2)
 source("R/sim-collection.R")
 ```
 
-`ggplot2` draws the figures. The simulated stand comes from the book's `R/` folder, and [The Simulated Stand](03SimulatedStand.qmd) describes it.
+`ggplot2` draws the figures. The simulated collection comes from the book's `R/` folder, and [The Simulated Collection](03SimulatedCollection.qmd) describes it.
 
 ## A Filter Sorts by Speed
 
@@ -98,11 +98,11 @@ So the spline below is the first of many filters you'll meet, and the one the fi
 
 A cubic smoothing spline is a curve that follows the data but pays a penalty for bending. A stiff spline bends little and follows only the slowest changes. A flexible one bends a lot and chases the data. Cook and Peters brought it into tree-ring work in 1981 for trees in closed forests, where competition pushes growth up and down in ways no fixed growth curve follows [@Cook1981]. In `dplR` the spline is `caps`, for Cook and Peters spline.
 
-Here it is at three stiffnesses on a crowded tree from the simulated stand, where the true age trend is known.
+Here it is at three stiffnesses on a crowded tree from the simulated collection, where the true age trend is known.
 
 ```{r}
 #| label: flt-caps
-#| fig-cap: "Ring widths of SIM06A, a crowded tree in the simulated stand (gray), its true age trend (thick line), and three splines. The 10-year spline chases the yearly wiggles. The stiffest one, at 67% of the core's length, follows only the broadest shape."
+#| fig-cap: "Ring widths of SIM06A, a crowded tree in the simulated collection (gray), its true age trend (thick line), and three splines. The 10-year spline chases the yearly wiggles. The stiffest one, at 67% of the core's length, follows only the broadest shape."
 sim <- sim.collection(seed = 1)
 width <- sim$truth$rwl$SIM06A
 ok <- !is.na(width)                       # the years this core has rings

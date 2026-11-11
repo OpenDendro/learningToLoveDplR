@@ -114,7 +114,7 @@ At Mesa Verde the typical series has a lag-one autocorrelation of `r round(media
 
 ### The Residual Chronology
 
-If the persistence belongs to the trees and not to the stand, one answer is to take it out of each series before averaging. `chron` does that with `prewhiten = TRUE`. It fits an autoregressive model to each series, keeps the residuals, and averages those. The result comes back as a second column, `res`.
+If the persistence belongs to each tree and isn't shared by all of them, one answer is to take it out of each series before averaging. `chron` does that with `prewhiten = TRUE`. It fits an autoregressive model to each series, keeps the residuals, and averages those. The result comes back as a second column, `res`.
 
 ```{r}
 #| label: crn-residual
@@ -127,7 +127,7 @@ The old description of the residual chronology is that it is white noise. Is it?
 
 ### The ARSTAN Chronology
 
-Ed Cook worked on this problem in his dissertation [@cook1985], and the program that came out of it, ARSTAN, is named for the method: autoregressive standardization. The idea is to estimate one autoregressive model for the whole stand by pooling the series, and to treat that pooled model as the persistence the trees share. `chron.ars` follows it and returns three chronologies.
+Ed Cook worked on this problem in his dissertation [@cook1985], and the program that came out of it, ARSTAN, is named for the method: autoregressive standardization. The idea is to estimate one autoregressive model for the whole collection by pooling the series, and to treat that pooled model as the persistence the trees share. `chron.ars` follows it and returns three chronologies.
 
 - `std` is the standard chronology, the same as `chron` gives.
 - `res` is the residual chronology. Every series is whitened with a model of the pooled order, the whitened series are averaged, and the mean is whitened once more.
@@ -212,7 +212,7 @@ ggplot(earlyBoth, aes(x = year, y = std)) +
   theme_minimal()
 ```
 
-Why do they disagree? The depth rule counts cores and knows nothing else. It gives the same answer for a stand where the trees agree at 0.8 and a stand where they agree at 0.2, and it counts two cores from one tree as two. SSS counts trees and uses rbar. At Mesa Verde `r words(bothCutoffs["co021", "treesAtSss85"])` trees are already a good stand-in for all `r length(unique(co021Ids$tree))`. At Hurricane Ridge it takes `r words(bothCutoffs["wa082", "treesAtSss85"])`.
+Why do they disagree? The depth rule counts cores and knows nothing else. It gives the same answer for a collection where the trees agree at 0.8 and a collection where they agree at 0.2, and it counts two cores from one tree as two. SSS counts trees and uses rbar. At Mesa Verde `r words(bothCutoffs["co021", "treesAtSss85"])` trees are already a good stand-in for all `r length(unique(co021Ids$tree))`. At Hurricane Ridge it takes `r words(bothCutoffs["wa082", "treesAtSss85"])`.
 
 I use SSS, because a rule that ignores how well the trees agree is ignoring the thing that matters most. As the last chapter showed, SSS is relative to your own full sample, and 0.85 is a convention. If the answer to your research question depends on whether the chronology starts in `r bothCutoffs["wa082", "fiveSeries"]` or `r bothCutoffs["wa082", "sss85"]`, no cutoff will settle it. The trouble is in those years themselves: too few trees, agreeing too weakly.
 
@@ -267,7 +267,7 @@ Before you put that figure in a paper, be clear about what the band is. It is un
 
 ### Cores Are Still Not Trees
 
-There is a problem with the interval above. The bootstrap resamples series as if each were an independent draw from the stand. At Hurricane Ridge there are two cores from most trees, and two cores from one tree are not independent. Sound familiar? It is the same mistake as leaving `ids` out of `rwi.stats`.
+There is a problem with the interval above. The bootstrap resamples series as if each were an independent draw from the trees at the site. At Hurricane Ridge there are two cores from most trees, and two cores from one tree are not independent. Sound familiar? It is the same mistake as leaving `ids` out of `rwi.stats`.
 
 The fix is to average the cores within each tree first. `treeMean` does that.
 
@@ -476,7 +476,7 @@ stripYears2 <- stripRecord2$years
 
 Then read the cost before you believe it. This time `r words(length(stripRecord2$removed))` series are gone and a whole tree with them: `r stripRecord2$stats$trees[1]` trees became `r stripRecord2$stats$trees[2]`. There are fewer trees in `r sum(stripYears2$n.after < stripYears2$n.before)` of the `r nrow(stripYears2)` years. All of that bought an EPS of `r stripRecord2$stats$eps[2]`, up from `r stripRecord2$stats$eps[1]`.
 
-Would I take that trade? I'd want to look at those cores first. A series that lowers EPS is one that disagrees with its neighbors, and EPS has no idea why. It might be a badly measured core. It might be the one tree on the wet side of the plot, in which case it is telling you something about the stand that the other trees are not. The [Chronology Statistics](10ChronologyStats.qmd) chapter goes through what EPS can and can't say, and Buras [-@Buras2017] is the short version. Use `strip.rwl` to find the series worth a second look. Let a second look at the cores decide what happens to them.
+Would I take that trade? I'd want to look at those cores first. A series that lowers EPS is one that disagrees with its neighbors, and EPS has no idea why. It might be a badly measured core. It might be the one tree on the wet side of the plot, in which case it is telling you something about the site that the other trees are not. The [Chronology Statistics](10ChronologyStats.qmd) chapter goes through what EPS can and can't say, and Buras [-@Buras2017] is the short version. Use `strip.rwl` to find the series worth a second look. Let a second look at the cores decide what happens to them.
 
 ## Wrapping Up
 

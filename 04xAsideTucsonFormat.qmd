@@ -99,7 +99,7 @@ brokenCheck[brokenCheck$check == "RWL_SERIES_SCALE", c("series", "value")]
 cat(strwrap(brokenCheck$message[brokenCheck$check == "RWL_SERIES_SCALE"]), sep = "\n")
 ```
 
-Why five, when the error is ten? Because a lost stop marker multiplies whatever the series was, and a slow tree that was half the width of its neighbors comes back only five times wider. Trees that grow five times faster or slower than the rest of their stand are rare, though not unheard of, so a series flagged at five is a series to look at, and one near ten deserves a hard look at its units. When I ran the check over the ITRDB's ring-width files, a few hundred series in about 2 percent of files were five times off or more, and a handful of files had series ten times off. Before 1.8.1, nothing in `dplR` flagged any of them.
+Why five, when the error is ten? Because a lost stop marker multiplies whatever the series was, and a slow tree that was half the width of its neighbors comes back only five times wider. Trees that grow five times faster or slower than the other trees at their site are rare, though not unheard of, so a series flagged at five is a series to look at, and one near ten deserves a hard look at its units. When I ran the check over the ITRDB's ring-width files, a few hundred series in about 2 percent of files were five times off or more, and a handful of files had series ten times off. Before 1.8.1, nothing in `dplR` flagged any of them.
 
 In this file there is a second clue in the editor, since every value of 641121 ends in a zero. That's because I made it from data measured to the hundredth, and a series measured to the thousandth won't give you that clue.
 

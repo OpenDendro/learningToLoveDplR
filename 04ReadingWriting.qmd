@@ -164,7 +164,7 @@ head(waIds)
 table(table(waIds$tree))
 ```
 
-`r length(unique(waIds$tree))` trees, `r words(sum(table(waIds$tree) == 2))` with two cores and `r words(sum(table(waIds$tree) == 1))` with one. You met the same function on the simulated collection in [The Simulated Stand](03SimulatedStand.qmd), and it matters for the same reason: several statistics later in the book compare cores within a tree to cores between trees, and they need to know which is which.
+`r length(unique(waIds$tree))` trees, `r words(sum(table(waIds$tree) == 2))` with two cores and `r words(sum(table(waIds$tree) == 1))` with one. You met the same function on the simulated collection in [The Simulated Collection](03SimulatedCollection.qmd), and it matters for the same reason: several statistics later in the book compare cores within a tree to cores between trees, and they need to know which is which.
 
 The names at Mesa Verde are less obliging.
 
