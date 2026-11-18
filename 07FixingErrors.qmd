@@ -204,12 +204,20 @@ s03 <- simFlags[simFlags$series == "SIM03A", ]
 s03run <- s03[s03$best.lag == -1, ]                 # the run before the error
 s03mid <- s03[s03$from < 1800 & s03$to > 1800, ]    # the segment across it
 s10 <- simFlags[simFlags$series == "SIM10A", ]
+# every flagged series other than SIM03A is dated correctly
+falseSeries <- setdiff(unique(simFlags$series), "SIM03A")
+falseLead <- if (length(falseSeries) == 1) {
+  paste(falseSeries, "is the one that is dated correctly, and I know because I built it.")
+} else {
+  paste(paste(falseSeries, collapse = " and "),
+        "are dated correctly, and I know because I built them. Take SIM10A.")
+}
 crit <- qt(0.99, 48) / sqrt(48 + qt(0.99, 48)^2)    # 50-year segments
 ```
 
 SIM03A looks like 712031: B flags at lag -1 with gains of `r paste(sprintf("%.2f", s03run$gain), collapse = " and ")` in the segments before the error. The segment that straddles it, `r s03mid$from`-`r s03mid$to`, is flagged too, at lag `r sprintf("%+d", s03mid$best.lag)` with a gain of only `r sprintf("%.2f", s03mid$gain)`, and it is marked weak. In 712031 the same segment got an A. Either way the report is saying the same thing: half of the segment is dated right and half is a year off, so no single shift fits it.
 
-SIM10A is the one that is dated correctly, and I know because I built it. Its segment from `r s10$from` to `r s10$to` correlates with the master at `r sprintf("%.3f", s10$r.dated)` where it is dated, a little under the critical value of `r sprintf("%.3f", crit)`, and shifted `r abs(s10$best.lag)` years it correlates at `r sprintf("%.3f", s10$r.lag)`, `r if (abs(s10$r.lag - crit) < 0.005) "right at it" else if (s10$r.lag > crit) "a little above it" else "still under it"`. The gain is `r sprintf("%.3f", s10$gain)`. For that shift to be real, the core would need `r words(abs(s10$best.lag))` rings missing inside one 50-year segment and none anywhere else. A segment that fits poorly where it is, and only slightly better at a shift no core could plausibly need, is noise.
+`r falseLead` Its segment from `r s10$from` to `r s10$to` correlates with the master at `r sprintf("%.3f", s10$r.dated)` where it is dated, a little under the critical value of `r sprintf("%.3f", crit)`, and shifted `r abs(s10$best.lag)` years it correlates at `r sprintf("%.3f", s10$r.lag)`, `r if (abs(s10$r.lag - crit) < 0.005) "right at it" else if (s10$r.lag > crit) "a little above it" else "still under it"`. The gain is `r sprintf("%.3f", s10$gain)`. For that shift to be real, the core would need `r words(abs(s10$best.lag))` rings missing inside one 50-year segment and none anywhere else. A segment that fits poorly where it is, and only slightly better at a shift no core could plausibly need, is noise.
 
 Now Hurricane Ridge as it comes.
 

@@ -41,6 +41,16 @@
 #       C + T + E still has standard deviation sd.hf (see the C block). climate.phi = 0 gives white climate,
 #       the collection the book used before 2026-10-23. A climate series
 #       passed in is used as it is, and climate.phi is ignored.
+#       climate.slow (default NULL) adds a slow part to the climate at a
+#       size the user sets: a series named by year, on the log scale, such
+#       as a wave or a trend. The climate above is scaled to one fixed size,
+#       so a slow part put inside it takes variance from the year-to-year
+#       part and lowers the between-tree agreement. climate.slow is added
+#       after that scaling, and after the tree's memory filter (like the
+#       disturbance pulses), so it comes out at exactly the size given and
+#       rbar.bt, rbar.wt and sd.hf still describe the fast part alone. Each
+#       tree feels it through its sensitivity, as it does C. It makes no
+#       random draws, so every other draw for a given seed is unchanged.
 #       sens.sdlog > 0 gives each tree its own sensitivity to C, a
 #       multiplier drawn on the log scale so that its mean square is 1:
 #       trees differ in how hard the shared climate hits them, and the
@@ -56,7 +66,13 @@
 #       and measurement noise, uncorrelated within and between trees
 #       (p. 102); T is split out of it so two cores of a tree agree more
 #       than two trees do.
-#   E   noise in each core
+#   E   noise in each core. Gaussian by default. noise.df (default Inf)
+#       draws it from a t distribution with that many degrees of freedom
+#       instead, scaled to the same sd: the same size, but heavier tails, so
+#       a core now and then has a ring far off its neighbors, as real cores
+#       do (reaction wood, a crack, a misread ring). Real core differences
+#       have excess kurtosis near 1.1-1.4 (ITRDB median, 2026-11-14), which
+#       noise.df near 6 gives. T stays Gaussian.
 #   D1  endogenous disturbance: a release in one tree. Cook's D1 pulses are
 #       random in space and time, so uncorrelated between trees (p. 100-102).
 #   D2  exogenous disturbance: an event across the stand. Cook defines D2 by
@@ -64,6 +80,25 @@
 #       (event$frac, default half), a departure that keeps it visible as a
 #       stand event without making it indistinguishable from climate. Set
 #       frac = 1 for Cook's version.
+#       event$ramp (default 0, or left out) is the number of years the event
+#       takes to build. At 0 it jumps to full size in event$year, which suits
+#       a sudden hit (fire, drought). Above 0 it rises, peaks and fades, as a
+#       release after a thinning does while the trees grow into the space;
+#       the peak is still event$size. The choice of trees comes from a
+#       side stream, so an event, or its frac, doesn't change any other draw
+#       for a given seed (2026-11-16).
+# spread.b (default 1) is the slope b of log spread on log level (Cook and
+# Peters 1997). At 1 the terms add on the log scale as above, so the spread
+# of widths about A is proportional to A. Below 1 they add on a power scale,
+# p = 1 - b, in Box-Cox form, (A/w0)^p + p * (C + T + E + D1 + D2), and the
+# spread grows as A^b. w0 is the geometric mean of A over the collection,
+# where both forms give the same swing, so the variances set on the log
+# scale still hold at a typical width. Cook and Peters put most real series
+# at p 0.25-0.50; ITRDB collections give a median near 0.25 (2026-11-15).
+# A value below zero on the power scale becomes an absent ring.
+# spread.b.sd (default 0) gives each tree its own b, drawn around spread.b
+# and kept within [0.05, 1]; real series differ in b within a collection.
+#
 # C + T + E go through an AR(1) filter, the tree's memory of last year. Cook
 # treats the shocks (climate, disturbance, random) as passing through each
 # tree's ARMA memory (p. 130-131). Here D1 and D2 are added after the filter
@@ -91,7 +126,8 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
                            age.range = c(120, 380),
                            rbar.bt = 0.4, rbar.wt = 0.6, sd.hf = 0.25,
                            phi = 0.5, climate = NULL, climate.phi = 0.3,
-                           sens.sdlog = 0,
+                           climate.slow = NULL,
+                           sens.sdlog = 0, noise.df = Inf,
                            bai = 600, bai.sdlog = 0.4, juv = 25,
                            bai.trend = 0, bai.age = 0,
                            compete = 0.3, compete.frac = 0.5,
@@ -104,11 +140,14 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
                            errors = data.frame(series = "SIM03A",
                                                year = 1800,
                                                type = "missing"),
+                           spread.b = 1, spread.b.sd = 0,
                            site = "SIM", digits = 2, seed = NULL) {
   if (!is.null(seed)) set.seed(seed)
-  stopifnot(n.tree >= 2, n.core >= 1, n.core <= 26,
+  stopifnot(spread.b > 0, spread.b <= 1, spread.b.sd >= 0,
+            n.tree >= 2, n.core >= 1, n.core <= 26,
             rbar.bt >= 0, rbar.wt >= rbar.bt, rbar.wt < 1,
             abs(phi) < 1, abs(climate.phi) < 1, sd.hf > 0, sens.sdlog >= 0,
+            noise.df > 2,
             bai.trend >= 0, abs(bai.age) <= 1)
 
   # ── who is in the collection ──
@@ -179,6 +218,19 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   if (is.null(climate) && climate.phi != 0) {
     clim <- as.numeric(stats::filter(clim, climate.phi, method = "recursive"))
   }
+  # slow climate, added at the size given (no rescaling, no draws)
+  if (is.null(climate.slow)) {
+    slow <- rep(0, n.yr)
+  } else {
+    if (!is.numeric(climate.slow) || is.null(names(climate.slow))) {
+      stop("climate.slow must be a numeric series named by year")
+    }
+    slow <- as.numeric(climate.slow[as.character(yrs)])
+    if (anyNA(slow)) {
+      stop("climate.slow must have a value for every year from ", min(yrs),
+           " to ", end.year)
+    }
+  }
 
   # ── A, T, E and the AR(1) memory ──
   burn <- 50
@@ -187,6 +239,14 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
     as.numeric(y)[-seq_len(burn)]
   }
   tree.noise <- matrix(rnorm(n.yr * n.tree, sd = sd.t), n.yr, n.tree)
+  # core noise: Gaussian, or t scaled to unit variance. rt() uses the random
+  # numbers differently from rnorm(), so noise.df < Inf changes every draw
+  # after the first core's noise.
+  core.noise <- if (is.finite(noise.df)) {
+    function(n) rt(n, noise.df) * sqrt((noise.df - 2) / noise.df) * sd.e
+  } else {
+    function(n) rnorm(n, sd = sd.e)
+  }
   # each tree's growth rate. With bai.age set, part of the log rate comes
   # from the tree's age in standard units and the rest from the same draw,
   # so the spread stays at bai.sdlog and no other draw moves.
@@ -205,8 +265,16 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   }
   age.mm <- hf <- dist <- matrix(NA_real_, n.yr, length(series),
                                  dimnames = list(yrs, series))
-  pulse <- function(y0, size, decay) {
-    ifelse(yrs >= y0, size * exp(-(yrs - y0) / decay), 0)
+  # A pulse jumps to size in year y0 and fades by a factor of e every decay
+  # years. With ramp > 0 it builds instead, as 1 - exp(-t / ramp), and the
+  # shape is scaled so its peak is still size; the peak falls at
+  # t = ramp * log(1 + decay / ramp) years after y0.
+  pulse <- function(y0, size, decay, ramp = 0) {
+    t <- yrs - y0
+    if (ramp == 0) return(ifelse(t >= 0, size * exp(-t / decay), 0))
+    shape <- function(t) (1 - exp(-t / ramp)) * exp(-t / decay)
+    peak <- shape(ramp * log(1 + decay / ramp))
+    ifelse(t >= 0, size * shape(t) / peak, 0)
   }
   # pulses are added to whole columns; years after a dead tree's outer ring
   # stay NA because dist is NA there
@@ -214,7 +282,8 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
     tr <- ids$tree[i]
     alive <- yrs >= pith[tr] & yrs <= outer[tr]
     hf[alive, i] <- ar1(sens.tree[tr] * clim[alive] + tree.noise[alive, tr] +
-                        rnorm(sum(alive), sd = sd.e))
+                        core.noise(sum(alive))) +
+      sens.tree[tr] * slow[alive]
     dist[alive, i] <- 0
   }
 
@@ -230,11 +299,24 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
                                          release$decay)
   }
   if (!is.null(event)) {
+    ramp <- if (is.null(event$ramp)) 0 else event$ramp
+    if (!is.numeric(ramp) || length(ramp) != 1 || is.na(ramp) || ramp < 0) {
+      stop("event$ramp must be a single number of years, 0 or more")
+    }
     standing <- which(pith < event$year & outer >= event$year)
-    hit <- sort(standing[sample.int(length(standing),
-                                    round(event$frac * length(standing)))])
+    # Which trees it hits is drawn from a side stream: the random-number state
+    # is put back afterwards, so the draws that follow (competition, the
+    # spread-level slopes) are the same with or without an event, and with
+    # any frac. One uniform per tree; the lowest are hit, so a larger frac
+    # hits the same trees plus more.
+    old.seed <- get(".Random.seed", envir = globalenv())
+    u <- stats::runif(n.tree)
+    assign(".Random.seed", old.seed, envir = globalenv())
+    n.hit <- round(event$frac * length(standing))
+    hit <- sort(standing[order(u[standing])][seq_len(n.hit)])
     cols <- ids$tree %in% hit
-    dist[, cols] <- dist[, cols] + pulse(event$year, event$size, event$decay)
+    dist[, cols] <- dist[, cols] + pulse(event$year, event$size, event$decay,
+                                         ramp)
   }
 
   # ── competition: A as a stochastic process ──
@@ -278,7 +360,37 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
   age.mm <- age.mm * exp(wander[, ids$tree])
 
   # ── widths, cut to what each core reaches ──
-  width <- age.mm * exp(hf + dist)
+  # spread.b = 1: multiplicative, spread about A proportional to A.
+  # spread.b < 1: the terms add on a power scale (Box-Cox, p = 1 - b), so
+  # the spread grows as A^b (Cook and Peters 1997). w0 is where the two
+  # agree: a ring at the collection's typical width w0 swings by the same
+  # log amount as with spread.b = 1, wider ones by less, narrower by more.
+  # No random draws, so every other draw for a seed is unchanged.
+  # spread.b.sd > 0 draws a b for each tree, N(spread.b, spread.b.sd) kept
+  # within [0.05, 1] (1 = the log). Drawn last, and only when asked for, so
+  # every other draw for a seed is unchanged.
+  spread.w0 <- NA_real_; spread.zero <- 0L
+  b.tree <- if (spread.b.sd > 0) {
+    pmin(pmax(rnorm(n.tree, spread.b, spread.b.sd), 0.05), 1)
+  } else rep(spread.b, n.tree)
+  if (all(b.tree == 1)) {
+    width <- age.mm * exp(hf + dist)
+  } else {
+    spread.w0 <- exp(mean(log(age.mm), na.rm = TRUE))
+    width <- age.mm
+    for (i in seq_along(series)) {
+      p <- 1 - b.tree[ids$tree[i]]
+      z <- hf[, i] + dist[, i]
+      if (p == 0) {
+        width[, i] <- age.mm[, i] * exp(z)
+      } else {
+        inner <- (age.mm[, i] / spread.w0)^p + p * z
+        # below zero on the power scale there is no ring: an absent ring
+        spread.zero <- spread.zero + sum(inner <= 0, na.rm = TRUE)
+        width[, i] <- spread.w0 * pmax(inner, 0)^(1 / p)
+      }
+    }
+  }
   for (i in seq_along(series)) {
     width[yrs < first[i], i] <- NA
     age.mm[yrs < first[i], i] <- NA
@@ -346,7 +458,7 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
        ids = ids,
        truth = list(
          rwl = rwl.true,
-         climate = data.frame(year = yrs, climate = clim),
+         climate = data.frame(year = yrs, climate = clim, slow = slow),
          age = to.rwl(age.mm),
          memory.noise = to.rwl(hf),
          disturbance = to.rwl(dist),
@@ -363,10 +475,15 @@ sim.collection <- function(n.tree = 20, n.core = 2, end.year = 2025,
          params = list(n.tree = n.tree, n.core = n.core, end.year = end.year,
                        rbar.bt = rbar.bt, rbar.wt = rbar.wt, sd.hf = sd.hf,
                        phi = phi, climate.phi = climate.phi,
-                       sens.sdlog = sens.sdlog, bai = bai, juv = juv,
+                       sens.sdlog = sens.sdlog, noise.df = noise.df,
+                       bai = bai, juv = juv,
                        bai.trend = bai.trend, bai.age = bai.age,
                        dead = dead,
                        compete = compete,
                        compete.frac = compete.frac,
-                       compete.phi = compete.phi, seed = seed)))
+                       compete.phi = compete.phi,
+                       spread.b = spread.b, spread.b.sd = spread.b.sd,
+                       spread.b.tree = setNames(b.tree, tree.id),
+                       spread.w0 = spread.w0,
+                       spread.zero = spread.zero, seed = seed)))
 }

@@ -24,7 +24,7 @@ Widths to indices to a chronology. This chapter is the first arrow, [Chronology 
 
 Why can't you just average the widths? Because a year's mean ring width says more about which trees are in the average than about the year. Trees grow at different rates, so a fast tree outvotes a slow one. Every tree's rings get narrower as it gets bigger, so the mean falls through time whatever the weather did. And the trees in the average change as you go back in time, so every time a young tree enters with its wide inner rings, the mean jumps. Detrending fixes all three at once. Fit a curve to each series that says what that tree would have grown if nothing but getting older had happened to it, and divide. What comes out is each ring as a departure from its own tree's expected growth, dimensionless and centered on 1. A ring of 1.2 means 20% better than expected, in a fast tree or a slow one, at age 20 or age 300. Those numbers can be averaged across trees, and the average is a chronology. Douglass's master chronologies, the ITRDB and every reconstruction built from them rest on this step.
 
-The catch is the curve. It is a guess, and the guess is in every number downstream: the chronology, rbar and EPS, every correlation with climate you will ever compute from it. No curve knows which slow wiggles are age. Competition, a stand event and a run of dry decades all look like trend to a curve fitted to one tree. Later in this chapter the default spline bends into the 1880 stand event in the [simulated collection](03SimulatedCollection.qmd). So after showing what the step buys you, this chapter measures what each method takes and what it leaves, first on the simulated collection, where the answer is known, and then on Mesa Verde and Hurricane Ridge, where it isn't.
+The catch is the curve. It is a guess, and the guess is in every number downstream: the chronology, rbar and EPS, every correlation with climate you will ever compute from it. No curve knows which slow wiggles are age. Competition, a stand event and a run of dry decades all look like trend to a curve fitted to one tree. So after showing what the step buys you, this chapter measures what each method takes and what it leaves, first on the [simulated collection](03SimulatedCollection.qmd), where the answer is known, and then on Mesa Verde and Hurricane Ridge, where it isn't.
 
 As any dendrochronologist will tell you, detrending is a dark art. I'll give you my opinions on it near the end. The one to take away now is that you choose a curve by deciding what you want the chronology to keep.
 
@@ -285,15 +285,10 @@ threeMethods <- c("Spline", "ModNegExp", "AgeDepSpline")
 
 The simulated collection knows its own age trends. `truth$age` holds the curve each core would have followed with nothing else going on, so dividing by it is the right answer, and every method can be scored against it.
 
-Three scores for each method: the correlation of its chronology with the true climate since 1800, the mean index in the 1870s for the cores that the 1880 event would hit, and the drop in the whole chronology from the 1870s to the 1880s.
+The score for each method is the correlation of its chronology with the true climate since 1800.
 
 ```{r}
 #| label: det-sim-table
-# which cores were standing in 1880, and which of those the event hit
-standing <- !is.na(simFixed["1880", ])
-hitCore <- sim$ids[names(simFixed), "tree"] %in% simTruth$event$trees
-hitCores <- names(simFixed)[standing & hitCore]
-
 # the right answer: widths divided by the true age trend
 simByTruth <- as.rwi(simFixed / trueAge)
 
@@ -306,49 +301,18 @@ simIndices[["Spline32"]] <- detrend(simFixed, method = "Spline", nyrs = 32)
 
 # score each set of indices
 since1800 <- as.character(1800:2025)
-seventies <- as.character(1870:1879)
-eighties <- as.character(1880:1889)
 simScores <- data.frame()
 for (m in names(simIndices)) {
   std <- chron(simIndices[[m]])[, "std"]
   names(std) <- rownames(simIndices[[m]])
-  hitStd <- chron(simIndices[[m]][, hitCores])
   simScores <- rbind(simScores, data.frame(
     method = m,
-    climate.r = round(cor(std[since1800], trueClimate[since1800]), 2),
-    hit.1870s = round(mean(hitStd[seventies, "std"]), 2),
-    drop.1880 = round(mean(std[eighties]) - mean(std[seventies]), 2)))
+    climate.r = round(cor(std[since1800], trueClimate[since1800]), 2)))
 }
 simScores
 ```
 
-The `hit.1870s` column looks at the decade before the stand event. Divided by their true age trends, the hit cores average `r sprintf("%.2f", simScores$hit.1870s[simScores$method == "truth"])` in the decade before the event, a perfectly ordinary decade. The default spline puts them at `r sprintf("%.2f", simScores$hit.1870s[simScores$method == "Spline"])`. Its curve for each of those cores bends down into the dip after 1880, which leaves it below the rings of the 1870s, and dividing by a curve that is too low makes a good decade out of nothing. `ModNegExp` can't bend, so it does better here.
-
-```{r}
-#| label: det-event
-#| fig-cap: "The cores the 1880 event hit, as a chronology, with indices made three ways. Dividing by the true age trend (solid) gives an ordinary 1870s. The default spline bends into the dip and lifts the years before it."
-eventYears <- as.character(1860:1910)
-# the chronology of the hit cores, made three ways, for ggplot
-eventData <- data.frame()
-for (m in c("truth", "Spline", "ModNegExp")) {
-  hitStd <- chron(simIndices[[m]][, hitCores])
-  eventData <- rbind(eventData,
-                     data.frame(year = as.numeric(eventYears), method = m,
-                                index = hitStd[eventYears, "std"]))
-}
-
-ggplot(eventData, aes(x = year, y = index, linetype = method)) +
-  geom_vline(xintercept = 1880, colour = "grey60") +
-  geom_hline(yintercept = 1, colour = "grey80") +
-  geom_line() +
-  scale_linetype_manual(values = c(truth = "solid", Spline = "dashed",
-                                   ModNegExp = "dotted")) +
-  labs(x = "Year", y = "Index", linetype = NULL) +
-  theme_minimal() +
-  theme(legend.position = "top")
-```
-
-Now look at the first column, and be suspicious of it. The 32-year spline and `Friedman` correlate better with the climate than the right answer does, and `Ar`, which is no curve at all, beats everything at `r sprintf("%.2f", simScores$climate.r[simScores$method == "Ar"])`. That's an artifact of the simulation. Its climate carries over a little from year to year (a lag-one autocorrelation of `r sprintf("%.2f", acf(trueClimate, plot = FALSE)$acf[2])`), but it has no swings lasting decades, and the trees' own memory of last year is stronger than the climate's. So nearly all the slow variation in the widths is something other than climate: the event, the competition some trees face, the trees' memory. A method that strips out everything slow loses a little climate and sheds a lot of noise. If that were how climate behaved, you'd prewhiten everything and stop reading here. Real climate has slow swings too, and the next section gives the trees some.
+Now look at those correlations, and be suspicious of them. The 32-year spline and `Friedman` correlate better with the climate than the right answer does, and `Ar`, which is no curve at all, beats everything at `r sprintf("%.2f", simScores$climate.r[simScores$method == "Ar"])`. That's an artifact of the simulation. Its climate carries over a little from year to year (a lag-one autocorrelation of `r sprintf("%.2f", acf(trueClimate, plot = FALSE)$acf[2])`), but it has no swings lasting decades, and the trees' own memory of last year is stronger than the climate's. So nearly all the slow variation in the widths is something other than climate: the event, the competition some trees face, the trees' memory. A method that strips out everything slow loses a little climate and sheds a lot of noise. If that were how climate behaved, you'd prewhiten everything and stop reading here. Real climate has slow swings too, and the next section gives the trees some.
 
 ## The Segment-Length Curse
 
@@ -491,14 +455,16 @@ Detrending in `dplR` divides by default. The reason is that the spread of ring w
 
 ```{r}
 #| label: det-spread
-#| fig-cap: "For each series (one point each), the rank correlation between the size of its departures from a spline and the height of the spline. Above zero, the spread grows with the level. Subtracting from raw widths leaves that in. Ratios and subtracting after powt take it out."
+#| warning: true
+#| fig-cap: "For each series (one point each), the rank correlation between the size of its departures from a spline and the height of the spline. Above zero, the spread grows with the level. Subtracting from raw widths leaves that in. Ratios take it out. Subtracting after powt takes out most of it at Hurricane Ridge and part of it at Mesa Verde."
 # For each series, how strongly the size of the departures from a spline
 # follows the height of the spline: a rank correlation, three ways.
-spreadCor <- function(rwl, collection) {
+# powtMethod picks powt's method; "cook" is the default.
+spreadCor <- function(rwl, collection, powtMethod = "cook") {
   ratio <- detrend(rwl, method = "Spline")
   curve <- rwl / ratio                       # the spline itself
   diffs <- detrend(rwl, method = "Spline", difference = TRUE)
-  transformed <- powt(rwl)
+  transformed <- powt(rwl, method = powtMethod)
   powtDiffs <- detrend(transformed, method = "Spline", difference = TRUE)
   powtCurve <- transformed - powtDiffs       # the spline on the new scale
   out <- data.frame()
@@ -536,13 +502,30 @@ ggplot(spreadLong, aes(x = way, y = r)) +
 ```{r}
 #| label: det-spread-numbers
 #| include: false
+# spell out zero through nine in the prose
+words <- function(n, cap = FALSE) {
+  out <- as.character(n)
+  small <- n %in% 0:9
+  out[small] <- c("zero", "one", "two", "three", "four", "five", "six",
+                  "seven", "eight", "nine")[n[small] + 1]
+  if (cap) substr(out, 1, 1) <- toupper(substr(out, 1, 1))
+  out
+}
+# one power per series with the default method
 coPower <- powt(co021, return.power = TRUE)$power
-waPower <- powt(wa082Filled, return.power = TRUE)$power
+waPower <- suppressWarnings(powt(wa082Filled, return.power = TRUE)$power)
+waLogged <- names(waPower)[waPower <= 0]     # series powt took logs of
+# the same diagnostic with one power for all series
+coSpreadU <- spreadCor(co021, "Mesa Verde", powtMethod = "universal")
+waSpreadU <- spreadCor(wa082Filled, "Hurricane Ridge", powtMethod = "universal")
+coPowerU <- powt(co021, method = "universal", return.power = TRUE)$power
 ```
 
-Subtracted from the raw widths, the departures grow with the curve. At Mesa Verde the median correlation is `r sprintf("%.2f", median(coSpread$subtracted))`, and it is above zero in `r sum(coSpread$subtracted > 0)` of `r nrow(coSpread)` series. At Hurricane Ridge it is `r sprintf("%.2f", median(waSpread$subtracted))`. Ratios take it out (medians of `r sprintf("%.2f", median(coSpread$ratio))` and `r sprintf("%.2f", median(waSpread$ratio))`), and so does subtracting after `powt` (`r sprintf("%.2f", median(coSpread$powt))` and `r sprintf("%.2f", median(waSpread$powt))`). Neither is perfect. Both leave some series below zero, where the spread now shrinks as the level rises, which means the correction overshot. The Cook Book warns that logs can do this [@Cook1990, p. 106], and dividing does much the same to the spread as taking logs. At Mesa Verde the ratios overshoot more than `powt` does, down to `r sprintf("%.2f", min(coSpread$ratio))` against `r sprintf("%.2f", min(coSpread$powt))`.
+Subtracted from the raw widths, the departures grow with the curve. At Mesa Verde the median correlation is `r sprintf("%.2f", median(coSpread$subtracted))`, and it is above zero in `r sum(coSpread$subtracted > 0)` of `r nrow(coSpread)` series. At Hurricane Ridge it is `r sprintf("%.2f", median(waSpread$subtracted))`. Ratios take it out (medians of `r sprintf("%.2f", median(coSpread$ratio))` and `r sprintf("%.2f", median(waSpread$ratio))`), and they overshoot a little. Some series end up below zero, where the spread now shrinks as the level rises. The Cook Book warns that logs can do this [@Cook1990, p. 106], and dividing does much the same to the spread as taking logs. Subtracting after `powt` does well at Hurricane Ridge, with a median of `r sprintf("%.2f", median(waSpread$powt))`. At Mesa Verde it takes out only part of the dependence. The median is still `r sprintf("%.2f", median(coSpread$powt))`, and `r sum(coSpread$powt > 0)` of `r nrow(coSpread)` series are above zero. There's more on why below, with `powt`'s two methods.
 
-So both work. Why have two? Cook and Peters showed that the ratio has a bias of its own [@CookPeters1997]. An index is the ring divided by the curve, so where the curve comes close to zero any lack of fit is magnified. The worst place is the end of a series, where a curve that is still falling meets rings that have stopped. Their example was the bristlecone pine at Campito Mountain, where ratios overstated the growth increase since 1900 by 23.6% on average [@CookPeters1997, p. 361]. Their fix is to stabilize the variance first and then subtract the curve, which is what `powt` followed by `detrend(..., difference = TRUE)` does. They point out that this is a return to something older. Huber and other European dendrochronologists took logs of their ring widths and subtracted, decades before the power transform [@CookPeters1997, p. 362].
+The warning from that chunk comes from `powt` at Hurricane Ridge. In `r words(length(waLogged))` series (`r paste(waLogged, collapse = ", ")`) the spread grows at least as fast as the level. No power can fix that, so `powt` took their logs.
+
+So both mostly work. Why have two? Cook and Peters showed that the ratio has a bias of its own [@CookPeters1997]. An index is the ring divided by the curve, so where the curve comes close to zero any lack of fit is magnified. The worst place is the end of a series, where a curve that is still falling meets rings that have stopped. Their example was the bristlecone pine at Campito Mountain, where ratios overstated the growth increase since 1900 by 23.6% on average [@CookPeters1997, p. 361]. Their fix is to stabilize the variance first and then subtract the curve, which is what `powt` followed by `detrend(..., difference = TRUE)` does. They point out that this is a return to something older. Huber and other European dendrochronologists took logs of their ring widths and subtracted, decades before the power transform [@CookPeters1997, p. 362].
 
 Here is the bias in our own data.
 
@@ -610,9 +593,9 @@ logCor <- cor(log(ratioChron$std), residChron$std)
 nZero <- sum(as.matrix(co021) == 0, na.rm = TRUE)
 ```
 
-A Pearson correlation of `r sprintf("%.2f", cor(ratioChron$std, residChron$std))` looks like disagreement, and the rank correlation of `r sprintf("%.2f", cor(ratioChron$std, residChron$std, method = "spearman"))` says it isn't about which years were good. It's about shape. `powt` picked a power of `r sprintf("%.2f", coPower)` for Mesa Verde, close to a log, and subtracting after a log is the same as taking the log of a ratio. Mesa Verde has `r nZero` absent rings and drought years in which the ratio chronology falls nearly to zero (`r sprintf("%.3f", min(ratioChron$std))` in `r lowYear`). A log stretches those years out and squeezes the wide ones, and the log of the ratio chronology correlates with the residual one at `r sprintf("%.2f", logCor)`. At Hurricane Ridge, with no zeros, the two chronologies correlate at `r sprintf("%.2f", waRR)`. Which shape you want depends on what you'll do with the chronology. A regression against climate assumes errors that are the same size at every level, which argues for the stabilized residuals.
+They agree closely, with a Pearson correlation of `r sprintf("%.2f", cor(ratioChron$std, residChron$std))` and a rank correlation of `r sprintf("%.2f", cor(ratioChron$std, residChron$std, method = "spearman"))`. What difference there is lies in the shape. `powt` picked powers from `r sprintf("%.2f", min(coPower))` to `r sprintf("%.2f", max(coPower))` at Mesa Verde, with a median of `r sprintf("%.2f", median(coPower))`. That is partway from leaving the widths alone (a power of 1) to taking their logs, and subtracting after a log is the same as taking the log of a ratio. Mesa Verde has `r nZero` absent rings and drought years in which the ratio chronology falls nearly to zero (`r sprintf("%.3f", min(ratioChron$std))` in `r lowYear`). Put both chronologies on the same mean and standard deviation, and the residual one goes further down in those years and less far up in the wide ones. A log does the same, more strongly. The residual chronology correlates with the ratio chronology at `r sprintf("%.2f", cor(ratioChron$std, residChron$std))` and with its log at `r sprintf("%.2f", logCor)`. At Hurricane Ridge, with no zeros, the two chronologies correlate at `r sprintf("%.2f", waRR)`. Which shape you want depends on what you'll do with the chronology. A regression against climate assumes errors that are the same size at every level, which argues for the stabilized residuals.
 
-`powt` has two methods. The default, `universal`, fits one power to all the series together while allowing for the year each pair of rings comes from, so the shared climate doesn't masquerade as a level effect. `method = "cook"` fits a power to each series separately, as Cook and Peters did.
+`powt` has two methods. The default, `method = "cook"`, fits a power to each series separately, as Cook and Peters did. `method = "universal"` fits one power to all the series together, with a term for the year each pair of rings comes from, so the shared climate doesn't masquerade as a level effect. It was the default until `dplR` 1.8.1. Its weakness is the single power. Trees differ in how strongly their spread follows their level, and where they do, one power leaves too much in some series and takes too much out of others. The year term helps at Mesa Verde. With `method = "universal"` every series gets a power of `r sprintf("%.2f", coPowerU)`, and the median correlation in the spread figure drops from `r sprintf("%.2f", median(coSpread$powt))` to `r sprintf("%.2f", median(coSpreadU$powt))`. Climate moves the level and the spread of neighboring rings together, and a fit to one series at a time can't easily separate them. At Hurricane Ridge the two methods come out close (`r sprintf("%.2f", median(waSpread$powt))` and `r sprintf("%.2f", median(waSpreadU$powt))`). Which to use is a judgment call. I'd run both and draw the spread figure for each.
 
 ## Looking at the Indices
 
@@ -659,7 +642,7 @@ Three more ways to standardize have chapters of their own: `rcs` in [Regional Cu
 
 Detrending turns ring widths into ring-width indices, and that is what lets you average trees into a chronology: each ring becomes a departure from its own tree's expected growth, so fast and slow trees, young and old rings, count the same. Detrending is good at taking a tree's own trend out of its rings and leaving the year-to-year departures, which every method in this chapter recovered equally well in the simulation. It is bad at anything as long as the series themselves. A curve fitted to one tree can't tell a slow climate swing from aging, competition or a stand event, and it takes some of each. The simulation also showed that a test against a climate with no slow swings rewards the methods that strip out the most, so be wary of choosing a method by how well its chronology correlates with climate.
 
-Ratios are the default and usually fine. Where a curve gets close to zero they blow up, and `summary` now tells you where. Stabilized residuals after `powt` avoid the bias and give the chronology a different shape, close to a log.
+Ratios are the default and usually fine. Where a curve gets close to zero they blow up, and `summary` now tells you where. Stabilized residuals after `powt` avoid the bias and give the chronology a somewhat different shape, partway to a log.
 
 [Chronology Statistics](10ChronologyStats.qmd) takes these indices and asks how well the trees agree: rbar, EPS and how they change through time.
 

@@ -34,7 +34,7 @@ Cook's model is a good conceptual start, and we added a few wrinkles to it. Each
 
 - We split the noise. Cook has a single $E_t$. Here $T_{it}$ belongs to a tree and $E_{ijt}$ to one core. In most collections, two cores from one tree agree better than two trees do, and without the split they wouldn't. The difference between agreement within trees and between trees is what [Chronology Statistics](10ChronologyStats.qmd) measures, and it is why averaging cores into trees with `treeMean` in [Chronology Building](11Chronologies.qmd) does anything.
 - We gave the noise a memory. Cook's climate term already carries the persistence the trees share, from the weather and from what he called physiological preconditioning [@cook1985, p. 23], but he assumes his $E_t$ is uncorrelated from year to year. Here climate and noise go through the tree's memory together, $M_{ijt}$, so a tree's own good and bad runs carry over too, because ring widths carry over from year to year for biological reasons, like stored carbon and needles kept from a good year. Prewhitening in [Crossdating](06Crossdating.qmd) and the residual chronology in [Memory and Cycles](15MemoryCycles.qmd) exist to deal with that memory, so the collection needs some.
-- We let the stand event miss some trees. Cook's $D2_t$ has no $i$ because it hits every tree. Ours hits about half of them, so it gets one. His first version of the model left room for that, with the pulse in "virtually all affected trees" [@cook1985, p. 32]. Disturbances in the field are often patchy, and an event that hit every tree would look just like a climate year. Knowing which trees were hit is how [Detrending](09Detrending.qmd) shows what a curve does to an event.
+- We let the stand event miss some trees. Cook's $D2_t$ has no $i$ because it hits every tree. Ours hits about half of them, so it gets one. His first version of the model left room for that, with the pulse in "virtually all affected trees" [@cook1985, p. 32]. Disturbances in the field are often patchy, and an event that hit every tree would look just like a climate year.
 
 We also took one shortcut. Cook treats a disturbance as a shock that passes through the tree's memory the way a climate year does. Here each disturbance is added after the memory as a fixed pulse, so its shape is simple and easy to read off the truth. A release in a tree would echo through its memory, and this one doesn't. The rest follows Cook. The log scale, a climate with a little memory of its own, and an age trend that wanders in a closed stand are all his suggestions, written as code.
 
@@ -156,11 +156,14 @@ hidden
 nStanding <- sum(simTruth$pith$pith < simTruth$event$year)
 nHit <- length(simTruth$event$trees)
 nCrowded <- length(simTruth$competition)
+# what else is planted in the tree with the dating error
+errorOdd <- c("crowded", "hit by the event")[c(hidden$crowded[errorTree], hidden$event[errorTree])]
+errorOdd <- if (length(errorOdd) == 0) "" else paste(errorOdd, collapse = " and ")
 ```
 
-`r words(nCrowded, cap = TRUE)` of the trees are crowded. The `r simTruth$event$year` event hits `r words(nHit)` of the `r nStanding` trees standing at the time and spares the rest. Cook's stand disturbance hits every tree, and hitting about half of them keeps it visible as something other than climate. The release is in tree `r simTruth$release$tree` in `r simTruth$release$year`. And the `r simTruth$errors$year` ring is missing from `r simTruth$errors$series`. Tree `r errorTree` is also crowded and hit by the event, so that core will look odd in more than one way.
+`r words(nCrowded, cap = TRUE)` of the trees are crowded. The `r simTruth$event$year` event hits `r words(nHit)` of the `r nStanding` trees standing at the time and spares the rest. Cook's stand disturbance hits every tree, and hitting about half of them keeps it visible as something other than climate. The release is in tree `r simTruth$release$tree` in `r simTruth$release$year`. And the `r simTruth$errors$year` ring is missing from `r simTruth$errors$series`. Tree `r errorTree` is also `r errorOdd`, so that core will look odd in more than one way.
 
-The later chapters find these with the methods meant for them. The missing ring is for [Crossdating](06Crossdating.qmd) and [Fixing Errors](07FixingErrors.qmd). The crowded trees and the event are for [Detrending](09Detrending.qmd), and the event comes back in [Chronology Building](11Chronologies.qmd). The release waits for the disturbance chapters.
+The later chapters find these with the methods meant for them. The missing ring is for [Crossdating](06Crossdating.qmd) and [Fixing Errors](07FixingErrors.qmd). The crowded trees are for [Detrending](09Detrending.qmd). The release and the event wait for the disturbance chapters.
 
 ## Measured and True
 

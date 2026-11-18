@@ -67,6 +67,8 @@ In a closed canopy, Cook argued, $A_t$ has no predictable shape at all [@Cook199
 
 There is one climate series affecting every tree. By default it is random numbers with a little memory so that each year keeps `climate.phi = 0.3` of the year before, on top of its own new shock. You can hand the function a climate series instead, through `climate`, as a numeric vector named by year that covers every year from the oldest pith to `end.year`. The function rescales it to the size it needs and keeps its shape, and it ignores `climate.phi`. [Detrending](09Detrending.qmd) does this to give the site slow swings in climate. `sim$truth$climate` is the series as it went into the trees, on the log scale and before the trees' memory.
 
+Rescaling has a side effect when the climate you pass has slow swings in it. The whole series is brought to one size, the one `rbar.bt` asks for, so a slow swing takes part of that size from the year-to-year climate. In a test with a 100-year sine wave and red noise of equal size, the year-to-year part shrank from 0.137 to 0.098 on the log scale, and the trees' agreement after a 20-year spline fell from 0.42 to 0.28, with `rbar.bt` at 0.4 both times. That is fine when you want a real climate's own mix of fast and slow. When you want to set the slow part's size yourself, pass it separately as `climate.slow`, a numeric vector named by year on the log scale, such as a wave or a trend. It is added after the rescaling and after the trees' memory, so it comes out at exactly the size you give, and `rbar.bt`, `rbar.wt` and `sd.hf` describe the year-to-year climate alone. Each tree feels it through its sensitivity, as it does the rest of the climate. With a 0.15 wave added this way, agreement after a 20-year spline stayed at 0.42. If you want to split a real series yourself, a spline does it (the smooth goes in `climate.slow`, the rest in `climate`), but where you cut is your choice. It makes no random draws, so the rest of the collection is the same as without it. `sim$truth$climate$slow` holds it, all zeros by default.
+
 By default every tree feels the climate with the same strength, as in Cook's model. `sens.sdlog` gives each tree its own sensitivity instead, a multiplier on the climate drawn from a lognormal distribution and scaled so that its mean square is 1. Sensitive trees swing more and follow the climate more closely, and complacent ones swing less. Trees that differ in sensitivity also agree with each other less, so the between-tree correlation falls under `rbar.bt`. On the true fast part, averaged over 200 collections, it went from about 0.50 with `sens.sdlog = 0` to 0.44 at 0.3 and 0.32 at 0.6. Each tree's multiplier comes back in `sim$truth$sensitivity`.
 
 ### Noise, $T_{it}$ and $E_{ijt}$
@@ -79,7 +81,9 @@ Climate and both kinds of noise go through an AR(1) filter that carries `phi = 0
 
 ### Disturbance, $D1_{it}$ and $D2_{it}$
 
-Both disturbances are a pulse, a jump of `size` on the log scale in one year, which then decays exponentially and falls by a factor of $e$ every `decay` years. `release` is $D1_{it}$ in one tree. By default tree 10 doubles its growth in 1950 (`size = log(2)`), and the boost fades over decades (`decay = 25`). `event` is $D2_{it}$. By default, in 1880, half the trees standing at the time (`frac = 0.5`) have their growth halved (`size = -log(2)`), and they recover over a decade or so (`decay = 8`). Which trees it hits is drawn at random, and `sim$truth$event$trees` lists them by number.
+By default both disturbances are a pulse, a jump of `size` on the log scale in one year, which then decays exponentially and falls by a factor of $e$ every `decay` years. `release` is $D1_{it}$ in one tree. By default tree 10 doubles its growth in 1950 (`size = log(2)`), and the boost fades over decades (`decay = 25`). `event` is $D2_{it}$. By default, in 1880, half the trees standing at the time (`frac = 0.5`) have their growth halved (`size = -log(2)`), and they recover over a decade or so (`decay = 8`). Which trees it hits is drawn at random, and `sim$truth$event$trees` lists them by number. That draw is kept apart from the rest, so for a given `seed` the climate, the age trends and the noise are the same with or without an event and whatever its `frac`. A larger `frac` hits the same trees as a smaller one, plus more.
+
+A pulse that jumps in one year suits a sudden hit, such as a fire or a drought. A release after a thinning builds instead, as the remaining trees grow into the space. `event` takes an optional `ramp`, the number of years the pulse takes to build. With `ramp` above zero the pulse rises as $1 - e^{-t/\text{ramp}}$, peaks and then decays, and it is scaled so that its peak is still `size`. The peak comes `ramp` × log(1 + `decay` / `ramp`) years after `year`. For example, `event = list(year = 1960, frac = 1, size = log(1.5), decay = 25, ramp = 4)` gives every standing tree a release that peaks at 1.5 times its growth about 8 years after 1960 and fades over the following decades. Leaving `ramp` out, or setting it to 0, keeps the jump. It makes no random draws, so the rest of the collection is unchanged.
 
 Cook defines $D2_t$ by its turning up in every tree [@Cook1990model, p. 102]. His dissertation puts it in "virtually all affected trees" [@cook1985, p. 32], which leaves room for an event that misses some. It has an $i$ here because it hits about half the trees. Hitting half the trees keeps the event visible as something other than climate, and knowing which trees were hit is how [Detrending](09Detrending.qmd) shows what a curve does to an event. `frac = 1` gives Cook's version.
 
@@ -165,9 +169,9 @@ So `rwi.stats` reports a few hundredths under the targets before any method has 
 | `ids` | The tree and core number of each series. |
 | `truth$rwl` | The widths as the trees grew them, before any dating errors, from the oldest pith. Class `rwl`. |
 | `truth$age` | $A_{it}$ for each core in mm, competition included. |
-| `truth$memory.noise` | $M_{ijt}$ for each core: climate and noise after the tree's memory, on the log scale. |
+| `truth$memory.noise` | $M_{ijt}$ for each core: climate and noise after the tree's memory, on the log scale. It includes `climate.slow`, which is added after the memory. |
 | `truth$disturbance` | $D1_{it} + D2_{it}$ for each core, on the log scale. |
-| `truth$climate` | A data frame of year and $C_t$, the climate as it went into the trees, on the log scale. |
+| `truth$climate` | A data frame of year, $C_t$ (`climate`), the climate as it went into the trees, and `slow`, the slow climate from `climate.slow` (zeros if not given), both on the log scale. |
 | `truth$release` | The release as given: tree, year, size and decay. |
 | `truth$event` | The event as given, plus `trees`, the numbers of the trees it hit. |
 | `truth$errors` | The dating errors as given. |
@@ -189,11 +193,13 @@ The parts multiply back into the widths. `truth$age * exp(truth$memory.noise + t
 | `age.range` | `c(120, 380)` | Ages of the youngest and oldest trees. |
 | `rbar.bt` | `0.4` | Target correlation between trees, the climate's share of $M_{ijt}$. |
 | `rbar.wt` | `0.6` | Target correlation between cores of one tree, the share of climate and tree noise. |
-| `sd.hf` | `0.25` | Standard deviation of $M_{ijt}$ on the log scale. |
+| `sd.hf` | `0.25` | Standard deviation of $M_{ijt}$ on the log scale, not counting `climate.slow`. |
 | `phi` | `0.5` | The tree's memory, the AR(1) coefficient on climate and noise. |
 | `climate` | `NULL` | A climate series named by year. `NULL` draws one. |
 | `climate.phi` | `0.3` | Memory in the drawn climate. Ignored when you pass `climate`. |
+| `climate.slow` | `NULL` | A slow climate series named by year, on the log scale, added at exactly that size after the rescaling and the trees' memory. `NULL` adds none. |
 | `sens.sdlog` | `0` | How much the trees' sensitivity to climate varies. `0` gives every tree the same. |
+| `noise.df` | `Inf` | Degrees of freedom for each core's own noise. `Inf` draws it from a normal distribution; a finite value above 2 draws it from a t distribution at the same standard deviation, with heavier tails. |
 | `bai` | `600` | Basal area added each year by a typical tree, in mm². |
 | `bai.sdlog` | `0.4` | How much growth rates vary from tree to tree. |
 | `juv` | `25` | How quickly a young tree ramps up to its growth rate, in years. |
@@ -205,7 +211,7 @@ The parts multiply back into the widths. `truth$age * exp(truth$memory.noise + t
 | `pith.miss` | `5` | Mean number of rings by which a core misses the pith. |
 | `dead` | `NULL` | Dead trees. `frac` is the share of trees that died and `span` how many years before `end.year` they could have died. `NULL` keeps every tree alive. |
 | `release` | `list(tree = 10, year = 1950, size = log(2), decay = 25)` | $D1_{it}$ in one tree. `NULL` turns it off. |
-| `event` | `list(year = 1880, frac = 0.5, size = -log(2), decay = 8)` | $D2_{it}$ in some of the trees. `NULL` turns it off. |
+| `event` | `list(year = 1880, frac = 0.5, size = -log(2), decay = 8)` | $D2_{it}$ in some of the trees. An optional `ramp` (years, default 0) makes it build instead of jumping. `NULL` turns it off. |
 | `errors` | `data.frame(series = "SIM03A", year = 1800, type = "missing")` | Dating errors to plant. `NULL` plants none. |
 | `site` | `"SIM"` | The site code at the start of each series name. |
 | `digits` | `2` | Decimal places the widths are rounded to. |
@@ -234,7 +240,7 @@ errs <- data.frame(series = c("SIM03A", "SIM03A", "SIM07B"),
 messy <- sim.collection(seed = 1, errors = errs)
 ```
 
-The seed fixes every random draw, so the same call gives the same collection every time. Arguments that only set a size, like `rbar.bt`, `sd.hf`, `compete` or `climate.phi`, scale the same draws, so `weak` is the default collection with its agreement turned down. Arguments that change what gets drawn shift every draw after them. `sens.sdlog` above zero is one of those, so a collection with varied sensitivity has different noise and crowded trees from the default collection with the same seed. `dead` changes the years the collection covers, so it changes every draw after it, the climate included. `bai.age` uses the same draw for the growth rates and moves nothing else. `bai.trend` is drawn after everything else, so turning it on changes the age trends and leaves the climate, the noise and the crowded trees as they were. Turning the event off keeps the climate and the noise but picks different crowded trees, and passing your own climate gives you different trees altogether.
+The seed fixes every random draw, so the same call gives the same collection every time. Arguments that only set a size, like `rbar.bt`, `sd.hf`, `compete` or `climate.phi`, scale the same draws, so `weak` is the default collection with its agreement turned down. Arguments that change what gets drawn shift every draw after them. `sens.sdlog` above zero is one of those, so a collection with varied sensitivity has different noise and crowded trees from the default collection with the same seed. A finite `noise.df` uses the random numbers differently from the normal draws, so it changes every core's noise after the first and the crowded trees too, while the climate and the tree noise stay. `dead` changes the years the collection covers, so it changes every draw after it, the climate included. `bai.age` uses the same draw for the growth rates and moves nothing else. `bai.trend` is drawn after everything else, so turning it on changes the age trends and leaves the climate, the noise and the crowded trees as they were. Turning the event off keeps the climate and the noise but picks different crowded trees, and passing your own climate gives you different trees altogether.
 
 ## What It Leaves Out
 
@@ -247,4 +253,5 @@ The seed fixes every random draw, so the same call gives the same collection eve
 - The simulated trees are all there is. There is no stand around them to choose them from, so the simulation can't show what picking trees by age, size or looks does to a collection.
 - Rings go missing only where you plant the errors. A narrow ring always forms all the way around.
 - The only measurement error is the rounding.
+- Each core's own noise is normal by default, so a ring far off its neighbors almost never turns up. Real cores have more of them: in ITRDB collections about 1 in 100 differences between two cores of a tree lies beyond 3 standard deviations, four times what a normal distribution gives. `noise.df = 4` comes close. Narrow rings still don't pile up the way they do in real series, which lean toward narrow years.
 - There is one climate, felt with the same strength in every tree unless you set `sens.sdlog`, with no swing slower than its own memory unless you pass one in.
